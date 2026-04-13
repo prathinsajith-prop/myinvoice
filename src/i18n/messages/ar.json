@@ -1,0 +1,389 @@
+{
+  "common": {
+    "appName": "myinvoice.ae",
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "success": "تم بنجاح",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "view": "عرض",
+    "create": "إنشاء",
+    "add": "إضافة",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "download": "تحميل",
+    "upload": "رفع",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "yes": "نعم",
+    "no": "لا",
+    "confirm": "تأكيد",
+    "close": "إغلاق",
+    "submit": "إرسال",
+    "reset": "إعادة تعيين",
+    "clear": "مسح",
+    "all": "الكل",
+    "none": "لا شيء",
+    "select": "اختر",
+    "required": "مطلوب",
+    "optional": "اختياري",
+    "or": "أو",
+    "and": "و"
+  },
+  "currency": {
+    "aed": "درهم",
+    "usd": "دولار",
+    "eur": "يورو"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "register": "إنشاء حساب",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "name": "الاسم الكامل",
+    "rememberMe": "تذكرني",
+    "noAccount": "ليس لديك حساب؟",
+    "hasAccount": "لديك حساب بالفعل؟",
+    "signInWith": "تسجيل الدخول باستخدام {provider}",
+    "continueWith": "المتابعة باستخدام {provider}",
+    "orContinueWith": "أو المتابعة باستخدام",
+    "verifyEmail": "تحقق من بريدك الإلكتروني",
+    "checkEmail": "تحقق من بريدك الإلكتروني للحصول على رابط التحقق",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+    "accountExists": "يوجد حساب بهذا البريد الإلكتروني بالفعل",
+    "passwordsMismatch": "كلمات المرور غير متطابقة",
+    "weakPassword": "كلمة المرور ضعيفة جداً",
+    "twoFactor": {
+      "title": "المصادقة الثنائية",
+      "enable": "تفعيل المصادقة الثنائية",
+      "disable": "إلغاء المصادقة الثنائية",
+      "enterCode": "أدخل رمز التحقق",
+      "scanQr": "امسح رمز QR باستخدام تطبيق المصادقة",
+      "backupCodes": "رموز الاحتياط",
+      "saveBackupCodes": "احفظ هذه الرموز في مكان آمن"
+    }
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "invoices": "الفواتير",
+    "quotes": "عروض الأسعار",
+    "customers": "العملاء",
+    "suppliers": "الموردون",
+    "products": "المنتجات والخدمات",
+    "bills": "الفواتير المستحقة",
+    "expenses": "المصروفات",
+    "reports": "التقارير",
+    "settings": "الإعدادات",
+    "help": "المساعدة والدعم"
+  },
+  "dashboard": {
+    "welcome": "مرحباً بعودتك، {name}",
+    "overview": "نظرة عامة",
+    "quickActions": "إجراءات سريعة",
+    "recentActivity": "النشاط الأخير",
+    "createInvoice": "إنشاء فاتورة",
+    "createQuote": "إنشاء عرض سعر",
+    "addCustomer": "إضافة عميل",
+    "addBill": "إضافة فاتورة مستحقة",
+    "revenue": {
+      "title": "الإيرادات",
+      "thisMonth": "هذا الشهر",
+      "lastMonth": "الشهر الماضي",
+      "change": "{change}% مقارنة بالشهر الماضي"
+    },
+    "receivables": {
+      "title": "المستحقات",
+      "overdue": "متأخرة",
+      "dueThisWeek": "مستحقة هذا الأسبوع"
+    },
+    "payables": {
+      "title": "المدفوعات المستحقة",
+      "overdue": "متأخرة",
+      "dueThisWeek": "مستحقة هذا الأسبوع"
+    }
+  },
+  "invoices": {
+    "title": "الفواتير",
+    "invoice": "فاتورة",
+    "newInvoice": "فاتورة جديدة",
+    "editInvoice": "تعديل الفاتورة",
+    "invoiceNumber": "رقم الفاتورة",
+    "issueDate": "تاريخ الإصدار",
+    "dueDate": "تاريخ الاستحقاق",
+    "status": {
+      "draft": "مسودة",
+      "sent": "مرسلة",
+      "viewed": "تم الاطلاع",
+      "paid": "مدفوعة",
+      "partiallyPaid": "مدفوعة جزئياً",
+      "overdue": "متأخرة",
+      "cancelled": "ملغاة"
+    },
+    "customer": "العميل",
+    "items": "البنود",
+    "addItem": "إضافة بند",
+    "subtotal": "المجموع الفرعي",
+    "vat": "ضريبة القيمة المضافة ({rate}%)",
+    "discount": "الخصم",
+    "total": "الإجمالي",
+    "amountDue": "المبلغ المستحق",
+    "amountPaid": "المبلغ المدفوع",
+    "balance": "الرصيد",
+    "notes": "ملاحظات",
+    "terms": "الشروط والأحكام",
+    "send": "إرسال الفاتورة",
+    "markPaid": "تحديد كمدفوعة",
+    "recordPayment": "تسجيل دفعة",
+    "duplicate": "نسخ",
+    "void": "إلغاء الفاتورة",
+    "downloadPdf": "تحميل PDF",
+    "shareLink": "مشاركة الرابط",
+    "shareWhatsapp": "مشاركة عبر واتساب"
+  },
+  "quotes": {
+    "title": "عروض الأسعار",
+    "quote": "عرض سعر",
+    "newQuote": "عرض سعر جديد",
+    "editQuote": "تعديل عرض السعر",
+    "quoteNumber": "رقم عرض السعر",
+    "validUntil": "صالح حتى",
+    "status": {
+      "draft": "مسودة",
+      "sent": "مرسل",
+      "accepted": "مقبول",
+      "rejected": "مرفوض",
+      "expired": "منتهي الصلاحية",
+      "converted": "تم تحويله إلى فاتورة"
+    },
+    "convertToInvoice": "تحويل إلى فاتورة",
+    "accept": "قبول",
+    "reject": "رفض"
+  },
+  "customers": {
+    "title": "العملاء",
+    "customer": "عميل",
+    "newCustomer": "عميل جديد",
+    "editCustomer": "تعديل العميل",
+    "companyName": "اسم الشركة",
+    "contactPerson": "جهة الاتصال",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "trn": "الرقم الضريبي (TRN)",
+    "address": "العنوان",
+    "billingAddress": "عنوان الفواتير",
+    "shippingAddress": "عنوان الشحن",
+    "creditLimit": "حد الائتمان",
+    "paymentTerms": "شروط الدفع",
+    "notes": "ملاحظات",
+    "balance": "الرصيد المستحق",
+    "totalRevenue": "إجمالي الإيرادات"
+  },
+  "suppliers": {
+    "title": "الموردون",
+    "supplier": "مورد",
+    "newSupplier": "مورد جديد",
+    "editSupplier": "تعديل المورد",
+    "bankDetails": "التفاصيل البنكية",
+    "bankName": "اسم البنك",
+    "accountNumber": "رقم الحساب",
+    "iban": "رقم الآيبان",
+    "swift": "رمز السويفت"
+  },
+  "products": {
+    "title": "المنتجات والخدمات",
+    "product": "منتج",
+    "service": "خدمة",
+    "newProduct": "منتج جديد",
+    "newService": "خدمة جديدة",
+    "editProduct": "تعديل المنتج",
+    "name": "الاسم",
+    "description": "الوصف",
+    "sku": "رمز المنتج",
+    "unitPrice": "سعر الوحدة",
+    "unit": "الوحدة",
+    "vatRate": "نسبة الضريبة",
+    "vatExempt": "معفى من الضريبة",
+    "type": "النوع"
+  },
+  "bills": {
+    "title": "الفواتير المستحقة",
+    "bill": "فاتورة مستحقة",
+    "newBill": "فاتورة جديدة",
+    "uploadBill": "رفع فاتورة",
+    "editBill": "تعديل الفاتورة",
+    "billNumber": "رقم الفاتورة",
+    "supplier": "المورد",
+    "status": {
+      "draft": "مسودة",
+      "pending": "قيد الانتظار",
+      "partiallyPaid": "مدفوعة جزئياً",
+      "paid": "مدفوعة",
+      "overdue": "متأخرة"
+    },
+    "paymentPlan": "خطة الدفع",
+    "schedulePayments": "جدولة المدفوعات",
+    "recordPayment": "تسجيل دفعة"
+  },
+  "expenses": {
+    "title": "المصروفات",
+    "expense": "مصروف",
+    "newExpense": "مصروف جديد",
+    "category": "الفئة",
+    "categories": {
+      "rent": "إيجار",
+      "utilities": "خدمات",
+      "travel": "سفر",
+      "supplies": "مستلزمات مكتبية",
+      "marketing": "تسويق",
+      "software": "برمجيات",
+      "other": "أخرى"
+    },
+    "receipt": "إيصال",
+    "uploadReceipt": "رفع إيصال"
+  },
+  "reports": {
+    "title": "التقارير",
+    "generate": "إنشاء تقرير",
+    "export": "تصدير التقرير",
+    "dateRange": "الفترة الزمنية",
+    "types": {
+      "invoiceAging": "تقادم الفواتير",
+      "billAging": "تقادم المستحقات",
+      "customerStatement": "كشف حساب العميل",
+      "supplierStatement": "كشف حساب المورد",
+      "vatSummary": "ملخص الضريبة",
+      "revenue": "تقرير الإيرادات",
+      "expenses": "تقرير المصروفات",
+      "profitLoss": "الأرباح والخسائر",
+      "cashFlow": "التدفق النقدي"
+    }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "organization": {
+      "title": "المؤسسة",
+      "name": "اسم المؤسسة",
+      "trn": "الرقم الضريبي (TRN)",
+      "tradeLicense": "رقم الرخصة التجارية",
+      "logo": "الشعار",
+      "uploadLogo": "رفع الشعار"
+    },
+    "address": {
+      "title": "عنوان العمل",
+      "line1": "العنوان - السطر الأول",
+      "line2": "العنوان - السطر الثاني",
+      "city": "المدينة",
+      "emirate": "الإمارة",
+      "country": "الدولة",
+      "postalCode": "الرمز البريدي"
+    },
+    "invoicing": {
+      "title": "إعدادات الفواتير",
+      "prefix": "بادئة الفاتورة",
+      "nextNumber": "رقم الفاتورة التالي",
+      "defaultPaymentTerms": "شروط الدفع الافتراضية",
+      "defaultNotes": "الملاحظات الافتراضية",
+      "defaultTerms": "الشروط والأحكام الافتراضية"
+    },
+    "tax": {
+      "title": "إعدادات الضريبة",
+      "defaultVatRate": "نسبة الضريبة الافتراضية",
+      "showVatBreakdown": "عرض تفاصيل الضريبة"
+    },
+    "branding": {
+      "title": "الهوية البصرية",
+      "primaryColor": "اللون الرئيسي",
+      "invoiceTemplate": "قالب الفاتورة"
+    },
+    "team": {
+      "title": "أعضاء الفريق",
+      "invite": "دعوة عضو",
+      "role": "الدور",
+      "roles": {
+        "owner": "المالك",
+        "admin": "مدير",
+        "accountant": "محاسب",
+        "member": "عضو",
+        "viewer": "مشاهد"
+      },
+      "pending": "قيد الانتظار",
+      "remove": "إزالة العضو"
+    },
+    "billing": {
+      "title": "الفواتير والاشتراك",
+      "currentPlan": "الخطة الحالية",
+      "upgrade": "ترقية الخطة",
+      "manageBilling": "إدارة الفواتير"
+    },
+    "security": {
+      "title": "الأمان",
+      "changePassword": "تغيير كلمة المرور",
+      "twoFactor": "المصادقة الثنائية",
+      "sessions": "الجلسات النشطة",
+      "auditLog": "سجل التدقيق"
+    }
+  },
+  "onboarding": {
+    "title": "مرحباً بك في myinvoice.ae",
+    "subtitle": "لنقم بإعداد عملك",
+    "steps": {
+      "business": "معلومات العمل",
+      "tax": "التفاصيل الضريبية",
+      "branding": "الهوية البصرية",
+      "complete": "تم!"
+    },
+    "businessInfo": {
+      "title": "أخبرنا عن عملك",
+      "description": "ستظهر هذه المعلومات على فواتيرك"
+    },
+    "taxDetails": {
+      "title": "التسجيل الضريبي",
+      "description": "أدخل الرقم الضريبي الإماراتي للامتثال لضريبة القيمة المضافة",
+      "trnHelp": "الرقم الضريبي المكون من 15 رقماً الصادر من الهيئة الاتحادية للضرائب"
+    },
+    "branding": {
+      "title": "خصص فواتيرك",
+      "description": "ارفع شعارك واختر ألوان علامتك التجارية"
+    },
+    "complete": {
+      "title": "أنت جاهز!",
+      "description": "ابدأ بإنشاء فواتير احترافية لعملك في الإمارات",
+      "createFirst": "أنشئ فاتورتك الأولى"
+    }
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "email": "يرجى إدخال بريد إلكتروني صحيح",
+    "minLength": "يجب أن يكون {min} أحرف على الأقل",
+    "maxLength": "يجب ألا يتجاوز {max} حرفاً",
+    "trn": "الرقم الضريبي يجب أن يكون 15 رقماً",
+    "phone": "يرجى إدخال رقم هاتف صحيح",
+    "positiveNumber": "يجب أن يكون رقماً موجباً",
+    "invalidDate": "يرجى إدخال تاريخ صحيح"
+  },
+  "errors": {
+    "notFound": "غير موجود",
+    "notFoundDescription": "الصفحة التي تبحث عنها غير موجودة",
+    "unauthorized": "غير مصرح",
+    "unauthorizedDescription": "ليس لديك صلاحية للوصول إلى هذه الصفحة",
+    "serverError": "خطأ في الخادم",
+    "serverErrorDescription": "حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقاً",
+    "networkError": "خطأ في الشبكة",
+    "networkErrorDescription": "يرجى التحقق من اتصالك بالإنترنت"
+  },
+  "footer": {
+    "copyright": "© {year} myinvoice.ae. جميع الحقوق محفوظة.",
+    "terms": "شروط الخدمة",
+    "privacy": "سياسة الخصوصية",
+    "contact": "اتصل بنا"
+  }
+}

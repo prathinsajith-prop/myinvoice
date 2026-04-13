@@ -1,0 +1,417 @@
+// myinvoice.ae - UAE E-Invoicing Platform
+// Multi-tenant Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// AUTHENTICATION & USERS (Global - not tenant-scoped)
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // For email/password auth
+  phone         String?
+  
+  // 2FA
+  twoFactorEnabled Boolean   @default(false)
+  twoFactorSecret  String?
+  backupCodes      String[]  // Encrypted backup codes
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLoginAt DateTime?
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  memberships   OrganizationMembership[]
+  notifications Notification[]
+  
+  // Notification preferences
+  emailNotifications     Boolean @default(true)
+  pushNotifications      Boolean @default(true)
+  invoiceNotifications   Boolean @default(true)
+  paymentNotifications   Boolean @default(true)
+  reminderNotifications  Boolean @default(true)
+  marketingNotifications Boolean @default(false)
+  
+  @@index([email])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  
+  // Content
+  title     String
+  message   String
+  type      NotificationType @default(GENERAL)
+  
+  // Link to related entity
+  entityType String?  // Invoice, Customer, Payment, etc.
+  entityId   String?
+  actionUrl  String?  // URL to navigate to
+  
+  // Status
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  expiresAt DateTime? // Auto-delete after this date
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  GENERAL
+  INVOICE_CREATED
+  INVOICE_SENT
+  INVOICE_VIEWED
+  INVOICE_PAID
+  INVOICE_OVERDUE
+  PAYMENT_RECEIVED
+  PAYMENT_REMINDER
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  CUSTOMER_ADDED
+  TEAM_INVITE
+  SYSTEM_UPDATE
+  SECURITY_ALERT
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  // Session metadata
+  userAgent    String?
+  ipAddress    String?
+  deviceInfo   String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+}
+
+// ============================================
+// MULTI-TENANT ORGANIZATION STRUCTURE
+// ============================================
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique // For subdomain: {slug}.myinvoice.ae
+  
+  // UAE Business Info
+  trn         String?  // Tax Registration Number (15 digits)
+  tradeLicense String?
+  
+  // Contact Info
+  email       String?
+  phone       String?
+  website     String?
+  
+  // Address
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  emirate      String?  // Dubai, Abu Dhabi, etc.
+  country      String   @default("AE")
+  postalCode   String?
+  
+  // Branding
+  logo        String?
+  primaryColor String?
+  
+  // Settings
+  defaultCurrency   String @default("AED")
+  fiscalYearStart   Int    @default(1) // Month (1-12)
+  invoicePrefix     String @default("INV")
+  quotePrefix       String @default("QT")
+  defaultPaymentTerms Int  @default(30) // Days
+  
+  // Subscription
+  plan         SubscriptionPlan @default(FREE)
+  planExpiresAt DateTime?
+  stripeCustomerId String?
+  
+  // Status
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  memberships  OrganizationMembership[]
+  customers    Customer[]
+  suppliers    Supplier[]
+  products     Product[]
+  
+  // Audit
+  auditLogs    AuditLog[]
+  
+  @@index([slug])
+  @@index([trn])
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model OrganizationMembership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MemberRole @default(MEMBER)
+  
+  // Invitation flow
+  invitedEmail   String?
+  invitedAt      DateTime?
+  acceptedAt     DateTime?
+  invitedBy      String?   // userId who invited
+  
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum MemberRole {
+  OWNER      // Full access, can delete org
+  ADMIN      // Full access except org deletion
+  ACCOUNTANT // Financial access, can create/edit invoices
+  MEMBER     // View + limited edit
+  VIEWER     // Read-only access
+}
+
+// ============================================
+// TENANT-SCOPED: CUSTOMERS & SUPPLIERS
+// ============================================
+
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  
+  // Basic Info
+  name           String
+  email          String?
+  phone          String?
+  contactPerson  String?
+  
+  // UAE Tax Info
+  trn            String?  // Customer's TRN
+  
+  // Billing Address
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  emirate        String?
+  country        String   @default("AE")
+  postalCode     String?
+  
+  // Shipping Address (if different)
+  shippingAddressLine1 String?
+  shippingAddressLine2 String?
+  shippingCity         String?
+  shippingEmirate      String?
+  shippingCountry      String?
+  shippingPostalCode   String?
+  
+  // Settings
+  defaultPaymentTerms Int?
+  creditLimit         Decimal? @db.Decimal(12, 2)
+  currency            String   @default("AED")
+  
+  // Notes
+  notes          String?
+  
+  // Status
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, email])
+  @@index([organizationId, name])
+  @@index([organizationId, trn])
+  @@index([organizationId, createdAt])
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  organizationId String
+  
+  // Basic Info
+  name           String
+  email          String?
+  phone          String?
+  contactPerson  String?
+  
+  // UAE Tax Info
+  trn            String?  // Supplier's TRN
+  
+  // Address
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  emirate        String?
+  country        String   @default("AE")
+  postalCode     String?
+  
+  // Payment Info
+  bankName       String?
+  bankAccountNumber String?
+  bankIban       String?
+  bankSwift      String?
+  defaultPaymentTerms Int @default(30)
+  
+  // Notes
+  notes          String?
+  
+  // Status
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, email])
+  @@index([organizationId, name])
+  @@index([organizationId, trn])
+  @@index([organizationId, createdAt])
+}
+
+// ============================================
+// TENANT-SCOPED: PRODUCTS & SERVICES
+// ============================================
+
+model Product {
+  id             String   @id @default(cuid())
+  organizationId String
+  
+  // Basic Info
+  name           String
+  description    String?
+  sku            String?  // Stock Keeping Unit
+  
+  // Pricing
+  unitPrice      Decimal  @db.Decimal(12, 2)
+  currency       String   @default("AED")
+  
+  // VAT
+  vatRate        Decimal  @default(5) @db.Decimal(5, 2) // UAE standard 5%
+  isVatExempt    Boolean  @default(false)
+  
+  // Unit
+  unitOfMeasure  String   @default("unit") // unit, hour, kg, piece, etc.
+  
+  // Type
+  type           ProductType @default(SERVICE)
+  
+  // Status
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, sku])
+  @@index([organizationId, name])
+  @@index([organizationId, type])
+  @@index([organizationId, createdAt])
+}
+
+enum ProductType {
+  PRODUCT
+  SERVICE
+}
+
+// ============================================
+// TENANT-SCOPED: AUDIT LOG (FTA Compliance)
+// ============================================
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  
+  // Who
+  userId         String?
+  userEmail      String?
+  
+  // What
+  action         String   // CREATE, UPDATE, DELETE, VIEW, EXPORT
+  entityType     String   // Invoice, Customer, etc.
+  entityId       String?
+  
+  // Details
+  previousData   Json?    // State before change
+  newData        Json?    // State after change
+  metadata       Json?    // Additional context (IP, user agent, etc.)
+  
+  // When
+  createdAt      DateTime @default(now())
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, userId])
+}

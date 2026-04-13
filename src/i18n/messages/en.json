@@ -1,0 +1,389 @@
+{
+  "common": {
+    "appName": "myinvoice.ae",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "create": "Create",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "download": "Download",
+    "upload": "Upload",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "yes": "Yes",
+    "no": "No",
+    "confirm": "Confirm",
+    "close": "Close",
+    "submit": "Submit",
+    "reset": "Reset",
+    "clear": "Clear",
+    "all": "All",
+    "none": "None",
+    "select": "Select",
+    "required": "Required",
+    "optional": "Optional",
+    "or": "or",
+    "and": "and"
+  },
+  "currency": {
+    "aed": "AED",
+    "usd": "USD",
+    "eur": "EUR"
+  },
+  "auth": {
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "register": "Create Account",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "name": "Full Name",
+    "rememberMe": "Remember me",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "signInWith": "Sign in with {provider}",
+    "continueWith": "Continue with {provider}",
+    "orContinueWith": "Or continue with",
+    "verifyEmail": "Verify your email",
+    "checkEmail": "Check your email for a verification link",
+    "invalidCredentials": "Invalid email or password",
+    "accountExists": "An account with this email already exists",
+    "passwordsMismatch": "Passwords do not match",
+    "weakPassword": "Password is too weak",
+    "twoFactor": {
+      "title": "Two-Factor Authentication",
+      "enable": "Enable 2FA",
+      "disable": "Disable 2FA",
+      "enterCode": "Enter verification code",
+      "scanQr": "Scan this QR code with your authenticator app",
+      "backupCodes": "Backup Codes",
+      "saveBackupCodes": "Save these backup codes in a safe place"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "quotes": "Quotes",
+    "customers": "Customers",
+    "suppliers": "Suppliers",
+    "products": "Products & Services",
+    "bills": "Bills",
+    "expenses": "Expenses",
+    "reports": "Reports",
+    "settings": "Settings",
+    "help": "Help & Support"
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {name}",
+    "overview": "Overview",
+    "quickActions": "Quick Actions",
+    "recentActivity": "Recent Activity",
+    "createInvoice": "Create Invoice",
+    "createQuote": "Create Quote",
+    "addCustomer": "Add Customer",
+    "addBill": "Add Bill",
+    "revenue": {
+      "title": "Revenue",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "change": "{change}% from last month"
+    },
+    "receivables": {
+      "title": "Outstanding Receivables",
+      "overdue": "Overdue",
+      "dueThisWeek": "Due This Week"
+    },
+    "payables": {
+      "title": "Outstanding Payables",
+      "overdue": "Overdue",
+      "dueThisWeek": "Due This Week"
+    }
+  },
+  "invoices": {
+    "title": "Invoices",
+    "invoice": "Invoice",
+    "newInvoice": "New Invoice",
+    "editInvoice": "Edit Invoice",
+    "invoiceNumber": "Invoice #",
+    "issueDate": "Issue Date",
+    "dueDate": "Due Date",
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "viewed": "Viewed",
+      "paid": "Paid",
+      "partiallyPaid": "Partially Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled"
+    },
+    "customer": "Customer",
+    "items": "Items",
+    "addItem": "Add Item",
+    "subtotal": "Subtotal",
+    "vat": "VAT ({rate}%)",
+    "discount": "Discount",
+    "total": "Total",
+    "amountDue": "Amount Due",
+    "amountPaid": "Amount Paid",
+    "balance": "Balance",
+    "notes": "Notes",
+    "terms": "Terms & Conditions",
+    "send": "Send Invoice",
+    "markPaid": "Mark as Paid",
+    "recordPayment": "Record Payment",
+    "duplicate": "Duplicate",
+    "void": "Void Invoice",
+    "downloadPdf": "Download PDF",
+    "shareLink": "Share Link",
+    "shareWhatsapp": "Share via WhatsApp"
+  },
+  "quotes": {
+    "title": "Quotes",
+    "quote": "Quote",
+    "newQuote": "New Quote",
+    "editQuote": "Edit Quote",
+    "quoteNumber": "Quote #",
+    "validUntil": "Valid Until",
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "converted": "Converted to Invoice"
+    },
+    "convertToInvoice": "Convert to Invoice",
+    "accept": "Accept",
+    "reject": "Reject"
+  },
+  "customers": {
+    "title": "Customers",
+    "customer": "Customer",
+    "newCustomer": "New Customer",
+    "editCustomer": "Edit Customer",
+    "companyName": "Company Name",
+    "contactPerson": "Contact Person",
+    "email": "Email",
+    "phone": "Phone",
+    "trn": "Tax Registration Number (TRN)",
+    "address": "Address",
+    "billingAddress": "Billing Address",
+    "shippingAddress": "Shipping Address",
+    "creditLimit": "Credit Limit",
+    "paymentTerms": "Payment Terms",
+    "notes": "Notes",
+    "balance": "Outstanding Balance",
+    "totalRevenue": "Total Revenue"
+  },
+  "suppliers": {
+    "title": "Suppliers",
+    "supplier": "Supplier",
+    "newSupplier": "New Supplier",
+    "editSupplier": "Edit Supplier",
+    "bankDetails": "Bank Details",
+    "bankName": "Bank Name",
+    "accountNumber": "Account Number",
+    "iban": "IBAN",
+    "swift": "SWIFT/BIC"
+  },
+  "products": {
+    "title": "Products & Services",
+    "product": "Product",
+    "service": "Service",
+    "newProduct": "New Product",
+    "newService": "New Service",
+    "editProduct": "Edit Product",
+    "name": "Name",
+    "description": "Description",
+    "sku": "SKU",
+    "unitPrice": "Unit Price",
+    "unit": "Unit",
+    "vatRate": "VAT Rate",
+    "vatExempt": "VAT Exempt",
+    "type": "Type"
+  },
+  "bills": {
+    "title": "Bills",
+    "bill": "Bill",
+    "newBill": "New Bill",
+    "uploadBill": "Upload Bill",
+    "editBill": "Edit Bill",
+    "billNumber": "Bill #",
+    "supplier": "Supplier",
+    "status": {
+      "draft": "Draft",
+      "pending": "Pending",
+      "partiallyPaid": "Partially Paid",
+      "paid": "Paid",
+      "overdue": "Overdue"
+    },
+    "paymentPlan": "Payment Plan",
+    "schedulePayments": "Schedule Payments",
+    "recordPayment": "Record Payment"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "expense": "Expense",
+    "newExpense": "New Expense",
+    "category": "Category",
+    "categories": {
+      "rent": "Rent",
+      "utilities": "Utilities",
+      "travel": "Travel",
+      "supplies": "Office Supplies",
+      "marketing": "Marketing",
+      "software": "Software",
+      "other": "Other"
+    },
+    "receipt": "Receipt",
+    "uploadReceipt": "Upload Receipt"
+  },
+  "reports": {
+    "title": "Reports",
+    "generate": "Generate Report",
+    "export": "Export Report",
+    "dateRange": "Date Range",
+    "types": {
+      "invoiceAging": "Invoice Aging",
+      "billAging": "Bill Aging",
+      "customerStatement": "Customer Statement",
+      "supplierStatement": "Supplier Statement",
+      "vatSummary": "VAT Summary",
+      "revenue": "Revenue Report",
+      "expenses": "Expense Report",
+      "profitLoss": "Profit & Loss",
+      "cashFlow": "Cash Flow"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "organization": {
+      "title": "Organization",
+      "name": "Organization Name",
+      "trn": "Tax Registration Number (TRN)",
+      "tradeLicense": "Trade License Number",
+      "logo": "Logo",
+      "uploadLogo": "Upload Logo"
+    },
+    "address": {
+      "title": "Business Address",
+      "line1": "Address Line 1",
+      "line2": "Address Line 2",
+      "city": "City",
+      "emirate": "Emirate",
+      "country": "Country",
+      "postalCode": "Postal Code"
+    },
+    "invoicing": {
+      "title": "Invoice Settings",
+      "prefix": "Invoice Prefix",
+      "nextNumber": "Next Invoice Number",
+      "defaultPaymentTerms": "Default Payment Terms",
+      "defaultNotes": "Default Notes",
+      "defaultTerms": "Default Terms & Conditions"
+    },
+    "tax": {
+      "title": "Tax Settings",
+      "defaultVatRate": "Default VAT Rate",
+      "showVatBreakdown": "Show VAT Breakdown"
+    },
+    "branding": {
+      "title": "Branding",
+      "primaryColor": "Primary Color",
+      "invoiceTemplate": "Invoice Template"
+    },
+    "team": {
+      "title": "Team Members",
+      "invite": "Invite Member",
+      "role": "Role",
+      "roles": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "accountant": "Accountant",
+        "member": "Member",
+        "viewer": "Viewer"
+      },
+      "pending": "Pending",
+      "remove": "Remove Member"
+    },
+    "billing": {
+      "title": "Billing & Subscription",
+      "currentPlan": "Current Plan",
+      "upgrade": "Upgrade Plan",
+      "manageBilling": "Manage Billing"
+    },
+    "security": {
+      "title": "Security",
+      "changePassword": "Change Password",
+      "twoFactor": "Two-Factor Authentication",
+      "sessions": "Active Sessions",
+      "auditLog": "Audit Log"
+    }
+  },
+  "onboarding": {
+    "title": "Welcome to myinvoice.ae",
+    "subtitle": "Let's set up your business",
+    "steps": {
+      "business": "Business Info",
+      "tax": "Tax Details",
+      "branding": "Branding",
+      "complete": "All Set!"
+    },
+    "businessInfo": {
+      "title": "Tell us about your business",
+      "description": "This information will appear on your invoices"
+    },
+    "taxDetails": {
+      "title": "Tax Registration",
+      "description": "Enter your UAE Tax Registration Number for VAT compliance",
+      "trnHelp": "Your 15-digit TRN issued by the Federal Tax Authority"
+    },
+    "branding": {
+      "title": "Customize your invoices",
+      "description": "Upload your logo and choose your brand colors"
+    },
+    "complete": {
+      "title": "You're all set!",
+      "description": "Start creating professional invoices for your UAE business",
+      "createFirst": "Create your first invoice"
+    }
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email address",
+    "minLength": "Must be at least {min} characters",
+    "maxLength": "Must be at most {max} characters",
+    "trn": "TRN must be 15 digits",
+    "phone": "Please enter a valid phone number",
+    "positiveNumber": "Must be a positive number",
+    "invalidDate": "Please enter a valid date"
+  },
+  "errors": {
+    "notFound": "Not Found",
+    "notFoundDescription": "The page you're looking for doesn't exist",
+    "unauthorized": "Unauthorized",
+    "unauthorizedDescription": "You don't have permission to access this page",
+    "serverError": "Server Error",
+    "serverErrorDescription": "Something went wrong. Please try again later",
+    "networkError": "Network Error",
+    "networkErrorDescription": "Please check your internet connection"
+  },
+  "footer": {
+    "copyright": "\u00a9 {year} myinvoice.ae. All rights reserved.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "contact": "Contact Us"
+  }
+}
