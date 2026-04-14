@@ -32,7 +32,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 import { UserProfileDropdown } from "@/components/user/user-profile-dropdown";
@@ -55,18 +54,18 @@ function ThemeToggle() {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Invoices", href: "/dashboard/invoices", icon: FileText, badge: "Coming Soon" },
-  { name: "Quotations", href: "/dashboard/quotations", icon: FileCheck, badge: "Coming Soon" },
-  { name: "Customers", href: "/dashboard/customers", icon: Users },
-  { name: "Suppliers", href: "/dashboard/suppliers", icon: Building2 },
-  { name: "Products", href: "/dashboard/products", icon: Package },
-  { name: "Bills", href: "/dashboard/bills", icon: Receipt, badge: "Coming Soon" },
-  { name: "Expenses", href: "/dashboard/expenses", icon: CreditCard },
-  { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+  { name: "Invoices", href: "/invoices", icon: FileText },
+  { name: "Quotations", href: "/quotations", icon: FileCheck },
+  { name: "Customers", href: "/customers", icon: Users },
+  { name: "Suppliers", href: "/suppliers", icon: Building2 },
+  { name: "Products", href: "/products", icon: Package },
+  { name: "Bills", href: "/bills", icon: Receipt },
+  { name: "Expenses", href: "/expenses", icon: CreditCard },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
 const bottomNavigation = [
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
@@ -106,26 +105,36 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem>
-              <FileText className="mr-2 h-4 w-4" />
-              Invoice
+            <DropdownMenuItem asChild>
+              <Link href="/invoices/new">
+                <FileText className="mr-2 h-4 w-4" />
+                Invoice
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <FileCheck className="mr-2 h-4 w-4" />
-              Quotation
+            <DropdownMenuItem asChild>
+              <Link href="/quotations/new">
+                <FileCheck className="mr-2 h-4 w-4" />
+                Quotation
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Users className="mr-2 h-4 w-4" />
-              Customer
+            <DropdownMenuItem asChild>
+              <Link href="/customers/new">
+                <Users className="mr-2 h-4 w-4" />
+                Customer
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Building2 className="mr-2 h-4 w-4" />
-              Supplier
+            <DropdownMenuItem asChild>
+              <Link href="/suppliers/new">
+                <Building2 className="mr-2 h-4 w-4" />
+                Supplier
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Package className="mr-2 h-4 w-4" />
-              Product
+            <DropdownMenuItem asChild>
+              <Link href="/products/new">
+                <Package className="mr-2 h-4 w-4" />
+                Product
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -134,7 +143,10 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       {/* Main Navigation */}
       <nav className="flex-1 space-y-1 px-3">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive =
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.name}
@@ -149,11 +161,6 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
               <span className="flex-1">{item.name}</span>
-              {item.badge && (
-                <Badge variant="secondary" className="text-xs">
-                  {item.badge}
-                </Badge>
-              )}
             </Link>
           );
         })}

@@ -96,10 +96,10 @@ const recentInvoices = [
 
 // Quick actions
 const quickActions = [
-  { name: "Create Invoice", href: "/dashboard/invoices/new" },
-  { name: "Add Customer", href: "/dashboard/customers/new" },
-  { name: "New Quotation", href: "/dashboard/quotations/new" },
-  { name: "Record Expense", href: "/dashboard/expenses/new" },
+  { name: "Create Invoice", href: "/invoices/new" },
+  { name: "Add Customer", href: "/customers/new" },
+  { name: "New Quotation", href: "/quotations/new" },
+  { name: "Record Expense", href: "/expenses/new" },
 ];
 
 function getStatusBadge(status: string) {

@@ -22,19 +22,19 @@ const settingsNavigation = [
     items: [
       {
         name: "Profile",
-        href: "/dashboard/settings/profile",
+        href: "/settings/profile",
         icon: User,
         description: "Manage your personal information",
       },
       {
         name: "Security",
-        href: "/dashboard/settings/security",
+        href: "/settings/security",
         icon: Shield,
         description: "Password and two-factor authentication",
       },
       {
         name: "Notifications",
-        href: "/dashboard/settings/notifications",
+        href: "/settings/notifications",
         icon: Bell,
         description: "Choose what notifications you receive",
       },
@@ -45,25 +45,25 @@ const settingsNavigation = [
     items: [
       {
         name: "General",
-        href: "/dashboard/settings/organization",
+        href: "/settings/organization",
         icon: Building2,
         description: "Organization details and settings",
       },
       {
         name: "Team Members",
-        href: "/dashboard/settings/team",
+        href: "/settings/team",
         icon: Users,
         description: "Manage your team and permissions",
       },
       {
         name: "Branding",
-        href: "/dashboard/settings/branding",
+        href: "/settings/branding",
         icon: Palette,
         description: "Customize your invoice appearance",
       },
       {
         name: "Invoice Settings",
-        href: "/dashboard/settings/invoices",
+        href: "/settings/invoices",
         icon: FileText,
         description: "Default invoice settings and templates",
       },
@@ -74,7 +74,7 @@ const settingsNavigation = [
     items: [
       {
         name: "Subscription",
-        href: "/dashboard/settings/billing",
+        href: "/settings/billing",
         icon: CreditCard,
         description: "Manage your subscription and billing",
       },
