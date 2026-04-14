@@ -8,6 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
+import {
+  getPermissions,
+  hasRole,
+  type MemberRole,
+  type Permission,
+} from "@/lib/rbac";
 
 interface Organization {
   id: string;
@@ -20,10 +26,17 @@ interface TenantContextType {
   organizationId: string | null;
   organizationSlug: string | null;
   organizationName: string | null;
-  role: string | null;
+  role: MemberRole | null;
   organizations: Organization[];
   isLoading: boolean;
+  /** Switch the active organization and refresh the session. */
   switchOrganization: (organizationId: string) => Promise<void>;
+  /** Check whether the current user holds at least `requiredRole`. */
+  hasRole: (requiredRole: MemberRole) => boolean;
+  /** Check whether the current user has a specific permission. */
+  hasPermission: (permission: Permission) => boolean;
+  /** Pre-computed permission map for the current role. */
+  permissions: ReturnType<typeof getPermissions> | null;
 }
 
 const TenantContext = createContext<TenantContextType | null>(null);
@@ -35,10 +48,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const switchOrganization = useCallback(
     async (organizationId: string) => {
       if (!session) return;
-
       setIsSwitching(true);
       try {
-        // Update the session with new organization
         await update({ organizationId });
       } finally {
         setIsSwitching(false);
@@ -46,6 +57,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     },
     [session, update]
   );
+
+  const role = (session?.user.role ?? null) as MemberRole | null;
+  const permissions = role ? getPermissions(role) : null;
 
   const currentOrg = session?.user.organizations?.find(
     (org) => org.id === session?.user.organizationId
@@ -55,10 +69,13 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     organizationId: session?.user.organizationId ?? null,
     organizationSlug: session?.user.organizationSlug ?? null,
     organizationName: currentOrg?.name ?? null,
-    role: session?.user.role ?? null,
+    role,
     organizations: session?.user.organizations ?? [],
     isLoading: status === "loading" || isSwitching,
     switchOrganization,
+    hasRole: (requiredRole) => (role ? hasRole(role, requiredRole) : false),
+    hasPermission: (permission) => permissions?.[permission] ?? false,
+    permissions,
   };
 
   return (
@@ -74,38 +91,12 @@ export function useTenant() {
   return context;
 }
 
-/**
- * Hook to check if user has specific role or higher
- */
-export function useHasRole(requiredRole: string) {
-  const { role } = useTenant();
-  
-  const roleHierarchy: Record<string, number> = {
-    VIEWER: 1,
-    MEMBER: 2,
-    ACCOUNTANT: 3,
-    ADMIN: 4,
-    OWNER: 5,
-  };
-
-  if (!role) return false;
-  
-  return (roleHierarchy[role] ?? 0) >= (roleHierarchy[requiredRole] ?? 0);
-}
-
-/**
- * Hook to check if user can perform specific actions
- */
+/** Convenience hook — returns the current user's permission map. */
 export function usePermissions() {
-  const { role } = useTenant();
-
+  const { permissions, role } = useTenant();
   return {
-    canView: !!role,
-    canCreate: ["MEMBER", "ACCOUNTANT", "ADMIN", "OWNER"].includes(role ?? ""),
-    canEdit: ["ACCOUNTANT", "ADMIN", "OWNER"].includes(role ?? ""),
-    canDelete: ["ADMIN", "OWNER"].includes(role ?? ""),
-    canManageTeam: ["ADMIN", "OWNER"].includes(role ?? ""),
-    canManageOrg: role === "OWNER",
-    canManageBilling: role === "OWNER",
+    permissions,
+    role,
+    can: (permission: Permission) => permissions?.[permission] ?? false,
   };
 }

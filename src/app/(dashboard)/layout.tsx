@@ -33,64 +33,22 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 import { UserProfileDropdown } from "@/components/user/user-profile-dropdown";
+import { OrgSwitcher } from "@/components/tenant/org-switcher";
 
 const navigation = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Invoices",
-    href: "/dashboard/invoices",
-    icon: FileText,
-    badge: "Coming Soon",
-  },
-  {
-    name: "Quotations",
-    href: "/dashboard/quotations",
-    icon: FileCheck,
-    badge: "Coming Soon",
-  },
-  {
-    name: "Customers",
-    href: "/dashboard/customers",
-    icon: Users,
-  },
-  {
-    name: "Suppliers",
-    href: "/dashboard/suppliers",
-    icon: Building2,
-  },
-  {
-    name: "Products",
-    href: "/dashboard/products",
-    icon: Package,
-  },
-  {
-    name: "Bills",
-    href: "/dashboard/bills",
-    icon: Receipt,
-    badge: "Coming Soon",
-  },
-  {
-    name: "Expenses",
-    href: "/dashboard/expenses",
-    icon: CreditCard,
-  },
-  {
-    name: "Reports",
-    href: "/dashboard/reports",
-    icon: BarChart3,
-  },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Invoices", href: "/dashboard/invoices", icon: FileText, badge: "Coming Soon" },
+  { name: "Quotations", href: "/dashboard/quotations", icon: FileCheck, badge: "Coming Soon" },
+  { name: "Customers", href: "/dashboard/customers", icon: Users },
+  { name: "Suppliers", href: "/dashboard/suppliers", icon: Building2 },
+  { name: "Products", href: "/dashboard/products", icon: Package },
+  { name: "Bills", href: "/dashboard/bills", icon: Receipt, badge: "Coming Soon" },
+  { name: "Expenses", href: "/dashboard/expenses", icon: CreditCard },
+  { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
 ];
 
 const bottomNavigation = [
-  {
-    name: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
@@ -99,7 +57,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex h-16 items-center px-6">
+      <div className="flex h-16 items-center px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <FileText className="h-5 w-5" />
@@ -110,8 +68,15 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 
       <Separator />
 
+      {/* Organization Switcher */}
+      <div className="px-3 py-2">
+        <OrgSwitcher />
+      </div>
+
+      <Separator />
+
       {/* Quick Actions */}
-      <div className="p-4">
+      <div className="p-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="w-full justify-between">
@@ -151,7 +116,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       {/* Main Navigation */}
       <nav className="flex-1 space-y-1 px-3">
         {navigation.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.name}
@@ -181,7 +146,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       {/* Bottom Navigation */}
       <nav className="p-3">
         {bottomNavigation.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.name}
@@ -204,11 +169,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -230,7 +191,6 @@ export default function DashboardLayout({
         {/* Header */}
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:px-6">
           <div className="flex items-center gap-4">
-            {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -240,16 +200,10 @@ export default function DashboardLayout({
               <Menu className="h-6 w-6" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-
-            {/* Page Title - can be dynamic */}
-            <h1 className="text-lg font-semibold lg:text-xl">Dashboard</h1>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Notifications */}
             <NotificationDropdown />
-
-            {/* User Menu */}
             <UserProfileDropdown />
           </div>
         </header>

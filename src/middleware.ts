@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-// Routes that require authentication
-const protectedRoutes = [
+/** Routes that require the user to be authenticated */
+const PROTECTED_PREFIXES = [
   "/dashboard",
   "/invoices",
   "/quotes",
@@ -14,45 +14,51 @@ const protectedRoutes = [
   "/expenses",
   "/reports",
   "/settings",
+  "/onboarding",
 ];
 
-// Routes that should redirect to dashboard if authenticated
-const authRoutes = ["/login", "/register", "/forgot-password"];
+/** Routes that redirect to /dashboard when already authenticated */
+const AUTH_PREFIXES = ["/login", "/register", "/forgot-password"];
+
+function matchesPrefix(path: string, prefixes: string[]): boolean {
+  return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
+}
 
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const isLoggedIn = !!token;
-  const path = req.nextUrl.pathname;
+  const isLoggedIn = !!token?.sub;
 
-  // Check if path is protected
-  const isProtectedRoute = protectedRoutes.some(
-    (route) => path === route || path.startsWith(`${route}/`)
-  );
+  const isProtected = matchesPrefix(pathname, PROTECTED_PREFIXES);
+  const isAuthRoute = matchesPrefix(pathname, AUTH_PREFIXES);
 
-  // Check if path is auth route
-  const isAuthRoute = authRoutes.some(
-    (route) => path === route || path.startsWith(`${route}/`)
-  );
-
-  // Redirect unauthenticated users from protected routes
-  if (isProtectedRoute && !isLoggedIn) {
-    const redirectUrl = new URL("/login", req.nextUrl.origin);
-    redirectUrl.searchParams.set("callbackUrl", path);
-    return NextResponse.redirect(redirectUrl);
+  // Unauthenticated user accessing a protected route → redirect to login
+  if (isProtected && !isLoggedIn) {
+    const loginUrl = new URL("/login", req.nextUrl.origin);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users from auth routes
+  // Authenticated user accessing auth routes → redirect to dashboard
   if (isAuthRoute && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
-  // Check if user has an organization (required for protected routes)
-  if (isProtectedRoute && isLoggedIn) {
-    const hasOrganization = token.organizationId;
-    
-    if (!hasOrganization && path !== "/onboarding") {
+  // Authenticated user on a protected route without an organization
+  if (isProtected && isLoggedIn && pathname !== "/onboarding") {
+    if (!token.organizationId) {
       return NextResponse.redirect(new URL("/onboarding", req.nextUrl.origin));
     }
+  }
+
+  // Inject organization context headers for downstream Server Components / Route Handlers
+  if (isLoggedIn && token.organizationId) {
+    const response = NextResponse.next();
+    response.headers.set("x-organization-id", token.organizationId as string);
+    response.headers.set("x-user-id", token.sub);
+    response.headers.set("x-user-role", (token.role as string) ?? "");
+    return response;
   }
 
   return NextResponse.next();
@@ -61,12 +67,12 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (public directory)
+     * Match everything except:
+     *  - _next/static  (Next.js static assets)
+     *  - _next/image   (image optimisation)
+     *  - favicon.ico
+     *  - public files  (any path with a dot extension)
+     *  - portal        (public portal routes)
      */
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|portal).*)",
   ],

@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import {
+  resolveApiContext,
+  resolveApiContextWithPermission,
+} from "@/lib/api/auth";
+import {
+  toErrorResponse,
+  ForbiddenError,
+  ConflictError,
+} from "@/lib/errors";
+import { hasRole } from "@/lib/rbac";
 
 const inviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
   role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
 });
 
-// GET /api/organization/members - List all members
+// GET /api/organization/members — list all active members
 export async function GET(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
-    if (!token?.sub || !token?.organizationId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const ctx = await resolveApiContext(req);
 
     const members = await prisma.organizationMembership.findMany({
-      where: {
-        organizationId: token.organizationId as string,
-        isActive: true,
-      },
+      where: { organizationId: ctx.organizationId, isActive: true },
       include: {
         user: {
           select: {
@@ -33,58 +35,25 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: [
-        { role: "asc" },
-        { createdAt: "asc" },
-      ],
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
     });
-
-    // Get current user's role
-    const currentMembership = members.find((m) => m.userId === token.sub);
 
     return NextResponse.json({
       members,
-      currentUserRole: currentMembership?.role,
+      currentUserRole: members.find((m) => m.userId === ctx.userId)?.role,
     });
   } catch (error) {
-    console.error("Error fetching members:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch members" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
-// POST /api/organization/members - Invite a new member
+// POST /api/organization/members — invite a member (manage_team permission)
 export async function POST(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
-    if (!token?.sub || !token?.organizationId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has permission to invite
-    const membership = await prisma.organizationMembership.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: token.sub,
-          organizationId: token.organizationId as string,
-        },
-      },
-      select: { role: true },
-    });
-
-    if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) {
-      return NextResponse.json(
-        { error: "You don't have permission to invite members" },
-        { status: 403 }
-      );
-    }
-
+    const ctx = await resolveApiContextWithPermission(req, "manage_team");
     const body = await req.json();
-    const result = inviteMemberSchema.safeParse(body);
 
+    const result = inviteMemberSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
         { error: "Validation failed", details: result.error.flatten() },
@@ -94,113 +63,93 @@ export async function POST(req: NextRequest) {
 
     const { email, role } = result.data;
 
-    // Prevent non-owners from creating admins
-    if (role === "ADMIN" && membership.role !== "OWNER") {
-      return NextResponse.json(
-        { error: "Only owners can invite admins" },
-        { status: 403 }
-      );
+    // Only owners can invite admins
+    if (role === "ADMIN" && !hasRole(ctx.role, "OWNER")) {
+      throw new ForbiddenError("Only owners can invite admins");
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
-      // Check if already a member
-      const existingMembership = await prisma.organizationMembership.findUnique({
+      // Check for existing active or pending membership
+      const existing = await prisma.organizationMembership.findUnique({
         where: {
           userId_organizationId: {
             userId: existingUser.id,
-            organizationId: token.organizationId as string,
+            organizationId: ctx.organizationId,
           },
         },
       });
 
-      if (existingMembership) {
-        return NextResponse.json(
-          { error: "User is already a member of this organization" },
-          { status: 400 }
-        );
+      if (existing?.isActive) {
+        throw new ConflictError("User is already a member of this organization");
       }
 
-      // Add existing user to organization
-      const newMembership = await prisma.organizationMembership.create({
-        data: {
-          userId: existingUser.id,
-          organizationId: token.organizationId as string,
-          role,
-          invitedEmail: email,
-          invitedAt: new Date(),
-          invitedBy: token.sub,
-          acceptedAt: new Date(), // Auto-accept for existing users
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
+      // Re-activate or create membership
+      const membership = existing
+        ? await prisma.organizationMembership.update({
+            where: { id: existing.id },
+            data: {
+              role,
+              isActive: true,
+              invitedBy: ctx.userId,
+              invitedAt: new Date(),
+              acceptedAt: new Date(),
             },
-          },
-        },
-      });
+            include: { user: { select: { id: true, name: true, email: true, image: true } } },
+          })
+        : await prisma.organizationMembership.create({
+            data: {
+              userId: existingUser.id,
+              organizationId: ctx.organizationId,
+              role,
+              invitedEmail: email,
+              invitedAt: new Date(),
+              invitedBy: ctx.userId,
+              acceptedAt: new Date(),
+            },
+            include: { user: { select: { id: true, name: true, email: true, image: true } } },
+          });
 
-      // Create notification for the user
+      // Notify the user
       await prisma.notification.create({
         data: {
           userId: existingUser.id,
           title: "Added to Organization",
-          message: `You have been added to an organization as ${role.toLowerCase()}`,
+          message: `You have been added as ${role.toLowerCase()}`,
           type: "TEAM_INVITE",
           actionUrl: "/dashboard",
         },
       });
 
-      return NextResponse.json(newMembership, { status: 201 });
+      return NextResponse.json(membership, { status: 201 });
     }
 
-    // Create a pending invitation for non-existing user
-    // First, create a placeholder user
+    // User doesn't exist yet — create placeholder + pending invite
     const newUser = await prisma.user.create({
       data: {
         email,
-        name: email.split("@")[0], // Temporary name from email
+        name: email.split("@")[0],
       },
     });
 
-    const newMembership = await prisma.organizationMembership.create({
+    const membership = await prisma.organizationMembership.create({
       data: {
         userId: newUser.id,
-        organizationId: token.organizationId as string,
+        organizationId: ctx.organizationId,
         role,
         invitedEmail: email,
         invitedAt: new Date(),
-        invitedBy: token.sub,
-        // acceptedAt is null - pending invitation
+        invitedBy: ctx.userId,
+        // acceptedAt left null — pending
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
-      },
+      include: { user: { select: { id: true, name: true, email: true, image: true } } },
     });
 
-    // TODO: Send invitation email
+    // TODO: dispatch invitation email via email service
 
-    return NextResponse.json(newMembership, { status: 201 });
+    return NextResponse.json(membership, { status: 201 });
   } catch (error) {
-    console.error("Error inviting member:", error);
-    return NextResponse.json(
-      { error: "Failed to invite member" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,28 +1,33 @@
-import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 
-// Models that are tenant-scoped (have organizationId)
-const TENANT_SCOPED_MODELS = [
+// All models that carry an organizationId foreign key
+const TENANT_SCOPED_MODELS = new Set([
   "customer",
   "supplier",
   "product",
-  "auditLog",
-] as const;
+  "auditlog",
+]);
 
-type TenantScopedModel = (typeof TENANT_SCOPED_MODELS)[number];
+function isTenantScoped(model: string): boolean {
+  return TENANT_SCOPED_MODELS.has(model.toLowerCase());
+}
 
-function isTenantScopedModel(model: string): model is TenantScopedModel {
-  return TENANT_SCOPED_MODELS.includes(model.toLowerCase() as TenantScopedModel);
+function injectOrg(
+  where: Record<string, unknown> | undefined,
+  organizationId: string
+): Record<string, unknown> {
+  return { ...where, organizationId };
 }
 
 /**
- * Creates a tenant-scoped Prisma client that automatically:
- * - Adds organizationId filter to all read queries
- * - Adds organizationId to all create operations
- * - Validates organizationId on update/delete operations
+ * Creates a Prisma extension that automatically:
+ *  - Injects organizationId into every write (create / createMany)
+ *  - Adds organizationId filter to every read / mutation WHERE clause
+ *  - Returns null (instead of leaking data) when findUnique matches a
+ *    different tenant's row
  *
- * @param organizationId - The current tenant's organization ID
- * @returns Extended Prisma client with tenant isolation
+ * Only tenant-scoped models are affected; global models (User, Session,
+ * Organization, etc.) pass through unchanged.
  */
 export function getTenantPrisma(organizationId: string) {
   return prisma.$extends({
@@ -30,51 +35,57 @@ export function getTenantPrisma(organizationId: string) {
     query: {
       $allModels: {
         async findMany({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
           }
           return query(args);
         },
 
         async findFirst({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
           }
           return query(args);
         },
 
         async findUnique({ model, args, query }) {
-          // For findUnique, we need to verify after fetch
           const result = await query(args);
+          // Post-fetch tenant check — findUnique doesn't support composite WHERE
           if (
-            isTenantScopedModel(model) &&
-            result &&
+            isTenantScoped(model) &&
+            result !== null &&
+            typeof result === "object" &&
             "organizationId" in result &&
-            result.organizationId !== organizationId
+            (result as { organizationId: string }).organizationId !== organizationId
           ) {
-            return null; // Don't expose data from other tenants
+            return null;
           }
           return result;
         },
 
+        async count({ model, args, query }) {
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
+          }
+          return query(args);
+        },
+
+        async aggregate({ model, args, query }) {
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
+          }
+          return query(args);
+        },
+
         async create({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.data as Record<string, unknown>) = {
-              ...args.data,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            (args.data as Record<string, unknown>).organizationId = organizationId;
           }
           return query(args);
         },
 
         async createMany({ model, args, query }) {
-          if (isTenantScopedModel(model) && Array.isArray(args.data)) {
+          if (isTenantScoped(model) && Array.isArray(args.data)) {
             args.data = args.data.map((item) => ({
               ...item,
               organizationId,
@@ -84,61 +95,29 @@ export function getTenantPrisma(organizationId: string) {
         },
 
         async update({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
           }
           return query(args);
         },
 
         async updateMany({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
           }
           return query(args);
         },
 
         async delete({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
           }
           return query(args);
         },
 
         async deleteMany({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
-          }
-          return query(args);
-        },
-
-        async count({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
-          }
-          return query(args);
-        },
-
-        async aggregate({ model, args, query }) {
-          if (isTenantScopedModel(model)) {
-            (args.where as Record<string, unknown>) = {
-              ...args.where,
-              organizationId,
-            };
+          if (isTenantScoped(model)) {
+            args.where = injectOrg(args.where as Record<string, unknown>, organizationId);
           }
           return query(args);
         },

@@ -1,72 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import {
+  resolveApiContextWithPermission,
+  verifyMembershipOwnership,
+} from "@/lib/api/auth";
+import { toErrorResponse, ForbiddenError } from "@/lib/errors";
+import { hasRole } from "@/lib/rbac";
 
 const updateMemberSchema = z.object({
   role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
 });
 
-// PATCH /api/organization/members/[memberId] - Update member role
+// PATCH /api/organization/members/[memberId] — update member role
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ memberId: string }> }
 ) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const ctx = await resolveApiContextWithPermission(req, "manage_team");
     const { memberId } = await params;
 
-    if (!token?.sub || !token?.organizationId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const target = await verifyMembershipOwnership(memberId, ctx.organizationId);
+
+    if (target.role === "OWNER") {
+      throw new ForbiddenError("Cannot modify the owner's role");
     }
 
-    // Check if user has permission
-    const currentMembership = await prisma.organizationMembership.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: token.sub,
-          organizationId: token.organizationId as string,
-        },
-      },
-      select: { role: true },
-    });
-
-    if (!currentMembership || !["OWNER", "ADMIN"].includes(currentMembership.role)) {
-      return NextResponse.json(
-        { error: "You don't have permission to update members" },
-        { status: 403 }
-      );
-    }
-
-    // Get target membership
-    const targetMembership = await prisma.organizationMembership.findUnique({
-      where: { id: memberId },
-      include: { user: { select: { id: true, email: true } } },
-    });
-
-    if (!targetMembership || targetMembership.organizationId !== token.organizationId) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
-    }
-
-    // Prevent modifying owner
-    if (targetMembership.role === "OWNER") {
-      return NextResponse.json(
-        { error: "Cannot modify owner's role" },
-        { status: 403 }
-      );
-    }
-
-    // Prevent admins from modifying other admins
-    if (currentMembership.role === "ADMIN" && targetMembership.role === "ADMIN") {
-      return NextResponse.json(
-        { error: "Admins cannot modify other admins" },
-        { status: 403 }
-      );
+    // Admins cannot change other admins
+    if (ctx.role === "ADMIN" && target.role === "ADMIN") {
+      throw new ForbiddenError("Admins cannot modify other admins");
     }
 
     const body = await req.json();
     const result = updateMemberSchema.safeParse(body);
-
     if (!result.success) {
       return NextResponse.json(
         { error: "Validation failed", details: result.error.flatten() },
@@ -76,33 +43,22 @@ export async function PATCH(
 
     const { role } = result.data;
 
-    // Prevent non-owners from promoting to admin
-    if (role === "ADMIN" && currentMembership.role !== "OWNER") {
-      return NextResponse.json(
-        { error: "Only owners can promote members to admin" },
-        { status: 403 }
-      );
+    // Only owners can promote to admin
+    if (role === "ADMIN" && !hasRole(ctx.role, "OWNER")) {
+      throw new ForbiddenError("Only owners can promote members to admin");
     }
 
-    const updatedMembership = await prisma.organizationMembership.update({
+    const updated = await prisma.organizationMembership.update({
       where: { id: memberId },
       data: { role },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
+        user: { select: { id: true, name: true, email: true, image: true } },
       },
     });
 
-    // Create notification for the user
     await prisma.notification.create({
       data: {
-        userId: targetMembership.userId,
+        userId: target.userId,
         title: "Role Updated",
         message: `Your role has been updated to ${role.toLowerCase()}`,
         type: "TEAM_INVITE",
@@ -110,91 +66,44 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(updatedMembership);
+    return NextResponse.json(updated);
   } catch (error) {
-    console.error("Error updating member:", error);
-    return NextResponse.json(
-      { error: "Failed to update member" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
-// DELETE /api/organization/members/[memberId] - Remove member
+// DELETE /api/organization/members/[memberId] — remove a member
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ memberId: string }> }
 ) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const ctx = await resolveApiContextWithPermission(req, "manage_team");
     const { memberId } = await params;
 
-    if (!token?.sub || !token?.organizationId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const target = await verifyMembershipOwnership(memberId, ctx.organizationId);
+
+    if (target.role === "OWNER") {
+      throw new ForbiddenError("Cannot remove the organization owner");
     }
 
-    // Check if user has permission
-    const currentMembership = await prisma.organizationMembership.findUnique({
-      where: {
-        userId_organizationId: {
-          userId: token.sub,
-          organizationId: token.organizationId as string,
-        },
-      },
-      select: { role: true },
-    });
-
-    if (!currentMembership || !["OWNER", "ADMIN"].includes(currentMembership.role)) {
-      return NextResponse.json(
-        { error: "You don't have permission to remove members" },
-        { status: 403 }
-      );
+    if (ctx.role === "ADMIN" && target.role === "ADMIN") {
+      throw new ForbiddenError("Admins cannot remove other admins");
     }
 
-    // Get target membership
-    const targetMembership = await prisma.organizationMembership.findUnique({
-      where: { id: memberId },
-      include: { user: { select: { id: true, email: true } } },
-    });
-
-    if (!targetMembership || targetMembership.organizationId !== token.organizationId) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    if (target.userId === ctx.userId) {
+      throw new ForbiddenError("Use 'Leave Organization' to remove yourself");
     }
 
-    // Prevent removing owner
-    if (targetMembership.role === "OWNER") {
-      return NextResponse.json(
-        { error: "Cannot remove the organization owner" },
-        { status: 403 }
-      );
-    }
-
-    // Prevent admins from removing other admins
-    if (currentMembership.role === "ADMIN" && targetMembership.role === "ADMIN") {
-      return NextResponse.json(
-        { error: "Admins cannot remove other admins" },
-        { status: 403 }
-      );
-    }
-
-    // Prevent self-removal (use leave organization instead)
-    if (targetMembership.userId === token.sub) {
-      return NextResponse.json(
-        { error: "Use 'Leave Organization' to remove yourself" },
-        { status: 400 }
-      );
-    }
-
-    // Soft delete by setting isActive to false
+    // Soft-delete: mark isActive = false
     await prisma.organizationMembership.update({
       where: { id: memberId },
       data: { isActive: false },
     });
 
-    // Create notification for the removed user
     await prisma.notification.create({
       data: {
-        userId: targetMembership.userId,
+        userId: target.userId,
         title: "Removed from Organization",
         message: "You have been removed from the organization",
         type: "TEAM_INVITE",
@@ -203,10 +112,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error removing member:", error);
-    return NextResponse.json(
-      { error: "Failed to remove member" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -1,124 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import prisma from "@/lib/db/prisma";
+import { resolveApiContext } from "@/lib/api/auth";
+import { toErrorResponse } from "@/lib/errors";
 
-// GET /api/notifications - Get user's notifications
+// GET /api/notifications — list unread (or recent) notifications for user
 export async function GET(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const searchParams = req.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const offset = parseInt(searchParams.get("offset") || "0");
-    const unreadOnly = searchParams.get("unreadOnly") === "true";
+    const ctx = await resolveApiContext(req);
+    const { searchParams } = new URL(req.url);
+    const unreadOnly = searchParams.get("unread") === "true";
+    const limit = Math.min(Number(searchParams.get("limit") ?? "20"), 50);
 
     const where = {
-      userId: token.sub,
+      userId: ctx.userId,
       ...(unreadOnly ? { isRead: false } : {}),
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     };
 
-    const [notifications, total, unreadCount] = await Promise.all([
+    const [notifications, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where,
         orderBy: { createdAt: "desc" },
         take: limit,
-        skip: offset,
       }),
-      prisma.notification.count({ where }),
       prisma.notification.count({
-        where: { userId: token.sub, isRead: false },
+        where: { userId: ctx.userId, isRead: false },
       }),
     ]);
 
-    return NextResponse.json({
-      notifications,
-      total,
-      unreadCount,
-      hasMore: offset + notifications.length < total,
-    });
+    return NextResponse.json({ notifications, unreadCount });
   } catch (error) {
-    console.error("Error fetching notifications:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch notifications" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
-// PATCH /api/notifications - Mark notifications as read
+// PATCH /api/notifications — mark notifications as read
 export async function PATCH(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const ctx = await resolveApiContext(req);
     const body = await req.json();
-    const { notificationIds, markAllRead } = body;
 
-    if (markAllRead) {
-      // Mark all notifications as read
+    const { notificationIds, markAll } = body as {
+      notificationIds?: string[];
+      markAll?: boolean;
+    };
+
+    if (markAll) {
       await prisma.notification.updateMany({
-        where: { userId: token.sub, isRead: false },
+        where: { userId: ctx.userId, isRead: false },
         data: { isRead: true, readAt: new Date() },
       });
-    } else if (notificationIds?.length > 0) {
-      // Mark specific notifications as read
-      await prisma.notification.updateMany({
-        where: {
-          id: { in: notificationIds },
-          userId: token.sub,
-        },
-        data: { isRead: true, readAt: new Date() },
-      });
+      return NextResponse.json({ success: true });
     }
+
+    if (!notificationIds?.length) {
+      return NextResponse.json({ error: "notificationIds required" }, { status: 400 });
+    }
+
+    await prisma.notification.updateMany({
+      where: { id: { in: notificationIds }, userId: ctx.userId },
+      data: { isRead: true, readAt: new Date() },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error marking notifications as read:", error);
-    return NextResponse.json(
-      { error: "Failed to update notifications" },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE /api/notifications - Delete notifications
-export async function DELETE(req: NextRequest) {
-  try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await req.json();
-    const { notificationIds, deleteAll } = body;
-
-    if (deleteAll) {
-      await prisma.notification.deleteMany({
-        where: { userId: token.sub },
-      });
-    } else if (notificationIds?.length > 0) {
-      await prisma.notification.deleteMany({
-        where: {
-          id: { in: notificationIds },
-          userId: token.sub,
-        },
-      });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting notifications:", error);
-    return NextResponse.json(
-      { error: "Failed to delete notifications" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

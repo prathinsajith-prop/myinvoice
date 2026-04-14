@@ -2,29 +2,30 @@ import { auth } from "@/lib/auth";
 import { getTenantPrisma, type TenantPrismaClient } from "@/lib/db/tenant";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { hasRole, hasPermission, type MemberRole, type Permission } from "@/lib/rbac";
+import prisma from "@/lib/db/prisma";
 
 /**
- * Get the current session (cached per request)
+ * Get the current session (cached per request via React cache).
  */
 export const getSession = cache(async () => {
   return await auth();
 });
 
 /**
- * Get the current user or redirect to login
+ * Require authentication — redirects to /login if no session.
  */
 export async function requireAuth() {
   const session = await getSession();
-
   if (!session?.user) {
     redirect("/login");
   }
-
   return session.user;
 }
 
 /**
- * Get the current organization ID or redirect to onboarding
+ * Require an active organization — redirects to /onboarding if missing.
+ * Returns { userId, organizationId, role }.
  */
 export async function requireOrganization() {
   const user = await requireAuth();
@@ -36,12 +37,12 @@ export async function requireOrganization() {
   return {
     userId: user.id,
     organizationId: user.organizationId,
-    role: user.role!,
+    role: user.role as MemberRole,
   };
 }
 
 /**
- * Get a tenant-scoped Prisma client for the current user's organization
+ * Get a tenant-scoped Prisma client for the current request's organization.
  */
 export async function getTenantDb(): Promise<TenantPrismaClient> {
   const { organizationId } = await requireOrganization();
@@ -49,26 +50,30 @@ export async function getTenantDb(): Promise<TenantPrismaClient> {
 }
 
 /**
- * Check if user has required role
+ * Require a minimum role — throws if the current user's role is insufficient.
  */
-export async function requireRole(requiredRole: string) {
+export async function requireRole(requiredRole: MemberRole) {
   const { role } = await requireOrganization();
 
-  const roleHierarchy: Record<string, number> = {
-    VIEWER: 1,
-    MEMBER: 2,
-    ACCOUNTANT: 3,
-    ADMIN: 4,
-    OWNER: 5,
-  };
+  if (!hasRole(role, requiredRole)) {
+    throw new Error(`Requires ${requiredRole} or higher`);
+  }
+}
 
-  if ((roleHierarchy[role] ?? 0) < (roleHierarchy[requiredRole] ?? 0)) {
+/**
+ * Require a specific permission — throws if the current user lacks it.
+ */
+export async function requirePermission(permission: Permission) {
+  const { role } = await requireOrganization();
+
+  if (!hasPermission(role, permission)) {
     throw new Error("Insufficient permissions");
   }
 }
 
 /**
- * Audit log helper - records actions for FTA compliance
+ * Write an audit log entry (FTA compliance).
+ * Uses the raw prisma client since AuditLog is not isolated by the tenant extension.
  */
 export async function logAudit(params: {
   action: string;
@@ -79,21 +84,19 @@ export async function logAudit(params: {
   metadata?: Record<string, unknown>;
 }) {
   const session = await getSession();
-  const { organizationId } = await requireOrganization();
-
-  const { default: prisma } = await import("@/lib/db/prisma");
+  if (!session?.user?.organizationId) return;
 
   await prisma.auditLog.create({
     data: {
-      organizationId,
-      userId: session?.user.id,
-      userEmail: session?.user.email,
+      organizationId: session.user.organizationId,
+      userId: session.user.id,
+      userEmail: session.user.email ?? undefined,
       action: params.action,
       entityType: params.entityType,
       entityId: params.entityId,
-      previousData: params.previousData as object,
-      newData: params.newData as object,
-      metadata: params.metadata as object,
+      previousData: params.previousData as object | undefined,
+      newData: params.newData as object | undefined,
+      metadata: params.metadata as object | undefined,
     },
   });
 }

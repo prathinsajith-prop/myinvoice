@@ -1,36 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import prisma from "@/lib/db/prisma";
 import { updateProfileSchema } from "@/lib/validations/settings";
+import { resolveApiContext } from "@/lib/api/auth";
+import { toErrorResponse } from "@/lib/errors";
 
-// GET /api/user/profile - Get current user profile
+// GET /api/user/profile
 export async function GET(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const ctx = await resolveApiContext(req);
 
     const user = await prisma.user.findUnique({
-      where: { id: token.sub },
+      where: { id: ctx.userId },
       select: {
         id: true,
         name: true,
         email: true,
-        image: true,
         phone: true,
-        emailVerified: true,
+        image: true,
         twoFactorEnabled: true,
-        createdAt: true,
-        lastLoginAt: true,
-        // Notification preferences
         emailNotifications: true,
         pushNotifications: true,
-        invoiceNotifications: true,
-        paymentNotifications: true,
-        reminderNotifications: true,
-        marketingNotifications: true,
+        createdAt: true,
+        lastLoginAt: true,
       },
     });
 
@@ -40,26 +31,17 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("Error fetching user profile:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch profile" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }
 
-// PATCH /api/user/profile - Update user profile
+// PATCH /api/user/profile
 export async function PATCH(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    if (!token?.sub) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const ctx = await resolveApiContext(req);
     const body = await req.json();
-    const result = updateProfileSchema.safeParse(body);
 
+    const result = updateProfileSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
         { error: "Validation failed", details: result.error.flatten() },
@@ -68,23 +50,20 @@ export async function PATCH(req: NextRequest) {
     }
 
     const user = await prisma.user.update({
-      where: { id: token.sub },
+      where: { id: ctx.userId },
       data: result.data,
       select: {
         id: true,
         name: true,
         email: true,
-        image: true,
         phone: true,
+        image: true,
+        twoFactorEnabled: true,
       },
     });
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("Error updating user profile:", error);
-    return NextResponse.json(
-      { error: "Failed to update profile" },
-      { status: 500 }
-    );
+    return toErrorResponse(error);
   }
 }

@@ -5,15 +5,13 @@ import { compare } from "bcryptjs";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 
-// Validation schema for credentials
 const credentialsSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  email: z.string().email(),
+  password: z.string().min(8),
 });
 
 export const authConfig: NextAuthConfig = {
   providers: [
-    // Email/Password Authentication
     Credentials({
       name: "credentials",
       credentials: {
@@ -22,40 +20,19 @@ export const authConfig: NextAuthConfig = {
       },
       async authorize(credentials) {
         const parsed = credentialsSchema.safeParse(credentials);
-        if (!parsed.success) {
-          return null;
-        }
+        if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
 
         const user = await prisma.user.findUnique({
           where: { email: email.toLowerCase() },
-          include: {
-            memberships: {
-              where: { isActive: true },
-              include: {
-                organization: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
-                },
-              },
-            },
-          },
         });
 
-        if (!user || !user.password) {
-          return null;
-        }
+        if (!user?.password) return null;
 
-        const isValidPassword = await compare(password, user.password);
-        if (!isValidPassword) {
-          return null;
-        }
+        const valid = await compare(password, user.password);
+        if (!valid) return null;
 
-        // Update last login
         await prisma.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
@@ -71,7 +48,6 @@ export const authConfig: NextAuthConfig = {
       },
     }),
 
-    // Google OAuth
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -83,55 +59,28 @@ export const authConfig: NextAuthConfig = {
     signIn: "/login",
     signOut: "/logout",
     error: "/login",
-    verifyRequest: "/verify-email",
     newUser: "/onboarding",
   },
 
   callbacks: {
-    async signIn({ user, account }) {
-      // Allow OAuth without additional checks
-      if (account?.provider !== "credentials") {
-        // Create user and default organization for OAuth users if they don't exist
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-
-        if (!existingUser) {
-          // User will be created by the adapter
-          return true;
-        }
-
-        // Check 2FA if enabled (for existing users)
-        if (existingUser.twoFactorEnabled) {
-          // 2FA verification will be handled in a separate flow
-          // For now, allow sign in - 2FA check happens on protected routes
-        }
-
-        return true;
-      }
-
-      // For credentials, we've already validated in authorize()
+    async signIn({ account }) {
+      // OAuth users are always allowed through; adapter handles creation
+      if (account?.provider !== "credentials") return true;
       return true;
     },
 
-    async jwt({ token, user, account, trigger, session }) {
-      // Initial sign in
+    async jwt({ token, user, trigger, session }) {
+      // ── Initial sign-in ──────────────────────────────────────────────────
       if (user) {
         token.id = user.id;
-        token.twoFactorEnabled = user.twoFactorEnabled;
+        token.twoFactorEnabled = user.twoFactorEnabled ?? false;
 
-        // Get user's organizations
         const memberships = await prisma.organizationMembership.findMany({
-          where: { userId: user.id, isActive: true },
+          where: { userId: user.id!, isActive: true },
           include: {
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
+            organization: { select: { id: true, name: true, slug: true } },
           },
+          orderBy: { createdAt: "asc" },
         });
 
         token.organizations = memberships.map((m) => ({
@@ -141,15 +90,15 @@ export const authConfig: NextAuthConfig = {
           role: m.role,
         }));
 
-        // Set current organization (first one by default)
         if (memberships.length > 0) {
-          token.organizationId = memberships[0].organization.id;
-          token.organizationSlug = memberships[0].organization.slug;
-          token.role = memberships[0].role;
+          const first = memberships[0];
+          token.organizationId = first.organization.id;
+          token.organizationSlug = first.organization.slug;
+          token.role = first.role;
         }
       }
 
-      // Handle organization switching
+      // ── Organization switch ──────────────────────────────────────────────
       if (trigger === "update" && session?.organizationId) {
         const membership = await prisma.organizationMembership.findFirst({
           where: {
@@ -158,9 +107,7 @@ export const authConfig: NextAuthConfig = {
             isActive: true,
           },
           include: {
-            organization: {
-              select: { id: true, name: true, slug: true },
-            },
+            organization: { select: { id: true, name: true, slug: true } },
           },
         });
 
@@ -168,6 +115,22 @@ export const authConfig: NextAuthConfig = {
           token.organizationId = membership.organization.id;
           token.organizationSlug = membership.organization.slug;
           token.role = membership.role;
+
+          // Refresh orgs list so newly joined orgs appear immediately
+          const allMemberships = await prisma.organizationMembership.findMany({
+            where: { userId: token.id as string, isActive: true },
+            include: {
+              organization: { select: { id: true, name: true, slug: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          });
+
+          token.organizations = allMemberships.map((m) => ({
+            id: m.organization.id,
+            name: m.organization.name,
+            slug: m.organization.slug,
+            role: m.role,
+          }));
         }
       }
 
@@ -175,36 +138,36 @@ export const authConfig: NextAuthConfig = {
     },
 
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.twoFactorEnabled = token.twoFactorEnabled as boolean;
-        session.user.organizationId = token.organizationId as string | undefined;
-        session.user.organizationSlug = token.organizationSlug as string | undefined;
-        session.user.role = token.role as string | undefined;
-        session.user.organizations = token.organizations as Array<{
-          id: string;
-          name: string;
-          slug: string;
-          role: string;
-        }>;
-      }
+      session.user.id = token.id as string;
+      session.user.twoFactorEnabled = token.twoFactorEnabled as boolean;
+      session.user.organizationId = token.organizationId as string | undefined;
+      session.user.organizationSlug = token.organizationSlug as string | undefined;
+      session.user.role = token.role as string | undefined;
+      session.user.organizations = (token.organizations ?? []) as Array<{
+        id: string;
+        name: string;
+        slug: string;
+        role: string;
+      }>;
       return session;
     },
   },
 
   events: {
     async createUser({ user }) {
-      // Create a default personal organization for new OAuth users
       if (!user.id) return;
-      
+
+      const baseName = user.name ?? user.email?.split("@")[0] ?? "My";
+      const suffix = user.id.slice(0, 8);
+      const slug = `org-${suffix}`;
+
       const org = await prisma.organization.create({
         data: {
-          name: `${user.name || user.email?.split("@")[0]}'s Business`,
-          slug: `org-${user.id.slice(0, 8)}`,
+          name: `${baseName}'s Business`,
+          slug,
         },
       });
 
-      // Make them the owner
       await prisma.organizationMembership.create({
         data: {
           userId: user.id,
