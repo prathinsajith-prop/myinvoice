@@ -104,6 +104,11 @@ export const updateOrganizationSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color")
     .optional()
     .nullable(),
+  secondaryColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color")
+    .optional()
+    .nullable(),
 
   // Invoice/Quote Settings
   defaultCurrency: z.enum(["AED", "USD", "EUR", "GBP", "SAR", "OMR", "QAR", "KWD", "BHD"]).optional(),

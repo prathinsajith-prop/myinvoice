@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -12,6 +12,9 @@ import {
   EyeOff,
   CheckCircle2,
   Clock,
+  History,
+  Monitor,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,15 +28,38 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { updatePasswordSchema, type UpdatePasswordInput } from "@/lib/validations/settings";
+
+interface LoginHistoryRecord {
+  id: string;
+  ipAddress: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  city: string | null;
+  country: string | null;
+  success: boolean;
+  failReason: string | null;
+  createdAt: string;
+}
 
 export default function SecuritySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loginHistory, setLoginHistory] = useState<LoginHistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/user/login-history")
+      .then((r) => r.json())
+      .then((json) => setLoginHistory(json.data ?? []))
+      .catch(() => {/* non-critical */ })
+      .finally(() => setHistoryLoading(false));
+  }, []);
 
   const {
     register,
@@ -171,11 +197,10 @@ export default function SecuritySettingsPage() {
                     {[0, 1, 2, 3, 4].map((index) => (
                       <div
                         key={index}
-                        className={`h-1 flex-1 rounded-full transition-colors ${
-                          index < passwordStrength
-                            ? strengthColors[passwordStrength - 1]
-                            : "bg-muted"
-                        }`}
+                        className={`h-1 flex-1 rounded-full transition-colors ${index < passwordStrength
+                          ? strengthColors[passwordStrength - 1]
+                          : "bg-muted"
+                          }`}
                       />
                     ))}
                   </div>
@@ -266,47 +291,90 @@ export default function SecuritySettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Active Sessions Card */}
+      {/* Login History Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Active Sessions</CardTitle>
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" />
+            <CardTitle>Login History</CardTitle>
+          </div>
           <CardDescription>
-            Manage your active sessions and signed-in devices
+            Recent sign-in activity for your account (last 50 events)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-green-100 p-2 dark:bg-green-900">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">Current Session</p>
-                    <Badge variant="outline" className="text-green-600">
-                      Active
-                    </Badge>
+          {historyLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : loginHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No login history yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {loginHistory.map((record) => {
+                const when = new Date(record.createdAt);
+                const deviceLabel = [record.browser, record.os]
+                  .filter(Boolean)
+                  .join(" · ") || record.device || "Unknown device";
+                const location = [record.city, record.country]
+                  .filter(Boolean)
+                  .join(", ") || record.ipAddress || "Unknown location";
+
+                return (
+                  <div
+                    key={record.id}
+                    className="flex items-center justify-between rounded-lg border p-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`rounded-full p-2 ${record.success
+                          ? "bg-green-100 dark:bg-green-900"
+                          : "bg-red-100 dark:bg-red-900"
+                          }`}
+                      >
+                        {record.success ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-sm font-medium">{deviceLabel}</p>
+                          {!record.success && (
+                            <Badge variant="destructive" className="text-xs">
+                              Failed
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{location}</p>
+                        {record.failReason && (
+                          <p className="text-xs text-destructive">{record.failReason}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>
+                        {when.toLocaleDateString(undefined, {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}{" "}
+                        {when.toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Browser · This device
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>Just now</span>
-              </div>
+                );
+              })}
             </div>
-
-            <Separator />
-
-            <div className="flex justify-end">
-              <Button variant="outline" className="text-destructive" disabled>
-                Sign Out All Other Sessions
-              </Button>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

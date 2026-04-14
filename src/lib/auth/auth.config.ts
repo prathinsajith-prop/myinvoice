@@ -226,6 +226,19 @@ export const authConfig: NextAuthConfig = {
   },
 
   events: {
+    async signIn({ user }) {
+      if (!user.id) return;
+      try {
+        await prisma.loginHistory.create({
+          data: {
+            userId: user.id,
+            success: true,
+          },
+        });
+      } catch {
+        // non-critical — do not block sign-in
+      }
+    },
     async createUser({ user }) {
       if (!user.id) return;
 

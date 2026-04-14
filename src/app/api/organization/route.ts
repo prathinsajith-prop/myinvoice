@@ -26,6 +26,7 @@ const ORG_SELECT = {
   postalCode: true,
   logo: true,
   primaryColor: true,
+  secondaryColor: true,
   defaultCurrency: true,
   fiscalYearStart: true,
   invoicePrefix: true,
