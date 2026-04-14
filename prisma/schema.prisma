@@ -271,6 +271,7 @@ model User {
   sessions      Session[]
   memberships   OrganizationMembership[]
   notifications Notification[]
+  loginHistory  LoginHistory[]
 
   @@index([email])
   @@index([lockedUntil])
@@ -320,9 +321,25 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// =============================================================================
-// GLOBAL: NOTIFICATIONS
-// =============================================================================
+model LoginHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  ipAddress  String?
+  userAgent  String?
+  device     String?
+  browser    String?
+  os         String?
+  city       String?
+  country    String?
+  success    Boolean  @default(true)
+  failReason String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
 
 model Notification {
   id             String           @id @default(cuid())
