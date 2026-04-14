@@ -769,6 +769,7 @@ model Quotation {
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer     Customer            @relation(fields: [customerId], references: [id])
   lineItems    QuotationLineItem[]
+  versions     QuotationVersion[]
   invoice      Invoice?
   attachments  Attachment[]
 
@@ -800,6 +801,25 @@ model QuotationLineItem {
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   product   Product?  @relation(fields: [productId], references: [id])
 
+  @@index([quotationId])
+}
+
+// =============================================================================
+// TENANT: QUOTATION VERSIONS  (immutable snapshot per revision)
+// =============================================================================
+
+model QuotationVersion {
+  id          String   @id @default(cuid())
+  quotationId String
+  version     Int
+  snapshot    Json
+  changedBy   String?
+  changeNote  String?
+  createdAt   DateTime @default(now())
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@unique([quotationId, version])
   @@index([quotationId])
 }
 
