@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronsUpDown, Plus, Building2, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useTenant } from "@/lib/tenant/context";
@@ -15,21 +15,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-
-const PLAN_COLORS: Record<string, string> = {
-  FREE: "bg-gray-100 text-gray-700",
-  STARTER: "bg-blue-100 text-blue-700",
-  PROFESSIONAL: "bg-purple-100 text-purple-700",
-  ENTERPRISE: "bg-amber-100 text-amber-700",
-};
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function OrgSwitcher() {
   const router = useRouter();
   const {
     organizationId,
     organizationName,
+    organizationLogo,
     organizations,
     switchOrganization,
     isLoading,
@@ -67,11 +60,11 @@ export function OrgSwitcher() {
 
   const initials = organizationName
     ? organizationName
-        .split(" ")
-        .map((w) => w[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
     : "??";
 
   return (
@@ -84,6 +77,7 @@ export function OrgSwitcher() {
         >
           <div className="flex items-center gap-2 min-w-0">
             <Avatar className="h-7 w-7 flex-shrink-0">
+              <AvatarImage src={organizationLogo ?? undefined} alt={organizationName ?? ""} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                 {initials}
               </AvatarFallback>

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { registerAction } from "@/lib/auth/actions";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const { isRegistering, setRegistering } = useAuthStore();
 
   const {
     register,
@@ -30,7 +34,7 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterInput) => {
-    setIsLoading(true);
+    setRegistering(true);
     try {
       const result = await registerAction(data);
 
@@ -38,8 +42,7 @@ export default function RegisterPage() {
         toast.success("Account created successfully!");
         router.push("/login?registered=true");
       } else if (result.errors) {
-        // Handle field-level errors
-        Object.entries(result.errors).forEach(([field, messages]) => {
+        Object.entries(result.errors).forEach(([, messages]) => {
           if (messages?.[0]) {
             toast.error(messages[0]);
           }
@@ -47,10 +50,10 @@ export default function RegisterPage() {
       } else if (result.message) {
         toast.error(result.message);
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
-      setIsLoading(false);
+      setRegistering(false);
     }
   };
 
@@ -58,7 +61,7 @@ export default function RegisterPage() {
     setIsGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl: "/dashboard" });
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
       setIsGoogleLoading(false);
     }
@@ -81,7 +84,7 @@ export default function RegisterPage() {
             type="text"
             placeholder="Ahmed Al Maktoum"
             autoComplete="name"
-            disabled={isLoading}
+            disabled={isRegistering}
             {...register("name")}
           />
           {errors.name && (
@@ -96,7 +99,7 @@ export default function RegisterPage() {
             type="email"
             placeholder="name@company.ae"
             autoComplete="email"
-            disabled={isLoading}
+            disabled={isRegistering}
             {...register("email")}
           />
           {errors.email && (
@@ -106,14 +109,30 @@ export default function RegisterPage() {
 
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            disabled={isLoading}
-            {...register("password")}
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              disabled={isRegistering}
+              className="pr-10"
+              {...register("password")}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-muted-foreground hover:text-foreground focus:outline-none"
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
           {errors.password && (
             <p className="text-sm text-destructive">
               {errors.password.message}
@@ -123,14 +142,32 @@ export default function RegisterPage() {
 
         <div className="space-y-2">
           <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            disabled={isLoading}
-            {...register("confirmPassword")}
-          />
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              disabled={isRegistering}
+              className="pr-10"
+              {...register("confirmPassword")}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-muted-foreground hover:text-foreground focus:outline-none"
+              tabIndex={-1}
+              aria-label={
+                showConfirmPassword ? "Hide password" : "Show password"
+              }
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
           {errors.confirmPassword && (
             <p className="text-sm text-destructive">
               {errors.confirmPassword.message}
@@ -138,8 +175,8 @@ export default function RegisterPage() {
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
+        <Button type="submit" className="w-full" disabled={isRegistering}>
+          {isRegistering ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Creating account...
@@ -196,17 +233,6 @@ export default function RegisterPage() {
         Already have an account?{" "}
         <Link href="/login" className="text-primary hover:underline">
           Sign in
-        </Link>
-      </p>
-
-      <p className="text-center text-xs text-muted-foreground">
-        By creating an account, you agree to our{" "}
-        <Link href="/terms" className="underline hover:text-primary">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="underline hover:text-primary">
-          Privacy Policy
         </Link>
       </p>
     </div>

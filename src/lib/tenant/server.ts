@@ -91,7 +91,8 @@ export async function logAudit(params: {
       organizationId: session.user.organizationId,
       userId: session.user.id,
       userEmail: session.user.email ?? undefined,
-      action: params.action,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      action: params.action as any,
       entityType: params.entityType,
       entityId: params.entityId,
       previousData: params.previousData as object | undefined,

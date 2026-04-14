@@ -24,7 +24,7 @@ function matchesPrefix(path: string, prefixes: string[]): boolean {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -56,7 +56,7 @@ export async function middleware(req: NextRequest) {
   if (isLoggedIn && token.organizationId) {
     const response = NextResponse.next();
     response.headers.set("x-organization-id", token.organizationId as string);
-    response.headers.set("x-user-id", token.sub);
+    response.headers.set("x-user-id", token.sub ?? "");
     response.headers.set("x-user-role", (token.role as string) ?? "");
     return response;
   }
