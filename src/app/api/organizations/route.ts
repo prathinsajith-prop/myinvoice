@@ -17,9 +17,16 @@ export async function GET(req: NextRequest) {
             name: true,
             slug: true,
             logo: true,
-            plan: true,
             isActive: true,
             createdAt: true,
+            subscription: {
+              select: {
+                plan: true,
+                status: true,
+                trialEndsAt: true,
+                currentPeriodEnd: true,
+              },
+            },
           },
         },
       },

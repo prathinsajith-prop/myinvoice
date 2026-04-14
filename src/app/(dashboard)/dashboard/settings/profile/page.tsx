@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +26,9 @@ export default function ProfileSettingsPage() {
   const { data: session, update: updateSession } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageChanged, setImageChanged] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -43,10 +46,10 @@ export default function ProfileSettingsPage() {
         if (!res.ok) throw new Error("Failed to fetch profile");
         const data = await res.json();
         reset({
-          name: data.name || "",
-          phone: data.phone || "",
-          image: data.image || "",
+          name: data.name ?? undefined,
+          phone: data.phone ?? undefined,
         });
+        setImagePreview(data.image ?? null);
       } catch {
         toast.error("Failed to load profile");
       } finally {
@@ -56,13 +59,37 @@ export default function ProfileSettingsPage() {
     fetchProfile();
   }, [reset]);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be smaller than 2MB");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)) {
+      toast.error("Only JPG, PNG, GIF or WebP images are allowed");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImagePreview(reader.result as string);
+      setImageChanged(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const onSubmit = async (data: UpdateProfileInput) => {
     setSaving(true);
     try {
       const res = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          ...(imageChanged ? { image: imagePreview } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -71,19 +98,15 @@ export default function ProfileSettingsPage() {
       }
 
       const updatedUser = await res.json();
-      
-      // Update the session with new user data
-      await updateSession({
-        ...session,
-        user: {
-          ...session?.user,
-          name: updatedUser.name,
-          image: updatedUser.image,
-        },
-      });
+
+      // Trigger session refresh — session callback re-reads name & image from DB
+      await updateSession();
 
       toast.success("Profile updated successfully");
-      reset(data); // Reset form state to mark as not dirty
+      setImageChanged(false);
+      // Update local preview to match what was saved
+      setImagePreview(updatedUser.image ?? null);
+      reset({ name: data.name, phone: data.phone });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
@@ -128,11 +151,18 @@ export default function ProfileSettingsPage() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Avatar Section */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={handleImageChange}
+            />
             <div className="flex items-center gap-6">
               <div className="relative">
                 <Avatar className="h-20 w-20">
                   <AvatarImage
-                    src={session?.user?.image || undefined}
+                    src={imagePreview || undefined}
                     alt={session?.user?.name || "User"}
                   />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
@@ -144,6 +174,7 @@ export default function ProfileSettingsPage() {
                   variant="outline"
                   size="icon"
                   className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera className="h-4 w-4" />
                 </Button>
@@ -154,7 +185,7 @@ export default function ProfileSettingsPage() {
                   {session?.user?.email}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  JPG, GIF or PNG. Max size 2MB.
+                  Click the camera icon to upload. JPG, PNG, GIF or WebP. Max 2MB.
                 </p>
               </div>
             </div>
@@ -208,11 +239,11 @@ export default function ProfileSettingsPage() {
                 type="button"
                 variant="outline"
                 onClick={() => reset()}
-                disabled={!isDirty || saving}
+                disabled={(!isDirty && !imageChanged) || saving}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!isDirty || saving}>
+              <Button type="submit" disabled={(!isDirty && !imageChanged) || saving}>
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

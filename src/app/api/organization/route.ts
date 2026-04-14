@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { updateOrganizationSchema } from "@/lib/validations/settings";
 import {
@@ -30,10 +31,26 @@ const ORG_SELECT = {
   invoicePrefix: true,
   quotePrefix: true,
   defaultPaymentTerms: true,
-  plan: true,
-  planExpiresAt: true,
   isActive: true,
   createdAt: true,
+  subscription: {
+    select: {
+      plan: true,
+      status: true,
+      trialEndsAt: true,
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
+      monthlyInvoiceLimit: true,
+      teamMemberLimit: true,
+      storageGbLimit: true,
+      customersLimit: true,
+      hasApiAccess: true,
+      hasCustomBranding: true,
+      hasAdvancedReports: true,
+      hasMultiCurrency: true,
+      hasWhiteLabel: true,
+    },
+  },
 } as const;
 
 // GET /api/organization — get current organization
@@ -50,11 +67,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    return NextResponse.json(organization);
+    return NextResponse.json({ organization, role: ctx.role });
   } catch (error) {
     return toErrorResponse(error);
   }
 }
+
+const createOrganizationSchema = z.object({
+  name: z.string().min(2).max(200),
+  legalName: z.string().min(2).max(200).optional(),
+  businessType: z.string().optional(),
+  country: z.string().length(2).optional().default("AE"),
+  emirate: z.string().optional(),
+  city: z.string().optional(),
+  addressLine1: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  defaultCurrency: z.string().optional().default("AED"),
+  trn: z
+    .string()
+    .length(15)
+    .regex(/^\d+$/)
+    .optional(),
+  timezone: z.string().optional().default("Asia/Dubai"),
+});
 
 // POST /api/organization — create a new organization for the current user
 export async function POST(req: NextRequest) {
@@ -62,10 +98,7 @@ export async function POST(req: NextRequest) {
     const ctx = await resolveApiContext(req);
     const body = await req.json();
 
-    const result = updateOrganizationSchema
-      .pick({ name: true })
-      .required({ name: true })
-      .safeParse(body);
+    const result = createOrganizationSchema.safeParse(body);
 
     if (!result.success) {
       return NextResponse.json(
@@ -74,10 +107,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name } = result.data;
+    const { timezone, ...orgData } = result.data;
 
     // Generate a unique slug from name
-    const baseSlug = name
+    const baseSlug = orgData.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
@@ -86,22 +119,71 @@ export async function POST(req: NextRequest) {
     const suffix = Math.random().toString(36).slice(2, 7);
     const slug = `${baseSlug}-${suffix}`;
 
+    const DOCUMENT_SEQUENCES = [
+      { documentType: "INVOICE" as const, prefix: "INV", nextSequence: 1, padLength: 4 },
+      { documentType: "PROFORMA" as const, prefix: "PI", nextSequence: 1, padLength: 4 },
+      { documentType: "QUOTATION" as const, prefix: "QT", nextSequence: 1, padLength: 4 },
+      { documentType: "CREDIT_NOTE" as const, prefix: "CN", nextSequence: 1, padLength: 4 },
+      { documentType: "DEBIT_NOTE" as const, prefix: "DN", nextSequence: 1, padLength: 4 },
+      { documentType: "BILL" as const, prefix: "BILL", nextSequence: 1, padLength: 4 },
+    ];
+
     const organization = await prisma.organization.create({
       data: {
-        name,
+        ...orgData,
         slug,
+        legalName: orgData.legalName ?? orgData.name,
+        defaultCurrency: orgData.defaultCurrency ?? "AED",
+        defaultVatRate: orgData.country === "AE" ? 5 : 0,
+        invoicePrefix: "INV",
+        proformaPrefix: "PI",
+        quotePrefix: "QT",
+        creditNotePrefix: "CN",
+        debitNotePrefix: "DN",
+        billPrefix: "BILL",
+        paymentPrefix: "PAY",
+        defaultPaymentTerms: 30,
         memberships: {
           create: {
             userId: ctx.userId,
             role: "OWNER",
+            inviteStatus: "ACCEPTED",
             acceptedAt: new Date(),
+            isActive: true,
           },
+        },
+        subscription: {
+          create: {
+            plan: "FREE",
+            status: "ACTIVE",
+            monthlyInvoiceLimit: 10,
+            teamMemberLimit: 1,
+            storageGbLimit: 1,
+            customersLimit: 50,
+            hasApiAccess: false,
+            hasCustomBranding: false,
+            hasAdvancedReports: false,
+            hasMultiCurrency: false,
+            hasWhiteLabel: false,
+          },
+        },
+        settings: {
+          create: {
+            timezone: timezone ?? "Asia/Dubai",
+            vatRegistered: orgData.country === "AE",
+            showLogo: true,
+            showQrCode: true,
+            autoReminders: true,
+          },
+        },
+        documentSequences: {
+          create: DOCUMENT_SEQUENCES,
         },
       },
       select: ORG_SELECT,
     });
 
-    return NextResponse.json(organization, { status: 201 });
+    return NextResponse.json({ organization, role: "OWNER" }, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);
   }

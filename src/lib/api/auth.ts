@@ -16,6 +16,24 @@ export interface ApiContext {
   role: MemberRole;
 }
 
+export interface ApiUserContext {
+  userId: string;
+}
+
+/**
+ * Resolve user-only auth context (no org required).
+ * Use this for profile, password, and other user-scoped endpoints.
+ */
+export async function resolveUserContext(req: NextRequest): Promise<ApiUserContext> {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  if (!token?.sub) {
+    throw new UnauthorizedError();
+  }
+
+  return { userId: token.sub };
+}
+
 /**
  * Resolve and validate the tenant context from a request token.
  * Throws typed errors rather than returning null.

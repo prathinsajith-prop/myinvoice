@@ -8,14 +8,16 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 142 76% 36%; /* UAE Green - inspired by UAE flag */
+    --primary: 142 76% 36%;
+    /* UAE Green - inspired by UAE flag */
     --primary-foreground: 0 0% 100%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 0 84% 60%; /* UAE Red accent */
-    --accent-foreground: 0 0% 100%;
+    --accent: 142 30% 92%;
+    /* light green-tinted hover surface */
+    --accent-foreground: 142 76% 20%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
@@ -42,8 +44,9 @@
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 0 72% 50%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 142 25% 18%;
+    /* dark green-tinted hover surface */
+    --accent-foreground: 142 60% 85%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
@@ -89,10 +92,12 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
   /* RTL Support */
   [dir="rtl"] {
     text-align: right;

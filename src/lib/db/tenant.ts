@@ -15,7 +15,8 @@ function isTenantScoped(model: string): boolean {
 function injectOrg(
   where: Record<string, unknown> | undefined,
   organizationId: string
-): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   return { ...where, organizationId };
 }
 

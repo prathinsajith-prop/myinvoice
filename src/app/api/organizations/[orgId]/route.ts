@@ -41,9 +41,26 @@ export async function GET(
         country: true,
         postalCode: true,
         logo: true,
-        plan: true,
         isActive: true,
         createdAt: true,
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+            trialEndsAt: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true,
+            monthlyInvoiceLimit: true,
+            teamMemberLimit: true,
+            storageGbLimit: true,
+            customersLimit: true,
+            hasApiAccess: true,
+            hasCustomBranding: true,
+            hasAdvancedReports: true,
+            hasMultiCurrency: true,
+            hasWhiteLabel: true,
+          },
+        },
       },
     });
 

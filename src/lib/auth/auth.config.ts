@@ -98,6 +98,32 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
+      // ── Fallback: re-hydrate org if token lacks it (e.g. logged in before seed) ───
+      if (!token.organizationId && (token.id || token.sub)) {
+        const uid = (token.id ?? token.sub) as string;
+        const memberships = await prisma.organizationMembership.findMany({
+          where: { userId: uid, isActive: true },
+          include: {
+            organization: { select: { id: true, name: true, slug: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        });
+
+        token.organizations = memberships.map((m) => ({
+          id: m.organization.id,
+          name: m.organization.name,
+          slug: m.organization.slug,
+          role: m.role,
+        }));
+
+        if (memberships.length > 0) {
+          const first = memberships[0];
+          token.organizationId = first.organization.id;
+          token.organizationSlug = first.organization.slug;
+          token.role = first.role;
+        }
+      }
+
       // ── Organization switch ──────────────────────────────────────────────
       if (trigger === "update" && session?.organizationId) {
         const membership = await prisma.organizationMembership.findFirst({
@@ -149,6 +175,31 @@ export const authConfig: NextAuthConfig = {
         slug: string;
         role: string;
       }>;
+
+      // Always read fresh name, image, and current org logo from DB so
+      // profile/logo uploads are reflected without requiring re-login.
+      const uid = (token.id ?? token.sub) as string | undefined;
+      if (uid) {
+        const [freshUser, freshOrg] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: uid },
+            select: { name: true, image: true },
+          }),
+          token.organizationId
+            ? prisma.organization.findUnique({
+              where: { id: token.organizationId as string },
+              select: { logo: true },
+            })
+            : null,
+        ]);
+
+        if (freshUser) {
+          session.user.name = freshUser.name ?? session.user.name;
+          session.user.image = freshUser.image ?? null;
+        }
+        session.user.organizationLogo = freshOrg?.logo ?? null;
+      }
+
       return session;
     },
   },
