@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
         const quotation = await prisma.quotation.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
-            include: { lineItems: true },
+            include: { lineItems: true, invoice: { select: { id: true } } },
         });
 
         if (!quotation) throw new NotFoundError("Quotation");
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest, { params }: Params) {
                     totalVat: quotation.totalVat,
                     discount: quotation.discount,
                     total: quotation.total,
-                    outstandingAmount: quotation.total,
-                    paidAmount: 0,
+                    outstanding: quotation.total,
+                    amountPaid: 0,
                     status: "DRAFT",
                     lineItems: {
                         create: quotation.lineItems.map((item) => ({

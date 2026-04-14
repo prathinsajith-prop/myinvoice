@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, Receipt, Loader2, AlertCircle } from "lucide-react";
 
+import { BillSheet } from "@/components/modals/bill-sheet";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     DropdownMenu,
@@ -28,26 +30,18 @@ interface Bill {
     billNumber: string;
     status: string;
     total: number;
-    outstandingAmount: number;
+    outstanding: number;
     dueDate: string;
-    billDate: string;
+    issueDate: string;
     supplier: { id: string; name: string };
 }
 
 interface Pagination { total: number; page: number; limit: number; pages: number }
 
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    RECEIVED: { variant: "default", label: "Received" },
-    PARTIALLY_PAID: { variant: "default", label: "Partial" },
-    PAID: { variant: "secondary", label: "Paid" },
-    OVERDUE: { variant: "destructive", label: "Overdue" },
-    VOID: { variant: "secondary", label: "Void" },
-    DISPUTED: { variant: "destructive", label: "Disputed" },
-};
 
 export default function BillsPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [bills, setBills] = useState<Bill[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
@@ -55,11 +49,21 @@ export default function BillsPage() {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [sheetOpen, setSheetOpen] = useState(false);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setSheetOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchBills = useCallback(async () => {
         setLoading(true);
@@ -81,7 +85,7 @@ export default function BillsPage() {
     useEffect(() => { fetchBills(); }, [fetchBills]);
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-    const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstandingAmount), 0);
+    const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstanding), 0);
 
     return (
         <div className="space-y-6">
@@ -92,11 +96,9 @@ export default function BillsPage() {
                         {pagination ? `${pagination.total} total bills` : "Manage supplier bills (payables)"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/bills/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Bill
-                    </Link>
+                <Button onClick={() => setSheetOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Bill
                 </Button>
             </div>
 
@@ -139,12 +141,12 @@ export default function BillsPage() {
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="DRAFT">Draft</SelectItem>
-                                <SelectItem value="RECEIVED">Received</SelectItem>
-                                <SelectItem value="PARTIALLY_PAID">Partial</SelectItem>
-                                <SelectItem value="PAID">Paid</SelectItem>
-                                <SelectItem value="OVERDUE">Overdue</SelectItem>
-                                <SelectItem value="VOID">Void</SelectItem>
+                                <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
+                                <SelectItem value="RECEIVED"><StatusOption status="RECEIVED" /></SelectItem>
+                                <SelectItem value="PARTIALLY_PAID"><StatusOption status="PARTIALLY_PAID" /></SelectItem>
+                                <SelectItem value="PAID"><StatusOption status="PAID" /></SelectItem>
+                                <SelectItem value="OVERDUE"><StatusOption status="OVERDUE" /></SelectItem>
+                                <SelectItem value="VOID"><StatusOption status="VOID" /></SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -162,8 +164,8 @@ export default function BillsPage() {
                                 {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Record your first supplier bill"}
                             </p>
                             {!debouncedSearch && statusFilter === "ALL" && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/bills/new"><Plus className="mr-2 h-4 w-4" />New Bill</Link>
+                                <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />New Bill
                                 </Button>
                             )}
                         </div>
@@ -185,7 +187,6 @@ export default function BillsPage() {
                                 <tbody>
                                     {bills.map((bill) => {
                                         const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
-                                        const statusInfo = STATUS_BADGE[bill.status] ?? { variant: "secondary" as const, label: bill.status };
                                         return (
                                             <tr
                                                 key={bill.id}
@@ -195,7 +196,7 @@ export default function BillsPage() {
                                                 <td className="px-4 py-3 font-medium">{bill.billNumber}</td>
                                                 <td className="px-4 py-3">{bill.supplier?.name}</td>
                                                 <td className="px-4 py-3 text-muted-foreground">
-                                                    {new Date(bill.billDate).toLocaleDateString("en-AE")}
+                                                    {new Date(bill.issueDate).toLocaleDateString("en-AE")}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
@@ -207,12 +208,12 @@ export default function BillsPage() {
                                                     AED {Number(bill.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums">
-                                                    <span className={Number(bill.outstandingAmount) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                        AED {Number(bill.outstandingAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                                    <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                        AED {Number(bill.outstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                                                    <StatusBadge status={bill.status} />
                                                 </td>
                                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
@@ -249,6 +250,11 @@ export default function BillsPage() {
                     )}
                 </CardContent>
             </Card>
+            <BillSheet
+                open={sheetOpen}
+                onClose={() => setSheetOpen(false)}
+                onSuccess={() => { fetchBills(); setSheetOpen(false); }}
+            />
         </div>
     );
 }

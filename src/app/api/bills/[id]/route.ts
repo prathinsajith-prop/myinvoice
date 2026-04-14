@@ -12,7 +12,7 @@ const updateBillSchema = z.object({
     dueDate: z.string().datetime().optional(),
     notes: z.string().optional().nullable(),
     internalNotes: z.string().optional().nullable(),
-    status: z.enum(["DRAFT", "RECEIVED", "APPROVED", "PARTIALLY_PAID", "PAID", "OVERDUE", "VOID"]).optional(),
+    status: z.enum(["DRAFT", "RECEIVED", "PARTIALLY_PAID", "PAID", "OVERDUE", "VOID"]).optional(),
 });
 
 export async function GET(req: NextRequest, { params }: Params) {

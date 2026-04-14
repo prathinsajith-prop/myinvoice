@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
+import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
@@ -9,15 +10,15 @@ import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
     description: z.string().min(1),
-    quantity: z.number().positive(),
-    unitPrice: z.number().min(0),
+    quantity: z.coerce.number().positive(),
+    unitPrice: z.coerce.number().min(0),
     unitOfMeasure: z.string().default("unit"),
-    discount: z.number().min(0).max(100).default(0),
+    discount: z.coerce.number().min(0).max(100).default(0),
     vatTreatment: z
         .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "REVERSE_CHARGE", "OUT_OF_SCOPE"])
         .default("STANDARD_RATED"),
-    vatRate: z.number().min(0).max(100).default(5),
-    sortOrder: z.number().int().default(0),
+    vatRate: z.coerce.number().min(0).max(100).default(5),
+    sortOrder: z.coerce.number().int().default(0),
 });
 
 const createInvoiceSchema = z.object({
@@ -25,10 +26,10 @@ const createInvoiceSchema = z.object({
     invoiceType: z.enum(["TAX_INVOICE", "SIMPLIFIED_TAX", "PROFORMA"]).default("TAX_INVOICE"),
     reference: z.string().optional().nullable(),
     poNumber: z.string().optional().nullable(),
-    issueDate: z.string().datetime().optional(),
-    dueDate: z.string().datetime(),
+    issueDate: z.string().optional(),
+    dueDate: z.string(),
     currency: z.string().default("AED"),
-    exchangeRate: z.number().default(1),
+    exchangeRate: z.coerce.number().default(1),
     notes: z.string().optional().nullable(),
     terms: z.string().optional().nullable(),
     internalNotes: z.string().optional().nullable(),
@@ -42,8 +43,8 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * pageSize;
+        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
+        const skip = (page - 1) * limit;
 
         const where = {
             organizationId: ctx.organizationId,
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
                 where,
                 orderBy: { issueDate: "desc" },
                 skip,
-                take: pageSize,
+                take: limit,
                 select: {
                     id: true,
                     invoiceNumber: true,
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
             prisma.invoice.count({ where }),
         ]);
 
-        return NextResponse.json({ invoices, total, page, pageSize });
+        return NextResponse.json({ data: invoices, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
     } catch (error) {
         return toErrorResponse(error);
     }
@@ -94,7 +95,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const ctx = await resolveApiContext(req);
-        const body = await req.json();
+        const raw = await req.json();
+        const body = normalizeDocumentBody(raw);
 
         const result = createInvoiceSchema.safeParse(body);
         if (!result.success) {
@@ -107,7 +109,16 @@ export async function POST(req: NextRequest) {
         const { lineItems: lineItemsInput, issueDate, dueDate, ...invoiceData } = result.data;
 
         // Calculate line items
-        const calculatedItems = lineItemsInput.map((item) => calculateLineItem(item));
+        const calculatedItems = lineItemsInput.map((item) => {
+            const calc = calculateLineItem({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discount: item.discount,
+                vatTreatment: item.vatTreatment,
+                vatRate: item.vatRate,
+            });
+            return { ...item, ...calc };
+        });
         const totals = calculateDocumentTotals(calculatedItems);
 
         const documentType =

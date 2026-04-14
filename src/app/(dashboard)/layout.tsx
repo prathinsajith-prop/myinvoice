@@ -65,6 +65,8 @@ const navigation = [
 ];
 
 const bottomNavigation = [
+  { name: "Users", href: "/users", icon: Users },
+  { name: "Organizations", href: "/organizations", icon: Building2 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -106,32 +108,32 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuItem asChild>
-              <Link href="/invoices/new">
+              <Link href="/invoices?create=1">
                 <FileText className="mr-2 h-4 w-4" />
                 Invoice
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/quotations/new">
+              <Link href="/quotations?create=1">
                 <FileCheck className="mr-2 h-4 w-4" />
                 Quotation
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/customers/new">
+              <Link href="/customers?create=1">
                 <Users className="mr-2 h-4 w-4" />
                 Customer
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/suppliers/new">
+              <Link href="/suppliers?create=1">
                 <Building2 className="mr-2 h-4 w-4" />
                 Supplier
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/products/new">
+              <Link href="/products?create=1">
                 <Package className="mr-2 h-4 w-4" />
                 Product
               </Link>
@@ -235,7 +237,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-[1920px] p-4 lg:p-6 2xl:px-10">{children}</div>
+        </main>
       </div>
     </div>
   );

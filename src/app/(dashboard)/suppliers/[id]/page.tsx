@@ -7,10 +7,13 @@ import { ChevronLeft, Loader2, Edit, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SupplierModal } from "@/components/modals/supplier-modal";
+import { BillSheet } from "@/components/modals/bill-sheet";
 
-interface Bill { id: string; billNumber: string; status: string; total: number; outstandingAmount: number; billDate: string; dueDate: string }
+interface Bill { id: string; billNumber: string; status: string; total: number; outstanding: number; issueDate: string; dueDate: string }
 
 interface Supplier {
     id: string;
@@ -32,26 +35,19 @@ interface Supplier {
     bankAccountNumber: string;
     bankIban: string;
     bankName: string;
+    notes: string | null;
     totalBilled: number;
-    outstandingAmount: number;
+    outstanding: number;
     bills: Bill[];
 }
-
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    RECEIVED: { variant: "default", label: "Received" },
-    PARTIALLY_PAID: { variant: "default", label: "Partial" },
-    PAID: { variant: "secondary", label: "Paid" },
-    OVERDUE: { variant: "destructive", label: "Overdue" },
-    VOID: { variant: "secondary", label: "Void" },
-    DISPUTED: { variant: "destructive", label: "Disputed" },
-};
 
 export default function SupplierDetailPage() {
     const params = useParams();
     const router = useRouter();
     const [supplier, setSupplier] = useState<Supplier | null>(null);
     const [loading, setLoading] = useState(true);
+    const [editOpen, setEditOpen] = useState(false);
+    const [billSheetOpen, setBillSheetOpen] = useState(false);
 
     const fetchSupplier = useCallback(async () => {
         setLoading(true);
@@ -94,10 +90,8 @@ export default function SupplierDetailPage() {
                         <p className="text-muted-foreground text-sm capitalize">{supplier.type?.toLowerCase()}</p>
                     </div>
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                    <Link href={`/suppliers/${supplier.id}/edit`}>
-                        <Edit className="mr-2 h-4 w-4" />Edit
-                    </Link>
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                    <Edit className="mr-2 h-4 w-4" />Edit
                 </Button>
             </div>
 
@@ -174,8 +168,8 @@ export default function SupplierDetailPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Outstanding</span>
-                                <span className={`font-medium ${Number(supplier.outstandingAmount) > 0 ? "text-amber-600" : ""}`}>
-                                    AED {Number(supplier.outstandingAmount || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                <span className={`font-medium ${Number(supplier.outstanding) > 0 ? "text-amber-600" : ""}`}>
+                                    AED {Number(supplier.outstanding || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </CardContent>
@@ -187,8 +181,8 @@ export default function SupplierDetailPage() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="text-base">Bill History</CardTitle>
-                            <Button size="sm" asChild>
-                                <Link href={`/bills/new?supplierId=${supplier.id}`}>New Bill</Link>
+                            <Button size="sm" onClick={() => setBillSheetOpen(true)}>
+                                New Bill
                             </Button>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -212,7 +206,6 @@ export default function SupplierDetailPage() {
                                         </thead>
                                         <tbody>
                                             {supplier.bills.map((bill) => {
-                                                const statusInfo = STATUS_BADGE[bill.status] ?? { variant: "secondary" as const, label: bill.status };
                                                 return (
                                                     <tr
                                                         key={bill.id}
@@ -220,16 +213,16 @@ export default function SupplierDetailPage() {
                                                         onClick={() => router.push(`/bills/${bill.id}`)}
                                                     >
                                                         <td className="px-4 py-2 font-medium">{bill.billNumber}</td>
-                                                        <td className="px-4 py-2 text-muted-foreground">{new Date(bill.billDate).toLocaleDateString("en-AE")}</td>
+                                                        <td className="px-4 py-2 text-muted-foreground">{new Date(bill.issueDate).toLocaleDateString("en-AE")}</td>
                                                         <td className="px-4 py-2 text-muted-foreground">{new Date(bill.dueDate).toLocaleDateString("en-AE")}</td>
                                                         <td className="px-4 py-2 text-right tabular-nums">AED {Number(bill.total).toFixed(2)}</td>
                                                         <td className="px-4 py-2 text-right tabular-nums">
-                                                            <span className={Number(bill.outstandingAmount) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                                AED {Number(bill.outstandingAmount).toFixed(2)}
+                                                            <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                                AED {Number(bill.outstanding).toFixed(2)}
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-2">
-                                                            <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                                                            <StatusBadge status={bill.status} />
                                                         </td>
                                                     </tr>
                                                 );
@@ -242,6 +235,36 @@ export default function SupplierDetailPage() {
                     </Card>
                 </div>
             </div>
+            <SupplierModal
+                open={editOpen}
+                onClose={() => setEditOpen(false)}
+                onSuccess={() => { setEditOpen(false); fetchSupplier(); }}
+                initialData={{
+                    name: supplier.name,
+                    email: supplier.email ?? "",
+                    phone: supplier.phone ?? "",
+                    type: (supplier.type as "BUSINESS" | "INDIVIDUAL") ?? "BUSINESS",
+                    taxRegistrationNumber: supplier.trn ?? "",
+                    address: supplier.addressLine1 ?? "",
+                    city: supplier.city ?? "",
+                    country: supplier.country ?? "",
+                    website: supplier.website ?? "",
+                    bankAccountNumber: supplier.bankAccountNumber ?? "",
+                    bankAccountName: supplier.bankAccountName ?? "",
+                    iban: supplier.bankIban ?? "",
+                    notes: supplier.notes ?? "",
+                }}
+                id={supplier.id}
+            />
+            <BillSheet
+                open={billSheetOpen}
+                onClose={() => setBillSheetOpen(false)}
+                onSuccess={(bill) => {
+                    setBillSheetOpen(false);
+                    router.push(`/bills/${bill.id}`);
+                }}
+                defaultSupplierId={supplier.id}
+            />
         </div>
     );
 }

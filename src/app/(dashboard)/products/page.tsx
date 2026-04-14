@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, Package, Loader2 } from "lucide-react";
+import { ProductModal } from "@/components/modals/product-modal";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ interface Product {
     type: string;
     unitPrice: number;
     vatTreatment: string;
-    unit: string;
+    unitOfMeasure: string;
     isActive: boolean;
     category: string | null;
 }
@@ -50,6 +50,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function ProductsPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [products, setProducts] = useState<Product[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
@@ -57,11 +58,23 @@ export default function ProductsPage() {
     const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
+    const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setCreateOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchProducts = useCallback(async () => {
         setLoading(true);
@@ -83,6 +96,26 @@ export default function ProductsPage() {
     useEffect(() => { fetchProducts(); }, [fetchProducts]);
     useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
 
+    async function openEdit(id: string) {
+        const res = await fetch(`/api/products/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEditData({
+            name: data.name ?? "",
+            sku: data.sku ?? "",
+            description: data.description ?? "",
+            type: data.type === "PRODUCT" ? "PRODUCT" : "SERVICE",
+            unitPrice: data.unitPrice ?? 0,
+            unit: data.unitOfMeasure ?? "unit",
+            vatTreatment: data.vatTreatment ?? "STANDARD_RATED",
+            vatRate: data.vatRate ?? 5,
+            category: data.category ?? "",
+            trackInventory: data.trackInventory ?? false,
+            isActive: data.isActive ?? true,
+        });
+        setEditId(id);
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -92,11 +125,9 @@ export default function ProductsPage() {
                         {pagination ? `${pagination.total} items` : "Manage your product catalog"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/products/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Product
-                    </Link>
+                <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Product
                 </Button>
             </div>
 
@@ -138,8 +169,8 @@ export default function ProductsPage() {
                                 {debouncedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first product or service"}
                             </p>
                             {!debouncedSearch && typeFilter === "ALL" && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/products/new"><Plus className="mr-2 h-4 w-4" />Add Product</Link>
+                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />Add Product
                                 </Button>
                             )}
                         </div>
@@ -180,7 +211,7 @@ export default function ProductsPage() {
                                             </td>
                                             <td className="px-4 py-3 text-right tabular-nums">
                                                 AED {Number(product.unitPrice).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                <span className="text-xs text-muted-foreground ml-1">/{product.unit}</span>
+                                                <span className="text-xs text-muted-foreground ml-1">/{product.unitOfMeasure}</span>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className="text-xs text-muted-foreground">
@@ -200,9 +231,8 @@ export default function ProductsPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/products/${product.id}`}>View / Edit</Link>
-                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/products/${product.id}`)}>View</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openEdit(product.id)}>Edit</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </td>
@@ -226,6 +256,14 @@ export default function ProductsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <ProductModal
+                open={createOpen || editId !== null}
+                onClose={() => { setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                onSuccess={() => { fetchProducts(); setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                initialData={editData as Record<string, unknown>}
+                id={editId ?? undefined}
+            />
         </div>
     );
 }

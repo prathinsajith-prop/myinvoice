@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
     Plus,
@@ -25,11 +24,15 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CustomerModal } from "@/components/modals/customer-modal";
+import { InvoiceSheet } from "@/components/modals/invoice-sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Customer {
     id: string;
     name: string;
     email: string | null;
+    image: string | null;
     phone: string | null;
     type: string;
     totalInvoiced: number;
@@ -48,18 +51,33 @@ interface Pagination {
 
 export default function CustomersPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
+    const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
+    const [invoiceOpen, setInvoiceOpen] = useState(false);
+    const [invoiceCustomerId, setInvoiceCustomerId] = useState<string | undefined>(undefined);
 
     // Debounce search
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setCreateOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchCustomers = useCallback(async () => {
         setLoading(true);
@@ -85,6 +103,27 @@ export default function CustomersPage() {
         setPage(1);
     }, [debouncedSearch]);
 
+    async function openEdit(id: string) {
+        const res = await fetch(`/api/customers/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEditData({
+            name: data.name ?? "",
+            email: data.email ?? "",
+            phone: data.phone ?? "",
+            mobile: data.mobile ?? "",
+            image: data.image ?? "",
+            type: data.type ?? "BUSINESS",
+            taxRegistrationNumber: data.trn ?? "",
+            address: data.addressLine1 ?? "",
+            city: data.city ?? "",
+            country: data.country ?? "AE",
+            website: data.website ?? "",
+            notes: data.notes ?? "",
+        });
+        setEditId(id);
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -95,11 +134,9 @@ export default function CustomersPage() {
                         {pagination ? `${pagination.total} total customers` : "Manage your customer directory"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/customers/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Customer
-                    </Link>
+                <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Customer
                 </Button>
             </div>
 
@@ -175,11 +212,9 @@ export default function CustomersPage() {
                                     : "Add your first customer to get started"}
                             </p>
                             {!debouncedSearch && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/customers/new">
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Add Customer
-                                    </Link>
+                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Customer
                                 </Button>
                             )}
                         </div>
@@ -217,9 +252,19 @@ export default function CustomersPage() {
                                             onClick={() => router.push(`/customers/${customer.id}`)}
                                         >
                                             <td className="px-4 py-3">
-                                                <div className="font-medium">{customer.name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {customer.invoiceCount} invoice{customer.invoiceCount !== 1 ? "s" : ""}
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10 border">
+                                                        <AvatarImage src={customer.image ?? undefined} alt={customer.name} />
+                                                        <AvatarFallback>
+                                                            {customer.name.split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <div className="font-medium">{customer.name}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {customer.invoiceCount} invoice{customer.invoiceCount !== 1 ? "s" : ""}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
@@ -277,17 +322,11 @@ export default function CustomersPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/customers/${customer.id}`}>View</Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/customers/${customer.id}/edit`}>Edit</Link>
-                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>View</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openEdit(customer.id)}>Edit</DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/invoices/new?customerId=${customer.id}`}>
-                                                                New Invoice
-                                                            </Link>
+                                                        <DropdownMenuItem onClick={() => { setInvoiceCustomerId(customer.id); setInvoiceOpen(true); }}>
+                                                            New Invoice
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -329,6 +368,21 @@ export default function CustomersPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <CustomerModal
+                open={createOpen || editId !== null}
+                onClose={() => { setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                onSuccess={() => { fetchCustomers(); setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                initialData={editData as Record<string, string>}
+                id={editId ?? undefined}
+            />
+
+            <InvoiceSheet
+                open={invoiceOpen}
+                onClose={() => { setInvoiceOpen(false); setInvoiceCustomerId(undefined); }}
+                onSuccess={() => { setInvoiceOpen(false); }}
+                defaultCustomerId={invoiceCustomerId}
+            />
         </div>
     );
 }

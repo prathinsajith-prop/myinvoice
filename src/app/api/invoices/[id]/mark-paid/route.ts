@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 const markPaidSchema = z.object({
     amount: z.number().positive(),
     paymentDate: z.string().datetime(),
-    method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CREDIT_CARD", "ONLINE", "OTHER"]),
+    method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "STRIPE", "PAYBY", "TABBY", "TAMARA", "OTHER"]),
     reference: z.string().optional(),
     notes: z.string().optional(),
     currencyCode: z.string().default("AED"),
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const { amount, paymentDate, method, reference, notes, currencyCode, exchangeRate } =
             result.data;
 
-        const outstanding = Number(invoice.outstandingAmount);
+        const outstanding = Number(invoice.outstanding);
         if (amount > outstanding + 0.01) {
             return NextResponse.json(
                 { error: `Payment amount exceeds outstanding balance of ${outstanding}` },
@@ -74,7 +74,9 @@ export async function POST(req: NextRequest, { params }: Params) {
                     organizationId: ctx.organizationId,
                     customerId: invoice.customerId!,
                     amount,
-                    currencyCode,
+                    bankCharge: 0,
+                    amountNet: amount,
+                    currency: currencyCode,
                     exchangeRate,
                     paymentDate: new Date(paymentDate),
                     method,
@@ -92,8 +94,8 @@ export async function POST(req: NextRequest, { params }: Params) {
             prisma.invoice.update({
                 where: { id },
                 data: {
-                    paidAmount: { increment: amount },
-                    outstandingAmount: newOutstanding,
+                    amountPaid: { increment: amount },
+                    outstanding: newOutstanding,
                     status: newStatus,
                     ...(newStatus === "PAID" ? { paidAt: new Date() } : {}),
                 },

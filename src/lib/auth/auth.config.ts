@@ -42,7 +42,7 @@ export const authConfig: NextAuthConfig = {
           id: user.id,
           name: user.name,
           email: user.email,
-          image: user.image,
+          image: null,           // Never store base64 images in JWT – session callback fetches fresh from DB
           twoFactorEnabled: user.twoFactorEnabled,
         };
       },
@@ -74,6 +74,9 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         token.id = user.id;
         token.twoFactorEnabled = user.twoFactorEnabled ?? false;
+        // Remove image fields auto-merged by NextAuth to keep JWT small
+        delete token.image;
+        delete token.picture;
 
         const memberships = await prisma.organizationMembership.findMany({
           where: { userId: user.id!, isActive: true },
@@ -98,8 +101,8 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // ── Fallback: re-hydrate org if token lacks it (e.g. logged in before seed) ───
-      if (!token.organizationId && (token.id || token.sub)) {
+      // ── Fallback: re-hydrate org data when token is stale/incomplete ─────────────
+      if ((!token.organizationId || !token.organizations || token.organizations.length === 0) && (token.id || token.sub)) {
         const uid = (token.id ?? token.sub) as string;
         const memberships = await prisma.organizationMembership.findMany({
           where: { userId: uid, isActive: true },
@@ -116,7 +119,7 @@ export const authConfig: NextAuthConfig = {
           role: m.role,
         }));
 
-        if (memberships.length > 0) {
+        if (!token.organizationId && memberships.length > 0) {
           const first = memberships[0];
           token.organizationId = first.organization.id;
           token.organizationSlug = first.organization.slug;
@@ -126,14 +129,15 @@ export const authConfig: NextAuthConfig = {
 
       // ── Organization switch ──────────────────────────────────────────────
       if (trigger === "update" && session?.organizationId) {
+        const userId = (token.id ?? token.sub) as string;
         const membership = await prisma.organizationMembership.findFirst({
           where: {
-            userId: token.id as string,
+            userId,
             organizationId: session.organizationId,
             isActive: true,
           },
           include: {
-            organization: { select: { id: true, name: true, slug: true } },
+            organization: { select: { id: true, name: true, slug: true, logo: true } },
           },
         });
 
@@ -144,7 +148,7 @@ export const authConfig: NextAuthConfig = {
 
           // Refresh orgs list so newly joined orgs appear immediately
           const allMemberships = await prisma.organizationMembership.findMany({
-            where: { userId: token.id as string, isActive: true },
+            where: { userId, isActive: true },
             include: {
               organization: { select: { id: true, name: true, slug: true } },
             },
@@ -169,35 +173,52 @@ export const authConfig: NextAuthConfig = {
       session.user.organizationId = token.organizationId as string | undefined;
       session.user.organizationSlug = token.organizationSlug as string | undefined;
       session.user.role = token.role as string | undefined;
-      session.user.organizations = (token.organizations ?? []) as Array<{
+
+      // Token stores orgs WITHOUT logos (to keep JWT small).
+      // Fetch fresh data from DB including logos.
+      const uid = (token.id ?? token.sub) as string | undefined;
+      const tokenOrgs = (token.organizations ?? []) as Array<{
         id: string;
         name: string;
         slug: string;
         role: string;
       }>;
 
-      // Always read fresh name, image, and current org logo from DB so
-      // profile/logo uploads are reflected without requiring re-login.
-      const uid = (token.id ?? token.sub) as string | undefined;
       if (uid) {
-        const [freshUser, freshOrg] = await Promise.all([
+        const orgIds = tokenOrgs.map((o) => o.id);
+
+        const [freshUser, freshOrgs] = await Promise.all([
           prisma.user.findUnique({
             where: { id: uid },
             select: { name: true, image: true },
           }),
-          token.organizationId
-            ? prisma.organization.findUnique({
-              where: { id: token.organizationId as string },
-              select: { logo: true },
+          orgIds.length > 0
+            ? prisma.organization.findMany({
+              where: { id: { in: orgIds } },
+              select: { id: true, logo: true },
             })
-            : null,
+            : [],
         ]);
 
         if (freshUser) {
           session.user.name = freshUser.name ?? session.user.name;
           session.user.image = freshUser.image ?? null;
         }
-        session.user.organizationLogo = freshOrg?.logo ?? null;
+
+        const logoMap = new Map(freshOrgs.map((o) => [o.id, o.logo]));
+        session.user.organizations = tokenOrgs.map((o) => ({
+          ...o,
+          logo: logoMap.get(o.id) ?? null,
+        }));
+
+        session.user.organizationLogo =
+          logoMap.get(token.organizationId as string) ?? null;
+      } else {
+        session.user.organizations = tokenOrgs.map((o) => ({
+          ...o,
+          logo: null,
+        }));
+        session.user.organizationLogo = null;
       }
 
       return session;

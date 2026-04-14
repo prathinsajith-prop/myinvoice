@@ -1,6 +1,6 @@
 "use server";
 
-import { signIn, signOut } from "@/lib/auth";
+import { signIn, signOut, unstable_update } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import prisma from "@/lib/db/prisma";
@@ -142,10 +142,19 @@ export async function logoutAction(): Promise<void> {
 }
 
 /**
- * Switch organization
+ * Switch organization — server action that properly updates the JWT cookie.
+ * Uses unstable_update (NextAuth v5 server-side update) which skips CSRF
+ * checks and directly writes the new session to the response cookie.
  */
-export async function switchOrganization(organizationId: string): Promise<ActionResult> {
-  // This will be called from client to update session
-  // The actual switch happens in the JWT callback
-  return { success: true };
+export async function switchOrganizationAction(organizationId: string): Promise<ActionResult> {
+  try {
+    const updated = await unstable_update({ organizationId } as never);
+    if (!updated) {
+      return { success: false, message: "Failed to update session" };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("switchOrganizationAction error:", error);
+    return { success: false, message: "Failed to switch organization" };
+  }
 }

@@ -13,6 +13,7 @@ const updateCustomerSchema = z.object({
     mobile: z.string().optional().nullable(),
     contactPerson: z.string().optional().nullable(),
     website: z.string().optional().nullable(),
+    image: z.string().optional().nullable(),
     trn: z.string().optional().nullable(),
     isVatRegistered: z.boolean().optional(),
     addressLine1: z.string().optional().nullable(),

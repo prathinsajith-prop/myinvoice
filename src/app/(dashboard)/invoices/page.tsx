@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, FileText, Loader2, AlertCircle } from "lucide-react";
 
+import { InvoiceSheet } from "@/components/modals/invoice-sheet";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     DropdownMenu,
@@ -28,7 +30,7 @@ interface Invoice {
     invoiceNumber: string;
     status: string;
     total: number;
-    outstandingAmount: number;
+    outstanding: number;
     dueDate: string;
     issueDate: string;
     customer: { id: string; name: string };
@@ -41,19 +43,11 @@ interface Pagination {
     pages: number;
 }
 
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    SENT: { variant: "default", label: "Sent" },
-    VIEWED: { variant: "default", label: "Viewed" },
-    PARTIALLY_PAID: { variant: "default", label: "Partial" },
-    PAID: { variant: "default", label: "Paid" },
-    OVERDUE: { variant: "destructive", label: "Overdue" },
-    VOID: { variant: "secondary", label: "Void" },
-    CREDITED: { variant: "secondary", label: "Credited" },
-};
+
 
 export default function InvoicesPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
@@ -61,11 +55,21 @@ export default function InvoicesPage() {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [sheetOpen, setSheetOpen] = useState(false);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setSheetOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchInvoices = useCallback(async () => {
         setLoading(true);
@@ -87,7 +91,7 @@ export default function InvoicesPage() {
     useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-    const totalOutstanding = invoices.reduce((s, i) => s + Number(i.outstandingAmount), 0);
+    const totalOutstanding = invoices.reduce((s, i) => s + Number(i.outstanding), 0);
 
     return (
         <div className="space-y-6">
@@ -98,11 +102,9 @@ export default function InvoicesPage() {
                         {pagination ? `${pagination.total} total invoices` : "Manage your sales invoices"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/invoices/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Invoice
-                    </Link>
+                <Button onClick={() => setSheetOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Invoice
                 </Button>
             </div>
 
@@ -148,12 +150,12 @@ export default function InvoicesPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="DRAFT">Draft</SelectItem>
-                                <SelectItem value="SENT">Sent</SelectItem>
-                                <SelectItem value="PARTIALLY_PAID">Partial</SelectItem>
-                                <SelectItem value="PAID">Paid</SelectItem>
-                                <SelectItem value="OVERDUE">Overdue</SelectItem>
-                                <SelectItem value="VOID">Void</SelectItem>
+                                <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
+                                <SelectItem value="SENT"><StatusOption status="SENT" /></SelectItem>
+                                <SelectItem value="PARTIALLY_PAID"><StatusOption status="PARTIALLY_PAID" /></SelectItem>
+                                <SelectItem value="PAID"><StatusOption status="PAID" /></SelectItem>
+                                <SelectItem value="OVERDUE"><StatusOption status="OVERDUE" /></SelectItem>
+                                <SelectItem value="VOID"><StatusOption status="VOID" /></SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -171,8 +173,8 @@ export default function InvoicesPage() {
                                 {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first invoice"}
                             </p>
                             {!debouncedSearch && statusFilter === "ALL" && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/invoices/new"><Plus className="mr-2 h-4 w-4" />New Invoice</Link>
+                                <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />New Invoice
                                 </Button>
                             )}
                         </div>
@@ -197,7 +199,6 @@ export default function InvoicesPage() {
                                             invoice.status !== "PAID" &&
                                             invoice.status !== "VOID" &&
                                             new Date(invoice.dueDate) < new Date();
-                                        const statusInfo = STATUS_BADGE[invoice.status] ?? { variant: "secondary" as const, label: invoice.status };
                                         return (
                                             <tr
                                                 key={invoice.id}
@@ -219,12 +220,12 @@ export default function InvoicesPage() {
                                                     AED {Number(invoice.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums">
-                                                    <span className={Number(invoice.outstandingAmount) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                        AED {Number(invoice.outstandingAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                                    <span className={Number(invoice.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                        AED {Number(invoice.outstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                                                    <StatusBadge status={invoice.status} />
                                                 </td>
                                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
@@ -264,6 +265,11 @@ export default function InvoicesPage() {
                     )}
                 </CardContent>
             </Card>
+            <InvoiceSheet
+                open={sheetOpen}
+                onClose={() => setSheetOpen(false)}
+                onSuccess={() => { fetchInvoices(); setSheetOpen(false); }}
+            />
         </div>
     );
 }

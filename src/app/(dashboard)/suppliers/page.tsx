@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, Truck, Mail, Phone, Loader2 } from "lucide-react";
+import { SupplierModal } from "@/components/modals/supplier-modal";
+import { BillSheet } from "@/components/modals/bill-sheet";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,17 +38,32 @@ interface Pagination {
 
 export default function SuppliersPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
+    const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
+    const [billOpen, setBillOpen] = useState(false);
+    const [billSupplierId, setBillSupplierId] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setCreateOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchSuppliers = useCallback(async () => {
         setLoading(true);
@@ -68,6 +84,28 @@ export default function SuppliersPage() {
     useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
     useEffect(() => { setPage(1); }, [debouncedSearch]);
 
+    async function openEdit(id: string) {
+        const res = await fetch(`/api/suppliers/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEditData({
+            name: data.name ?? "",
+            email: data.email ?? "",
+            phone: data.phone ?? "",
+            type: data.type ?? "BUSINESS",
+            taxRegistrationNumber: data.trn ?? "",
+            address: data.addressLine1 ?? "",
+            city: data.city ?? "",
+            country: data.country ?? "AE",
+            website: data.website ?? "",
+            bankAccountNumber: data.bankAccountNumber ?? "",
+            bankAccountName: data.bankAccountName ?? "",
+            iban: data.bankIban ?? "",
+            notes: data.notes ?? "",
+        });
+        setEditId(id);
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -77,11 +115,9 @@ export default function SuppliersPage() {
                         {pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/suppliers/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Supplier
-                    </Link>
+                <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Supplier
                 </Button>
             </div>
 
@@ -110,11 +146,9 @@ export default function SuppliersPage() {
                                 {debouncedSearch ? "Try a different search term" : "Add your first supplier"}
                             </p>
                             {!debouncedSearch && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/suppliers/new">
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Add Supplier
-                                    </Link>
+                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Supplier
                                 </Button>
                             )}
                         </div>
@@ -185,12 +219,9 @@ export default function SuppliersPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/suppliers/${supplier.id}`}>View</Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/bills/new?supplierId=${supplier.id}`}>New Bill</Link>
-                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/suppliers/${supplier.id}`)}>View</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openEdit(supplier.id)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => { setBillSupplierId(supplier.id); setBillOpen(true); }}>New Bill</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </td>
@@ -214,6 +245,21 @@ export default function SuppliersPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <SupplierModal
+                open={createOpen || editId !== null}
+                onClose={() => { setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                onSuccess={() => { fetchSuppliers(); setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                initialData={editData as Record<string, string>}
+                id={editId ?? undefined}
+            />
+
+            <BillSheet
+                open={billOpen}
+                onClose={() => { setBillOpen(false); setBillSupplierId(undefined); }}
+                onSuccess={() => { setBillOpen(false); }}
+                defaultSupplierId={billSupplierId}
+            />
         </div>
     );
 }

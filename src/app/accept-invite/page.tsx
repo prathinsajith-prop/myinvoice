@@ -103,7 +103,7 @@ function AcceptInviteContent() {
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-2" />
-            <CardTitle>You're in!</CardTitle>
+            <CardTitle>You&apos;re in!</CardTitle>
             <CardDescription>
               Your account has been created. Sign in to access {invite?.organization.name}.
             </CardDescription>

@@ -174,6 +174,22 @@ enum DocumentType {
   CREDIT_NOTE
   DEBIT_NOTE
   BILL
+  DELIVERY_NOTE
+}
+
+enum AddressType {
+  BILLING
+  SHIPPING
+  OTHER
+}
+
+enum DocumentRelationType {
+  QUOTATION_TO_INVOICE
+  INVOICE_TO_CREDIT_NOTE
+  INVOICE_TO_DEBIT_NOTE
+  INVOICE_TO_DELIVERY_NOTE
+  BILL_TO_PAYMENT
+  INVOICE_TO_PAYMENT
 }
 
 enum AttachmentEntityType {
@@ -186,6 +202,14 @@ enum AttachmentEntityType {
   CUSTOMER
   SUPPLIER
   ORGANIZATION
+  DELIVERY_NOTE
+}
+
+enum DeliveryNoteStatus {
+  DRAFT
+  DISPATCHED
+  DELIVERED
+  VOID
 }
 
 enum AuditAction {
@@ -363,6 +387,7 @@ model Organization {
   billPrefix          String  @default("BILL")
   expensePrefix       String  @default("EXP")
   paymentPrefix       String  @default("PAY")
+  deliveryNotePrefix  String  @default("DN")
   defaultPaymentTerms Int     @default(30)
   defaultDueDateDays  Int     @default(30)
   defaultVatRate      Decimal @default(5) @db.Decimal(5, 2)
@@ -392,7 +417,9 @@ model Organization {
   documentSequences DocumentSequence[]
   attachments       Attachment[]
   auditLogs         AuditLog[]
-  vatReturns        VatReturn[]
+  vatReturns          VatReturn[]
+  deliveryNotes       DeliveryNote[]
+  documentRelations   DocumentRelation[]
 
   @@index([slug])
   @@index([trn])
@@ -563,6 +590,7 @@ model Customer {
   mobile        String?
   contactPerson String?
   website       String?
+  image         String?
 
   trn             String?
   isVatRegistered Boolean @default(false)
@@ -605,12 +633,14 @@ model Customer {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invoices     Invoice[]
-  quotations   Quotation[]
-  creditNotes  CreditNote[]
-  debitNotes   DebitNote[]
-  payments     Payment[]
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
+  quotations    Quotation[]
+  creditNotes   CreditNote[]
+  debitNotes    DebitNote[]
+  payments      Payment[]
+  deliveryNotes DeliveryNote[]
+  addresses     CustomerAddress[]
 
   @@unique([organizationId, email])
   @@index([organizationId, name])
@@ -880,15 +910,17 @@ model Invoice {
   voidedAt   DateTime?
   voidReason String?
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer     Customer            @relation(fields: [customerId], references: [id])
-  quotation    Quotation?          @relation(fields: [quotationId], references: [id])
-  lineItems    InvoiceLineItem[]
-  creditNotes  CreditNote[]
-  debitNotes   DebitNote[]
-  payments     PaymentAllocation[]
-  paymentPlan  PaymentPlan?
-  attachments  Attachment[]
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer      Customer            @relation(fields: [customerId], references: [id])
+  quotation     Quotation?          @relation(fields: [quotationId], references: [id])
+  lineItems     InvoiceLineItem[]
+  creditNotes   CreditNote[]
+  debitNotes    DebitNote[]
+  payments      PaymentAllocation[]
+  paymentPlan   PaymentPlan?
+  attachments   Attachment[]
+  versions      InvoiceVersion[]
+  deliveryNotes DeliveryNote[]
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId, customerId])
@@ -962,6 +994,7 @@ model CreditNote {
   invoice      Invoice              @relation(fields: [invoiceId], references: [id])
   lineItems    CreditNoteLineItem[]
   attachments  Attachment[]
+  versions     CreditNoteVersion[]
 
   @@unique([organizationId, creditNoteNumber])
   @@index([organizationId, customerId])
@@ -1032,6 +1065,7 @@ model DebitNote {
   invoice      Invoice             @relation(fields: [invoiceId], references: [id])
   lineItems    DebitNoteLineItem[]
   attachments  Attachment[]
+  versions     DebitNoteVersion[]
 
   @@unique([organizationId, debitNoteNumber])
   @@index([organizationId, customerId])
@@ -1111,6 +1145,7 @@ model Bill {
   paymentsOut  PaymentOutAllocation[]
   paymentPlan  PaymentPlan?
   attachments  Attachment[]
+  versions     BillVersion[]
 
   @@unique([organizationId, billNumber])
   @@index([organizationId, supplierId])
@@ -1412,6 +1447,7 @@ model Attachment {
   debitNoteId  String?
   billId       String?
   expenseId    String?
+  deliveryNoteId String?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -1420,6 +1456,7 @@ model Attachment {
   debitNote    DebitNote?    @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
   bill         Bill?         @relation(fields: [billId], references: [id], onDelete: Cascade)
   expense      Expense?      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  deliveryNote DeliveryNote? @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, entityType])
   @@index([invoiceId])
@@ -1428,6 +1465,7 @@ model Attachment {
   @@index([debitNoteId])
   @@index([billId])
   @@index([expenseId])
+  @@index([deliveryNoteId])
 }
 
 // =============================================================================
@@ -1496,4 +1534,185 @@ model VatReturn {
   @@unique([organizationId, periodStart, periodEnd])
   @@index([organizationId, periodEnd])
   @@index([organizationId, status])
+}
+
+// =============================================================================
+// TENANT: CUSTOMER ADDRESSES  (multi-address per customer)
+// =============================================================================
+
+model CustomerAddress {
+  id         String      @id @default(cuid())
+  customerId String
+  type       AddressType @default(BILLING)
+  label      String?
+
+  addressLine1 String
+  addressLine2 String?
+  city         String?
+  emirate      String?
+  country      String  @default("AE")
+  postalCode   String?
+  poBox        String?
+
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([customerId, type])
+}
+
+// =============================================================================
+// TENANT: DOCUMENT RELATIONS  (cross-document chain tracking)
+// =============================================================================
+
+model DocumentRelation {
+  id             String               @id @default(cuid())
+  organizationId String
+
+  parentType DocumentType
+  parentId   String
+  childType  DocumentType
+  childId    String
+
+  relationType DocumentRelationType
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId, relationType])
+  @@index([organizationId])
+  @@index([parentType, parentId])
+  @@index([childType, childId])
+}
+
+// =============================================================================
+// TENANT: DELIVERY NOTES
+// =============================================================================
+
+model DeliveryNote {
+  id             String @id @default(cuid())
+  organizationId String
+  customerId     String
+  invoiceId      String?
+
+  deliveryNoteNumber String
+
+  issueDate    DateTime           @default(now())
+  deliveryDate DateTime?
+  status       DeliveryNoteStatus @default(DRAFT)
+
+  currency     String  @default("AED")
+  exchangeRate Decimal @default(1) @db.Decimal(10, 6)
+
+  shippingAddress String?
+  trackingNumber  String?
+  carrier         String?
+  driverName      String?
+  vehicleNumber   String?
+
+  notes         String?
+  internalNotes String?
+
+  dispatchedAt DateTime?
+  deliveredAt  DateTime?
+  receivedBy   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer               @relation(fields: [customerId], references: [id])
+  invoice      Invoice?               @relation(fields: [invoiceId], references: [id])
+  lineItems    DeliveryNoteLineItem[]
+  attachments  Attachment[]
+
+  @@unique([organizationId, deliveryNoteNumber])
+  @@index([organizationId, customerId])
+  @@index([organizationId, invoiceId])
+  @@index([organizationId, status])
+  @@index([organizationId, issueDate])
+}
+
+model DeliveryNoteLineItem {
+  id             String  @id @default(cuid())
+  deliveryNoteId String
+  sortOrder      Int     @default(0)
+
+  description   String
+  quantity      Decimal @db.Decimal(12, 3)
+  unitOfMeasure String  @default("unit")
+  notes         String?
+
+  deliveryNote DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryNoteId])
+}
+
+// =============================================================================
+// TENANT: DOCUMENT VERSIONS  (immutable snapshots per revision)
+// =============================================================================
+
+model InvoiceVersion {
+  id        String   @id @default(cuid())
+  invoiceId String
+  version   Int
+  snapshot  Json
+  changedBy String?
+  changeNote String?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([invoiceId, version])
+  @@index([invoiceId])
+}
+
+model BillVersion {
+  id        String   @id @default(cuid())
+  billId    String
+  version   Int
+  snapshot  Json
+  changedBy String?
+  changeNote String?
+  createdAt DateTime @default(now())
+
+  bill Bill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@unique([billId, version])
+  @@index([billId])
+}
+
+model CreditNoteVersion {
+  id           String   @id @default(cuid())
+  creditNoteId String
+  version      Int
+  snapshot     Json
+  changedBy    String?
+  changeNote   String?
+  createdAt    DateTime @default(now())
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([creditNoteId, version])
+  @@index([creditNoteId])
+}
+
+model DebitNoteVersion {
+  id          String   @id @default(cuid())
+  debitNoteId String
+  version     Int
+  snapshot    Json
+  changedBy   String?
+  changeNote  String?
+  createdAt   DateTime @default(now())
+
+  debitNote DebitNote @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([debitNoteId, version])
+  @@index([debitNoteId])
 }
