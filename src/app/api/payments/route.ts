@@ -6,19 +6,19 @@ import { toErrorResponse } from "@/lib/errors";
 
 const createPaymentSchema = z.object({
     customerId: z.string().min(1),
-    amount: z.number().positive(),
+    amount: z.coerce.number().positive(),
     currencyCode: z.string().default("AED"),
-    exchangeRate: z.number().positive().default(1),
-    paymentDate: z.string().datetime(),
+    exchangeRate: z.coerce.number().positive().default(1),
+    paymentDate: z.string(),
     method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "STRIPE", "PAYBY", "TABBY", "TAMARA", "OTHER"]),
     reference: z.string().optional().nullable(),
-    bankCharge: z.number().min(0).default(0),
+    bankCharge: z.coerce.number().min(0).default(0),
     notes: z.string().optional().nullable(),
     allocations: z
         .array(
             z.object({
                 invoiceId: z.string(),
-                amount: z.number().positive(),
+                amount: z.coerce.number().positive(),
             })
         )
         .optional()
@@ -133,22 +133,21 @@ export async function POST(req: NextRequest) {
             for (const alloc of data.allocations) {
                 const invoice = await tx.invoice.findUnique({
                     where: { id: alloc.invoiceId },
-                    select: { outstandingAmount: true, status: true },
+                    select: { outstanding: true, status: true },
                 });
                 if (invoice) {
-                    const newOutstanding = Math.max(0, Number(invoice.outstandingAmount) - alloc.amount);
+                    const newOutstanding = Math.max(0, Number(invoice.outstanding) - alloc.amount);
                     await tx.invoice.update({
                         where: { id: alloc.invoiceId },
                         data: {
-                            outstandingAmount: newOutstanding,
-                            paidAmount: { increment: alloc.amount },
+                            outstanding: newOutstanding,
+                            amountPaid: { increment: alloc.amount },
                             status:
                                 newOutstanding <= 0.01
                                     ? "PAID"
-                                    : newOutstanding < Number(invoice.outstandingAmount)
+                                    : newOutstanding < Number(invoice.outstanding)
                                         ? "PARTIALLY_PAID"
                                         : invoice.status,
-                            ...(newOutstanding <= 0.01 ? { paidAt: new Date() } : {}),
                         },
                     });
                 }

@@ -27,7 +27,7 @@ import {
 
 interface Quotation {
     id: string;
-    quotationNumber: string;
+    quoteNumber: string;
     status: string;
     total: number;
     validUntil: string;
@@ -171,7 +171,7 @@ export default function QuotationsPage() {
                                                 className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
                                                 onClick={() => router.push(`/quotations/${q.id}`)}
                                             >
-                                                <td className="px-4 py-3 font-medium">{q.quotationNumber}</td>
+                                                <td className="px-4 py-3 font-medium">{q.quoteNumber}</td>
                                                 <td className="px-4 py-3">{q.customer?.name}</td>
                                                 <td className="px-4 py-3 text-muted-foreground">
                                                     {new Date(q.issueDate).toLocaleDateString("en-AE")}

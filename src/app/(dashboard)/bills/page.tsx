@@ -30,9 +30,9 @@ interface Bill {
     billNumber: string;
     status: string;
     total: number;
-    outstandingAmount: number;
+    outstanding: number;
     dueDate: string;
-    billDate: string;
+    issueDate: string;
     supplier: { id: string; name: string };
 }
 
@@ -85,7 +85,7 @@ export default function BillsPage() {
     useEffect(() => { fetchBills(); }, [fetchBills]);
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-    const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstandingAmount), 0);
+    const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstanding), 0);
 
     return (
         <div className="space-y-6">
@@ -196,7 +196,7 @@ export default function BillsPage() {
                                                 <td className="px-4 py-3 font-medium">{bill.billNumber}</td>
                                                 <td className="px-4 py-3">{bill.supplier?.name}</td>
                                                 <td className="px-4 py-3 text-muted-foreground">
-                                                    {new Date(bill.billDate).toLocaleDateString("en-AE")}
+                                                    {new Date(bill.issueDate).toLocaleDateString("en-AE")}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
@@ -208,8 +208,8 @@ export default function BillsPage() {
                                                     AED {Number(bill.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums">
-                                                    <span className={Number(bill.outstandingAmount) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                        AED {Number(bill.outstandingAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                                    <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                        AED {Number(bill.outstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">

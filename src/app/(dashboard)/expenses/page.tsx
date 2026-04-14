@@ -29,7 +29,7 @@ interface Expense {
     id: string;
     expenseNumber: string;
     status: string;
-    totalAmount: number;
+    total: number;
     expenseDate: string;
     category: string;
     description: string;
@@ -101,7 +101,7 @@ export default function ExpensesPage() {
     useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-    const totalAmount = expenses.reduce((s, e) => s + Number(e.totalAmount), 0);
+    const totalAmount = expenses.reduce((s, e) => s + Number(e.total), 0);
 
     async function openEdit(id: string) {
         const res = await fetch(`/api/expenses/${id}`);
@@ -238,7 +238,7 @@ export default function ExpensesPage() {
                                                     {expense.paymentMethod?.toLowerCase().replace(/_/g, " ")}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums font-medium">
-                                                    AED {Number(expense.totalAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                                    AED {Number(expense.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <StatusBadge status={expense.status} />

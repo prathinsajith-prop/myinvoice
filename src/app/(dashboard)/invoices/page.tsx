@@ -30,7 +30,7 @@ interface Invoice {
     invoiceNumber: string;
     status: string;
     total: number;
-    outstandingAmount: number;
+    outstanding: number;
     dueDate: string;
     issueDate: string;
     customer: { id: string; name: string };
@@ -91,7 +91,7 @@ export default function InvoicesPage() {
     useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-    const totalOutstanding = invoices.reduce((s, i) => s + Number(i.outstandingAmount), 0);
+    const totalOutstanding = invoices.reduce((s, i) => s + Number(i.outstanding), 0);
 
     return (
         <div className="space-y-6">
@@ -220,8 +220,8 @@ export default function InvoicesPage() {
                                                     AED {Number(invoice.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums">
-                                                    <span className={Number(invoice.outstandingAmount) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                        AED {Number(invoice.outstandingAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                                    <span className={Number(invoice.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                        AED {Number(invoice.outstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">

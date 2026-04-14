@@ -28,10 +28,10 @@ interface LineItem {
     description: string;
     quantity: number;
     unitPrice: number;
-    discountPercent: number;
+    discount: number;
     vatTreatment: string;
     vatAmount: number;
-    lineTotal: number;
+    total: number;
 }
 
 interface Payment {
@@ -50,13 +50,13 @@ interface Invoice {
     dueDate: string;
     currency: string;
     subtotal: number;
-    discountAmount: number;
+    discount: number;
     taxableAmount: number;
-    vatAmount: number;
+    totalVat: number;
     total: number;
-    outstandingAmount: number;
+    outstanding: number;
     notes: string;
-    termsAndConditions: string;
+    terms: string;
     customer: { id: string; name: string; email: string; phone: string; trn: string };
     lineItems: LineItem[];
     payments: Payment[];
@@ -185,7 +185,7 @@ export default function InvoiceDetailPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                                setPaymentAmount(String(Number(invoice.outstandingAmount).toFixed(2)));
+                                setPaymentAmount(String(Number(invoice.outstanding).toFixed(2)));
                                 setPayOpen(true);
                             }}
                         >
@@ -245,17 +245,17 @@ export default function InvoiceDetailPage() {
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span>{typeof invoice.subtotal === 'number' ? invoice.subtotal.toFixed(2) : '0.00'}</span>
+                                <span>{Number(invoice.subtotal).toFixed(2)}</span>
                             </div>
-                            {Number(invoice.discountAmount) > 0 && (
+                            {Number(invoice.discount) > 0 && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Discount</span>
-                                    <span className="text-green-600">− {Number(invoice.discountAmount).toFixed(2)}</span>
+                                    <span className="text-green-600">− {Number(invoice.discount).toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">VAT</span>
-                                <span>{Number(invoice.vatAmount).toFixed(2)}</span>
+                                <span>{Number(invoice.totalVat).toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold">
@@ -264,7 +264,7 @@ export default function InvoiceDetailPage() {
                             </div>
                             <div className="flex justify-between text-amber-600 font-medium">
                                 <span>Outstanding</span>
-                                <span>{invoice.currency} {Number(invoice.outstandingAmount).toFixed(2)}</span>
+                                <span>{invoice.currency} {Number(invoice.outstanding).toFixed(2)}</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -293,9 +293,9 @@ export default function InvoiceDetailPage() {
                                                 <td className="px-4 py-2">{item.description}</td>
                                                 <td className="px-4 py-2 text-right tabular-nums">{Number(item.quantity)}</td>
                                                 <td className="px-4 py-2 text-right tabular-nums">{Number(item.unitPrice).toFixed(2)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.discountPercent).toFixed(0)}%</td>
+                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.discount).toFixed(0)}%</td>
                                                 <td className="px-4 py-2 text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums font-medium">{Number(item.lineTotal).toFixed(2)}</td>
+                                                <td className="px-4 py-2 text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -337,7 +337,7 @@ export default function InvoiceDetailPage() {
                             <CardHeader><CardTitle className="text-base">Notes & Terms</CardTitle></CardHeader>
                             <CardContent className="space-y-3 text-sm">
                                 {invoice.notes && <div><p className="font-medium mb-1">Notes</p><p className="text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p></div>}
-                                {invoice.termsAndConditions && <div><p className="font-medium mb-1">Terms & Conditions</p><p className="text-muted-foreground whitespace-pre-wrap">{invoice.termsAndConditions}</p></div>}
+                                {invoice.terms && <div><p className="font-medium mb-1">Terms & Conditions</p><p className="text-muted-foreground whitespace-pre-wrap">{invoice.terms}</p></div>}
                             </CardContent>
                         </Card>
                     )}
@@ -369,7 +369,7 @@ export default function InvoiceDetailPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Record Payment</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Outstanding: {invoice.currency} {Number(invoice.outstandingAmount).toFixed(2)}
+                            Outstanding: {invoice.currency} {Number(invoice.outstanding).toFixed(2)}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="space-y-4 py-2">

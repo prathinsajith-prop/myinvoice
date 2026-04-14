@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
+import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 
 const createExpenseSchema = z.object({
     productId: z.string().optional().nullable(),
     reference: z.string().optional().nullable(),
     description: z.string().min(1),
-    expenseDate: z.string().datetime().optional(),
+    expenseDate: z.string().optional(),
     category: z
         .enum([
             "ACCOMMODATION",
@@ -35,18 +36,18 @@ const createExpenseSchema = z.object({
             "OTHER",
         ])
         .default("OTHER"),
-    amount: z.number().positive(),
+    amount: z.coerce.number().positive(),
     currency: z.string().default("AED"),
     vatTreatment: z
         .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE", "REVERSE_CHARGE"])
         .default("STANDARD_RATED"),
-    vatRate: z.number().min(0).max(100).default(5),
+    vatRate: z.coerce.number().min(0).max(100).default(5),
     isVatReclaimable: z.boolean().default(true),
     paymentMethod: z
         .enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "STRIPE", "PAYBY", "TABBY", "TAMARA", "OTHER"])
         .default("CASH"),
     isPaid: z.boolean().default(true),
-    paidAt: z.string().datetime().optional().nullable(),
+    paidAt: z.string().optional().nullable(),
     merchantName: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
 });
@@ -127,7 +128,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const ctx = await resolveApiContext(req);
-        const body = await req.json();
+        const raw = await req.json();
+        const body = normalizeDocumentBody(raw);
 
         const result = createExpenseSchema.safeParse(body);
         if (!result.success) {

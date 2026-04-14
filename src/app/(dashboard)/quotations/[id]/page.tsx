@@ -21,21 +21,21 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface LineItem { id: string; description: string; quantity: number; unitPrice: number; discountPercent: number; vatTreatment: string; vatAmount: number; lineTotal: number }
+interface LineItem { id: string; description: string; quantity: number; unitPrice: number; discount: number; vatTreatment: string; vatAmount: number; total: number }
 
 interface Quotation {
     id: string;
-    quotationNumber: string;
+    quoteNumber: string;
     status: string;
     issueDate: string;
     validUntil: string;
     currency: string;
     subtotal: number;
-    discountAmount: number;
-    vatAmount: number;
+    discount: number;
+    totalVat: number;
     total: number;
     notes: string;
-    termsAndConditions: string;
+    terms: string;
     customer: { id: string; name: string; email: string; phone: string; trn: string };
     lineItems: LineItem[];
     convertedInvoiceId?: string;
@@ -120,7 +120,7 @@ export default function QuotationDetailPage() {
                     </Button>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h1 className="text-2xl font-bold tracking-tight">{quotation.quotationNumber}</h1>
+                            <h1 className="text-2xl font-bold tracking-tight">{quotation.quoteNumber}</h1>
                             <StatusBadge status={quotation.status} />
                         </div>
                         <p className="text-muted-foreground text-sm">{quotation.customer?.name}</p>
@@ -175,7 +175,7 @@ export default function QuotationDetailPage() {
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Quote #</span>
-                                <span className="font-medium">{quotation.quotationNumber}</span>
+                                <span className="font-medium">{quotation.quoteNumber}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Issue Date</span>
@@ -198,15 +198,15 @@ export default function QuotationDetailPage() {
                                 <span className="text-muted-foreground">Subtotal</span>
                                 <span>{Number(quotation.subtotal).toFixed(2)}</span>
                             </div>
-                            {Number(quotation.discountAmount) > 0 && (
+                            {Number(quotation.discount) > 0 && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Discount</span>
-                                    <span className="text-green-600">− {Number(quotation.discountAmount).toFixed(2)}</span>
+                                    <span className="text-green-600">− {Number(quotation.discount).toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">VAT</span>
-                                <span>{Number(quotation.vatAmount).toFixed(2)}</span>
+                                <span>{Number(quotation.totalVat).toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold">
@@ -239,9 +239,9 @@ export default function QuotationDetailPage() {
                                                 <td className="px-4 py-2">{item.description}</td>
                                                 <td className="px-4 py-2 text-right tabular-nums">{Number(item.quantity)}</td>
                                                 <td className="px-4 py-2 text-right tabular-nums">{Number(item.unitPrice).toFixed(2)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.discountPercent).toFixed(0)}%</td>
+                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.discount).toFixed(0)}%</td>
                                                 <td className="px-4 py-2 text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums font-medium">{Number(item.lineTotal).toFixed(2)}</td>
+                                                <td className="px-4 py-2 text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -250,12 +250,12 @@ export default function QuotationDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {(quotation.notes || quotation.termsAndConditions) && (
+                    {(quotation.notes || quotation.terms) && (
                         <Card>
                             <CardHeader><CardTitle className="text-base">Notes & Terms</CardTitle></CardHeader>
                             <CardContent className="space-y-3 text-sm">
                                 {quotation.notes && <div><p className="font-medium mb-1">Notes</p><p className="text-muted-foreground whitespace-pre-wrap">{quotation.notes}</p></div>}
-                                {quotation.termsAndConditions && <div><p className="font-medium mb-1">Terms & Conditions</p><p className="text-muted-foreground whitespace-pre-wrap">{quotation.termsAndConditions}</p></div>}
+                                {quotation.terms && <div><p className="font-medium mb-1">Terms & Conditions</p><p className="text-muted-foreground whitespace-pre-wrap">{quotation.terms}</p></div>}
                             </CardContent>
                         </Card>
                     )}
@@ -267,7 +267,7 @@ export default function QuotationDetailPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Convert to Invoice?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will create a new invoice from {quotation.quotationNumber} and mark this quotation as converted.
+                            This will create a new invoice from {quotation.quoteNumber} and mark this quotation as converted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupplierModal } from "@/components/modals/supplier-modal";
 import { BillSheet } from "@/components/modals/bill-sheet";
 
-interface Bill { id: string; billNumber: string; status: string; total: number; outstandingAmount: number; billDate: string; dueDate: string }
+interface Bill { id: string; billNumber: string; status: string; total: number; outstanding: number; issueDate: string; dueDate: string }
 
 interface Supplier {
     id: string;
@@ -37,7 +37,7 @@ interface Supplier {
     bankName: string;
     notes: string | null;
     totalBilled: number;
-    outstandingAmount: number;
+    outstanding: number;
     bills: Bill[];
 }
 
@@ -168,8 +168,8 @@ export default function SupplierDetailPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Outstanding</span>
-                                <span className={`font-medium ${Number(supplier.outstandingAmount) > 0 ? "text-amber-600" : ""}`}>
-                                    AED {Number(supplier.outstandingAmount || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                <span className={`font-medium ${Number(supplier.outstanding) > 0 ? "text-amber-600" : ""}`}>
+                                    AED {Number(supplier.outstanding || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </CardContent>
@@ -213,12 +213,12 @@ export default function SupplierDetailPage() {
                                                         onClick={() => router.push(`/bills/${bill.id}`)}
                                                     >
                                                         <td className="px-4 py-2 font-medium">{bill.billNumber}</td>
-                                                        <td className="px-4 py-2 text-muted-foreground">{new Date(bill.billDate).toLocaleDateString("en-AE")}</td>
+                                                        <td className="px-4 py-2 text-muted-foreground">{new Date(bill.issueDate).toLocaleDateString("en-AE")}</td>
                                                         <td className="px-4 py-2 text-muted-foreground">{new Date(bill.dueDate).toLocaleDateString("en-AE")}</td>
                                                         <td className="px-4 py-2 text-right tabular-nums">AED {Number(bill.total).toFixed(2)}</td>
                                                         <td className="px-4 py-2 text-right tabular-nums">
-                                                            <span className={Number(bill.outstandingAmount) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                                AED {Number(bill.outstandingAmount).toFixed(2)}
+                                                            <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                                AED {Number(bill.outstanding).toFixed(2)}
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-2">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
+import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
@@ -9,15 +10,15 @@ import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
     description: z.string().min(1),
-    quantity: z.number().positive(),
-    unitPrice: z.number().min(0),
+    quantity: z.coerce.number().positive(),
+    unitPrice: z.coerce.number().min(0),
     unitOfMeasure: z.string().default("unit"),
-    discount: z.number().min(0).max(100).default(0),
+    discount: z.coerce.number().min(0).max(100).default(0),
     vatTreatment: z
         .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE", "REVERSE_CHARGE"])
         .default("STANDARD_RATED"),
-    vatRate: z.number().min(0).max(100).default(5),
-    sortOrder: z.number().int().default(0),
+    vatRate: z.coerce.number().min(0).max(100).default(5),
+    sortOrder: z.coerce.number().int().default(0),
     isReclaimable: z.boolean().default(true),
 });
 
@@ -25,11 +26,11 @@ const createBillSchema = z.object({
     supplierId: z.string().min(1),
     supplierInvoiceNumber: z.string().optional().nullable(),
     reference: z.string().optional().nullable(),
-    issueDate: z.string().datetime().optional(),
-    dueDate: z.string().datetime(),
-    receivedDate: z.string().datetime().optional().nullable(),
+    issueDate: z.string().optional(),
+    dueDate: z.string(),
+    receivedDate: z.string().optional().nullable(),
     currency: z.string().default("AED"),
-    exchangeRate: z.number().positive().default(1),
+    exchangeRate: z.coerce.number().positive().default(1),
     supplierTrn: z.string().optional().nullable(),
     vatReclaimable: z.boolean().default(true),
     notes: z.string().optional().nullable(),
@@ -90,7 +91,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const ctx = await resolveApiContext(req);
-        const body = await req.json();
+        const raw = await req.json();
+        const body = normalizeDocumentBody(raw);
 
         const result = createBillSchema.safeParse(body);
         if (!result.success) {
