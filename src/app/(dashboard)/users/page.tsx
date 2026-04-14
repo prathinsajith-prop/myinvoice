@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Users, Loader2 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import { USER_ROLE_META } from "@/lib/constants/users";
 
 interface Member {
@@ -92,6 +93,68 @@ export default function UsersPage() {
         }
         : null;
     const SelectedRoleIcon = selectedRoleMeta?.icon ?? Users;
+
+    const columns = useMemo<ColumnDef<Member>[]>(() => [
+        {
+            id: "user",
+            header: "User",
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                    <Avatar size="default" className="border">
+                        <AvatarImage src={row.original.user.image ?? undefined} alt={row.original.user.name ?? row.original.user.email} />
+                        <AvatarFallback>{initials(row.original.user.name, row.original.user.email)}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium">{row.original.user.name ?? "Unnamed User"}</span>
+                </div>
+            ),
+        },
+        {
+            id: "email",
+            header: "Email",
+            cell: ({ row }) => <span className="text-muted-foreground">{row.original.user.email}</span>,
+        },
+        {
+            id: "role",
+            header: "Role",
+            cell: ({ row }) => {
+                const meta = USER_ROLE_META[row.original.role] ?? {
+                    label: row.original.role,
+                    variant: "outline" as const,
+                    icon: Users,
+                };
+                const Icon = meta.icon;
+
+                return (
+                    <Badge variant={meta.variant} className="gap-1">
+                        <Icon className="h-3 w-3" />
+                        {meta.label}
+                    </Badge>
+                );
+            },
+        },
+        {
+            id: "lastLogin",
+            header: "Last Login",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {row.original.user.lastLoginAt
+                        ? new Date(row.original.user.lastLoginAt).toLocaleString("en-AE")
+                        : "Never"}
+                </span>
+            ),
+        },
+        {
+            id: "actions",
+            header: () => <div className="text-right">Actions</div>,
+            cell: ({ row }) => (
+                <div className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedMember(row.original)}>
+                        View
+                    </Button>
+                </div>
+            ),
+        },
+    ], []);
 
     return (
         <div className="space-y-6 xl:space-y-8">
@@ -192,55 +255,7 @@ export default function UsersPage() {
                             </div>
 
                             <div className="hidden overflow-x-auto md:block">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-muted/40 hover:bg-muted/40">
-                                            <TableHead>User</TableHead>
-                                            <TableHead>Email</TableHead>
-                                            <TableHead>Role</TableHead>
-                                            <TableHead>Last Login</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filtered.map((member) => {
-                                            const meta = USER_ROLE_META[member.role] ?? {
-                                                label: member.role,
-                                                variant: "outline" as const,
-                                                icon: Users,
-                                            };
-                                            const Icon = meta.icon;
-                                            return (
-                                                <TableRow key={member.id}>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <Avatar size="default" className="border">
-                                                                <AvatarImage src={member.user.image ?? undefined} alt={member.user.name ?? member.user.email} />
-                                                                <AvatarFallback>{initials(member.user.name, member.user.email)}</AvatarFallback>
-                                                            </Avatar>
-                                                            <span className="font-medium">{member.user.name ?? "Unnamed User"}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-muted-foreground">{member.user.email}</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={meta.variant} className="gap-1">
-                                                            <Icon className="h-3 w-3" />
-                                                            {meta.label}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-muted-foreground">
-                                                        {member.user.lastLoginAt ? new Date(member.user.lastLoginAt).toLocaleString("en-AE") : "Never"}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm" onClick={() => setSelectedMember(member)}>
-                                                            View
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                <DataTable columns={columns} data={filtered} onRowClick={setSelectedMember} />
                             </div>
                         </>
                     )}

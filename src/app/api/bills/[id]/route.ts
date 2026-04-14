@@ -63,12 +63,34 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             );
         }
 
+        if (result.data.status === "RECEIVED" && bill.status !== "DRAFT") {
+            throw new ForbiddenError("Only draft bills can be marked as received");
+        }
+
+        if (result.data.status === "VOID" && (bill.status === "PAID" || Number(bill.amountPaid) > 0.01)) {
+            throw new ForbiddenError("Cannot void a paid or partially paid bill");
+        }
+
+        const updateData = {
+            ...result.data,
+            ...(result.data.dueDate ? { dueDate: new Date(result.data.dueDate) } : {}),
+            ...(result.data.status === "PAID"
+                ? {
+                    amountPaid: bill.total,
+                    outstanding: 0,
+                }
+                : {}),
+            ...(result.data.status === "VOID"
+                ? {
+                    outstanding: 0,
+                    voidedAt: new Date(),
+                }
+                : {}),
+        };
+
         const updated = await prisma.bill.update({
             where: { id },
-            data: {
-                ...result.data,
-                ...(result.data.dueDate ? { dueDate: new Date(result.data.dueDate) } : {}),
-            },
+            data: updateData,
             include: {
                 lineItems: { orderBy: { sortOrder: "asc" } },
                 supplier: { select: { id: true, name: true, email: true } },

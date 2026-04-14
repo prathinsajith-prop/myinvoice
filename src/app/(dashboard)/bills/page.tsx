@@ -25,6 +25,7 @@ interface Bill {
     id: string;
     billNumber: string;
     status: string;
+    currency: string;
     total: number;
     outstanding: number;
     dueDate: string;
@@ -38,7 +39,6 @@ interface Pagination { total: number; page: number; limit: number; pages: number
 export default function BillsPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
-    const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
     const [bills, setBills] = useState<Bill[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -48,7 +48,6 @@ export default function BillsPage() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [viewId, setViewId] = useState<string | null>(null);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
@@ -85,6 +84,9 @@ export default function BillsPage() {
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
     const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstanding), 0);
+    const currenciesShown = Array.from(new Set(bills.map((bill) => bill.currency).filter(Boolean)));
+    const hasMixedCurrencies = currenciesShown.length > 1;
+    const summaryCurrency = currenciesShown[0] ?? orgSettings.defaultCurrency;
 
     const columns = useMemo<ColumnDef<Bill>[]>(() => [
         {
@@ -124,7 +126,7 @@ export default function BillsPage() {
             header: () => <div className="text-right">Amount</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {row.original.currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                 </div>
             ),
         },
@@ -134,7 +136,7 @@ export default function BillsPage() {
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("outstanding")) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                        {currency} {Number(row.getValue("outstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                        {row.original.currency} {Number(row.getValue("outstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                     </span>
                 </div>
             ),
@@ -156,7 +158,7 @@ export default function BillsPage() {
                 </div>
             ),
         },
-    ], [currency, router]);
+    ], [router]);
 
     return (
         <div className="space-y-6">
@@ -181,9 +183,16 @@ export default function BillsPage() {
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Outstanding (shown)</CardTitle></CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-amber-600">
-                            {currency} {totalOutstanding.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                        </div>
+                        {hasMixedCurrencies ? (
+                            <>
+                                <div className="text-lg font-semibold text-amber-600">Mixed currencies</div>
+                                <p className="mt-1 text-xs text-muted-foreground">Row amounts use each bill&apos;s own currency.</p>
+                            </>
+                        ) : (
+                            <div className="text-2xl font-bold text-amber-600">
+                                {summaryCurrency} {totalOutstanding.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
                 <Card>

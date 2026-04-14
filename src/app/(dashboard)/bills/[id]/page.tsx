@@ -58,6 +58,7 @@ interface Bill {
     discount: number;
     totalVat: number;
     total: number;
+    amountPaid: number;
     outstanding: number;
     supplier: { id: string; name: string; email: string | null; phone: string | null; trn: string | null };
     lineItems: LineItem[];
@@ -150,8 +151,8 @@ export default function BillDetailPage() {
 
     if (!bill) return null;
 
-    const canVoid = !["VOID"].includes(bill.status);
-    const canPay = !["PAID", "VOID"].includes(bill.status);
+    const canVoid = !["VOID", "PAID", "PARTIALLY_PAID"].includes(bill.status) && Number(bill.amountPaid) <= 0.01;
+    const canPay = !["PAID", "VOID"].includes(bill.status) && Number(bill.outstanding) > 0;
     const canReceive = bill.status === "DRAFT";
     const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
 
@@ -246,17 +247,21 @@ export default function BillDetailPage() {
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span>{Number(bill.subtotal).toFixed(2)}</span>
+                                <span>{bill.currency} {Number(bill.subtotal).toFixed(2)}</span>
                             </div>
                             {Number(bill.discount) > 0 && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Discount</span>
-                                    <span className="text-green-600">− {Number(bill.discount).toFixed(2)}</span>
+                                    <span className="text-green-600">− {bill.currency} {Number(bill.discount).toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">VAT</span>
-                                <span>{Number(bill.totalVat).toFixed(2)}</span>
+                                <span>{bill.currency} {Number(bill.totalVat).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Paid</span>
+                                <span>{bill.currency} {Number(bill.amountPaid).toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold">
@@ -293,10 +298,10 @@ export default function BillDetailPage() {
                                             <TableRow key={item.id}>
                                                 <TableCell>{item.description}</TableCell>
                                                 <TableCell className="text-right tabular-nums">{Number(item.quantity)}</TableCell>
-                                                <TableCell className="text-right tabular-nums">{Number(item.unitPrice).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{bill.currency} {Number(item.unitPrice).toFixed(2)}</TableCell>
                                                 <TableCell className="text-right tabular-nums">{Number(item.discount).toFixed(0)}%</TableCell>
-                                                <TableCell className="text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</TableCell>
-                                                <TableCell className="text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{bill.currency} {Number(item.vatAmount).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums font-medium">{bill.currency} {Number(item.total).toFixed(2)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
