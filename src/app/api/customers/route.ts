@@ -13,6 +13,7 @@ const createCustomerSchema = z.object({
     mobile: z.string().optional().nullable(),
     contactPerson: z.string().optional().nullable(),
     website: z.string().optional().nullable(),
+    image: z.string().optional().nullable(),
     trn: z.string().optional().nullable(),
     isVatRegistered: z.boolean().default(false),
     addressLine1: z.string().optional().nullable(),
@@ -37,8 +38,8 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * pageSize;
+        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
+        const skip = (page - 1) * limit;
 
         const where = {
             organizationId: ctx.organizationId,
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
                 where,
                 orderBy: { name: "asc" },
                 skip,
-                take: pageSize,
+                take: limit,
                 select: {
                     id: true,
                     name: true,
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest) {
                     type: true,
                     email: true,
                     phone: true,
+                    image: true,
                     trn: true,
                     isVatRegistered: true,
                     emirate: true,
@@ -85,7 +87,7 @@ export async function GET(req: NextRequest) {
             prisma.customer.count({ where }),
         ]);
 
-        return NextResponse.json({ customers, total, page, pageSize });
+        return NextResponse.json({ data: customers, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
     } catch (error) {
         return toErrorResponse(error);
     }

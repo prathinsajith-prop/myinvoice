@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, CreditCard, Loader2 } from "lucide-react";
 
+import { ExpenseModal } from "@/components/modals/expense-modal";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     DropdownMenu,
@@ -37,14 +39,6 @@ interface Expense {
 
 interface Pagination { total: number; page: number; limit: number; pages: number }
 
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    PENDING_APPROVAL: { variant: "default", label: "Pending" },
-    APPROVED: { variant: "default", label: "Approved" },
-    REJECTED: { variant: "destructive", label: "Rejected" },
-    REIMBURSED: { variant: "secondary", label: "Reimbursed" },
-    VOID: { variant: "secondary", label: "Void" },
-};
 
 const CATEGORY_LABELS: Record<string, string> = {
     TRAVEL: "Travel",
@@ -61,6 +55,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function ExpensesPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
@@ -68,11 +63,23 @@ export default function ExpensesPage() {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
+    const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setCreateOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchExpenses = useCallback(async () => {
         setLoading(true);
@@ -96,6 +103,25 @@ export default function ExpensesPage() {
 
     const totalAmount = expenses.reduce((s, e) => s + Number(e.totalAmount), 0);
 
+    async function openEdit(id: string) {
+        const res = await fetch(`/api/expenses/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEditData({
+            description: data.description ?? "",
+            category: data.category ?? "",
+            expenseDate: data.expenseDate?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+            amount: data.amount ?? 0,
+            vatAmount: data.vatAmount ?? 0,
+            paymentMethod: data.paymentMethod ?? "CASH",
+            currency: data.currency ?? "AED",
+            vendorName: data.vendorName ?? "",
+            receiptNumber: data.receiptNumber ?? "",
+            notes: data.notes ?? "",
+        });
+        setEditId(id);
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -105,11 +131,9 @@ export default function ExpensesPage() {
                         {pagination ? `${pagination.total} total expenses` : "Track business expenses"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/expenses/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Expense
-                    </Link>
+                <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Expense
                 </Button>
             </div>
 
@@ -152,11 +176,11 @@ export default function ExpensesPage() {
                             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="DRAFT">Draft</SelectItem>
-                                <SelectItem value="PENDING_APPROVAL">Pending</SelectItem>
-                                <SelectItem value="APPROVED">Approved</SelectItem>
-                                <SelectItem value="REJECTED">Rejected</SelectItem>
-                                <SelectItem value="REIMBURSED">Reimbursed</SelectItem>
+                                <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
+                                <SelectItem value="PENDING_APPROVAL"><StatusOption status="PENDING_APPROVAL" /></SelectItem>
+                                <SelectItem value="APPROVED"><StatusOption status="APPROVED" /></SelectItem>
+                                <SelectItem value="REJECTED"><StatusOption status="REJECTED" /></SelectItem>
+                                <SelectItem value="REIMBURSED"><StatusOption status="REIMBURSED" /></SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -174,8 +198,8 @@ export default function ExpensesPage() {
                                 {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Track your first business expense"}
                             </p>
                             {!debouncedSearch && statusFilter === "ALL" && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/expenses/new"><Plus className="mr-2 h-4 w-4" />New Expense</Link>
+                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />New Expense
                                 </Button>
                             )}
                         </div>
@@ -196,7 +220,6 @@ export default function ExpensesPage() {
                                 </thead>
                                 <tbody>
                                     {expenses.map((expense) => {
-                                        const statusInfo = STATUS_BADGE[expense.status] ?? { variant: "secondary" as const, label: expense.status };
                                         return (
                                             <tr
                                                 key={expense.id}
@@ -218,7 +241,7 @@ export default function ExpensesPage() {
                                                     AED {Number(expense.totalAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                                                    <StatusBadge status={expense.status} />
                                                 </td>
                                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
@@ -230,6 +253,9 @@ export default function ExpensesPage() {
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem asChild>
                                                                 <Link href={`/expenses/${expense.id}`}>View</Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => openEdit(expense.id)}>
+                                                                Edit
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -255,6 +281,13 @@ export default function ExpensesPage() {
                     )}
                 </CardContent>
             </Card>
+            <ExpenseModal
+                open={createOpen || editId !== null}
+                onClose={() => { setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                onSuccess={() => { fetchExpenses(); setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                initialData={editData}
+                id={editId ?? undefined}
+            />
         </div>
     );
 }

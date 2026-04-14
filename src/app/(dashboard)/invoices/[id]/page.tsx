@@ -7,7 +7,7 @@ import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer } from "lucid
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -61,17 +61,6 @@ interface Invoice {
     lineItems: LineItem[];
     payments: Payment[];
 }
-
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    SENT: { variant: "default", label: "Sent" },
-    VIEWED: { variant: "default", label: "Viewed" },
-    PARTIALLY_PAID: { variant: "default", label: "Partially Paid" },
-    PAID: { variant: "secondary", label: "Paid" },
-    OVERDUE: { variant: "destructive", label: "Overdue" },
-    VOID: { variant: "secondary", label: "Void" },
-    CREDITED: { variant: "secondary", label: "Credited" },
-};
 
 export default function InvoiceDetailPage() {
     const params = useParams();
@@ -165,7 +154,6 @@ export default function InvoiceDetailPage() {
 
     if (!invoice) return null;
 
-    const statusInfo = STATUS_BADGE[invoice.status] ?? { variant: "secondary" as const, label: invoice.status };
     const canVoid = !["VOID", "CREDITED"].includes(invoice.status);
     const canPay = !["PAID", "VOID", "CREDITED"].includes(invoice.status);
     const canSend = invoice.status === "DRAFT";
@@ -180,7 +168,7 @@ export default function InvoiceDetailPage() {
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold tracking-tight">{invoice.invoiceNumber}</h1>
-                            <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                            <StatusBadge status={invoice.status} />
                         </div>
                         <p className="text-muted-foreground text-sm">{invoice.customer?.name}</p>
                     </div>

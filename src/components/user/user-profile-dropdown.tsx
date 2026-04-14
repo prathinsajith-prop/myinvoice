@@ -100,8 +100,13 @@ export function UserProfileDropdown() {
               <p className="text-xs leading-none text-muted-foreground">
                 {session.user.email}
               </p>
-              <Badge variant="secondary" className="mt-1 w-fit text-[10px]">
-                Professional Plan
+              {session.user.organizations?.find(o => o.id === session.user.organizationId)?.name && (
+                <span className="text-xs text-muted-foreground/80 leading-none truncate max-w-[140px]">
+                  {session.user.organizations.find(o => o.id === session.user.organizationId)!.name}
+                </span>
+              )}
+              <Badge variant="outline" className="mt-0.5 w-fit text-[10px] capitalize">
+                {session.user.role?.toLowerCase() ?? "member"}
               </Badge>
             </div>
           </div>
@@ -111,19 +116,19 @@ export function UserProfileDropdown() {
 
         {/* Account Section */}
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings/profile")}>
+          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings/organization")}>
+          <DropdownMenuItem onClick={() => router.push("/settings/organization")}>
             <Building2 className="mr-2 h-4 w-4" />
             <span>Organization</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings/billing")}>
+          <DropdownMenuItem onClick={() => router.push("/settings/billing")}>
             <CreditCard className="mr-2 h-4 w-4" />
             <span>Billing & Plans</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+          <DropdownMenuItem onClick={() => router.push("/settings")}>
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
             <ChevronRight className="ml-auto h-4 w-4" />

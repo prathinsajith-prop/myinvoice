@@ -10,7 +10,7 @@ const createPaymentSchema = z.object({
     currencyCode: z.string().default("AED"),
     exchangeRate: z.number().positive().default(1),
     paymentDate: z.string().datetime(),
-    method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CREDIT_CARD", "ONLINE", "OTHER"]),
+    method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "STRIPE", "PAYBY", "TABBY", "TAMARA", "OTHER"]),
     reference: z.string().optional().nullable(),
     bankCharge: z.number().min(0).default(0),
     notes: z.string().optional().nullable(),

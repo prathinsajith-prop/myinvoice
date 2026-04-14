@@ -19,20 +19,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CustomerModal } from "@/components/modals/customer-modal";
+import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 
 interface Customer {
     id: string;
     name: string;
     displayName: string | null;
     email: string | null;
+    image: string | null;
     phone: string | null;
     mobile: string | null;
     type: string;
-    taxRegistrationNumber: string | null;
-    address: string | null;
+    trn: string | null;
+    addressLine1: string | null;
     city: string | null;
     country: string | null;
     website: string | null;
+    notes: string | null;
     isActive: boolean;
     totalInvoiced: number;
     totalOutstanding: number;
@@ -48,7 +53,7 @@ interface Customer {
     }>;
 }
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     DRAFT: "secondary",
     SENT: "default",
     PAID: "default",
@@ -62,6 +67,8 @@ export default function CustomerDetailPage() {
     const router = useRouter();
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [loading, setLoading] = useState(true);
+    const [editOpen, setEditOpen] = useState(false);
+    const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false);
 
     useEffect(() => {
         fetch(`/api/customers/${id}`)
@@ -93,6 +100,12 @@ export default function CustomerDetailPage() {
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
+                    <Avatar className="h-14 w-14 rounded-xl border">
+                        <AvatarImage src={customer.image ?? undefined} alt={customer.name} />
+                        <AvatarFallback className="rounded-xl bg-primary/10 text-primary">
+                            {customer.name.split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold tracking-tight">{customer.name}</h1>
@@ -102,22 +115,18 @@ export default function CustomerDetailPage() {
                         </div>
                         <p className="text-sm text-muted-foreground capitalize">
                             {customer.type?.toLowerCase() ?? "Business"} Customer
-                            {customer.taxRegistrationNumber && ` · TRN: ${customer.taxRegistrationNumber}`}
+                            {customer.trn && ` · TRN: ${customer.trn}`}
                         </p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href={`/invoices/new?customerId=${customer.id}`}>
-                            <Receipt className="mr-2 h-4 w-4" />
-                            New Invoice
-                        </Link>
+                    <Button variant="outline" onClick={() => setInvoiceSheetOpen(true)}>
+                        <Receipt className="mr-2 h-4 w-4" />
+                        New Invoice
                     </Button>
-                    <Button variant="outline" asChild>
-                        <Link href={`/customers/${customer.id}/edit`}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                        </Link>
+                    <Button variant="outline" onClick={() => setEditOpen(true)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
                     </Button>
                 </div>
             </div>
@@ -178,11 +187,11 @@ export default function CustomerDetailPage() {
                                     <span className="text-xs text-muted-foreground">(mobile)</span>
                                 </div>
                             )}
-                            {(customer.address || customer.city) && (
+                            {(customer.addressLine1 || customer.city) && (
                                 <div className="flex items-start gap-2 text-sm">
                                     <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground flex-shrink-0" />
                                     <span>
-                                        {[customer.address, customer.city, customer.country]
+                                        {[customer.addressLine1, customer.city, customer.country]
                                             .filter(Boolean)
                                             .join(", ")}
                                     </span>
@@ -212,11 +221,9 @@ export default function CustomerDetailPage() {
                             <CardTitle className="text-sm font-medium">
                                 Invoices ({customer.invoiceCount})
                             </CardTitle>
-                            <Button size="sm" asChild>
-                                <Link href={`/invoices/new?customerId=${customer.id}`}>
-                                    <Receipt className="mr-2 h-3 w-3" />
-                                    New Invoice
-                                </Link>
+                            <Button size="sm" onClick={() => setInvoiceSheetOpen(true)}>
+                                <Receipt className="mr-2 h-3 w-3" />
+                                New Invoice
                             </Button>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -251,7 +258,7 @@ export default function CustomerDetailPage() {
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <Badge
-                                                        variant={(STATUS_COLORS[inv.status] as any) ?? "secondary"}
+                                                        variant={STATUS_COLORS[inv.status] ?? "secondary"}
                                                         className="text-xs"
                                                     >
                                                         {inv.status.replace("_", " ")}
@@ -266,6 +273,35 @@ export default function CustomerDetailPage() {
                     </Card>
                 </div>
             </div>
+            <CustomerModal
+                open={editOpen}
+                onClose={() => setEditOpen(false)}
+                onSuccess={() => {
+                    setEditOpen(false);
+                    fetch(`/api/customers/${customer.id}`).then(r => r.json()).then(data => setCustomer(data));
+                }}
+                initialData={{
+                    name: customer.name,
+                    email: customer.email ?? "",
+                    phone: customer.phone ?? "",
+                    mobile: customer.mobile ?? "",
+                    image: customer.image ?? "",
+                    type: (customer.type as "BUSINESS" | "INDIVIDUAL") ?? "BUSINESS",
+                    taxRegistrationNumber: customer.trn ?? "",
+                    address: customer.addressLine1 ?? "",
+                    city: customer.city ?? "",
+                    country: customer.country ?? "",
+                    website: customer.website ?? "",
+                    notes: customer.notes ?? "",
+                }}
+                id={customer.id}
+            />
+            <InvoiceSheet
+                open={invoiceSheetOpen}
+                onClose={() => setInvoiceSheetOpen(false)}
+                onSuccess={(invoice) => { setInvoiceSheetOpen(false); router.push(`/invoices/${invoice.id}`); }}
+                defaultCustomerId={customer.id}
+            />
         </div>
     );
 }

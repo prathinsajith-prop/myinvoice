@@ -7,7 +7,7 @@ import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, ArrowRight } from "lu
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -40,16 +40,6 @@ interface Quotation {
     lineItems: LineItem[];
     convertedInvoiceId?: string;
 }
-
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    SENT: { variant: "default", label: "Sent" },
-    VIEWED: { variant: "default", label: "Viewed" },
-    ACCEPTED: { variant: "default", label: "Accepted" },
-    REJECTED: { variant: "destructive", label: "Rejected" },
-    CONVERTED: { variant: "secondary", label: "Converted" },
-    EXPIRED: { variant: "destructive", label: "Expired" },
-};
 
 export default function QuotationDetailPage() {
     const params = useParams();
@@ -116,7 +106,6 @@ export default function QuotationDetailPage() {
 
     if (!quotation) return null;
 
-    const statusInfo = STATUS_BADGE[quotation.status] ?? { variant: "secondary" as const, label: quotation.status };
     const canConvert = quotation.status === "ACCEPTED";
     const canSend = quotation.status === "DRAFT";
     const canAccept = ["SENT", "VIEWED"].includes(quotation.status);
@@ -132,7 +121,7 @@ export default function QuotationDetailPage() {
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold tracking-tight">{quotation.quotationNumber}</h1>
-                            <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                            <StatusBadge status={quotation.status} />
                         </div>
                         <p className="text-muted-foreground text-sm">{quotation.customer?.name}</p>
                     </div>

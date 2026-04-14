@@ -17,15 +17,17 @@ export class PlanLimitError extends AppError {
 /**
  * Throw if adding a new member would exceed the plan's seat limit.
  */
-export async function enforceMemberLimit(organizationId: string) {
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
+async function getOrgPlan(organizationId: string): Promise<Plan> {
+  const sub = await prisma.subscription.findUnique({
+    where: { organizationId },
     select: { plan: true },
   });
+  return (sub?.plan ?? "FREE") as Plan;
+}
 
-  if (!org) return;
-
-  const limits = getLimits(org.plan as Plan);
+export async function enforceMemberLimit(organizationId: string) {
+  const plan = await getOrgPlan(organizationId);
+  const limits = getLimits(plan);
   if (isUnlimited(limits.maxMembers)) return;
 
   const count = await prisma.organizationMembership.count({
@@ -34,8 +36,8 @@ export async function enforceMemberLimit(organizationId: string) {
 
   if (count >= limits.maxMembers) {
     throw new PlanLimitError(
-      `Your ${org.plan} plan allows a maximum of ${limits.maxMembers} members. ` +
-        `Please upgrade to add more team members.`
+      `Your ${plan} plan allows a maximum of ${limits.maxMembers} members. ` +
+      `Please upgrade to add more team members.`
     );
   }
 }
@@ -45,14 +47,8 @@ export async function enforceMemberLimit(organizationId: string) {
  * Pass the count from your own query to avoid an extra DB hit.
  */
 export async function enforceInvoiceLimit(organizationId: string) {
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { plan: true },
-  });
-
-  if (!org) return;
-
-  const limits = getLimits(org.plan as Plan);
+  const plan = await getOrgPlan(organizationId);
+  const limits = getLimits(plan);
   if (isUnlimited(limits.maxInvoicesPerMonth)) return;
 
   const startOfMonth = new Date();
@@ -71,8 +67,8 @@ export async function enforceInvoiceLimit(organizationId: string) {
 
   if (count >= limits.maxInvoicesPerMonth) {
     throw new PlanLimitError(
-      `Your ${org.plan} plan allows ${limits.maxInvoicesPerMonth} invoices per month. ` +
-        `You've reached this limit. Please upgrade to create more invoices.`
+      `Your ${plan} plan allows ${limits.maxInvoicesPerMonth} invoices per month. ` +
+      `You've reached this limit. Please upgrade to create more invoices.`
     );
   }
 }
@@ -81,14 +77,8 @@ export async function enforceInvoiceLimit(organizationId: string) {
  * Return the current usage stats for an organization.
  */
 export async function getUsageStats(organizationId: string) {
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { plan: true },
-  });
-
-  if (!org) return null;
-
-  const limits = getLimits(org.plan as Plan);
+  const plan = await getOrgPlan(organizationId);
+  const limits = getLimits(plan);
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
@@ -109,7 +99,7 @@ export async function getUsageStats(organizationId: string) {
   ]);
 
   return {
-    plan: org.plan as Plan,
+    plan,
     limits,
     usage: {
       members: memberCount,

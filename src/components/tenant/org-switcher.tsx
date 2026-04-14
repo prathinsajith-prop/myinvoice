@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,31 +29,56 @@ export function OrgSwitcher() {
   } = useTenant();
 
   const [switching, setSwitching] = useState(false);
+  const [fallbackOrganizations, setFallbackOrganizations] = useState<
+    Array<{ id: string; name: string; logo?: string | null; role: string }>
+  >([]);
+
+  useEffect(() => {
+    async function loadOrganizations() {
+      if (organizations.length > 0) {
+        setFallbackOrganizations([]);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/organizations", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const mapped = (data.organizations ?? []).map(
+          (org: { id: string; name: string; logo?: string | null; role: string }) => ({
+            id: org.id,
+            name: org.name,
+            logo: org.logo ?? null,
+            role: org.role,
+          })
+        );
+        setFallbackOrganizations(mapped);
+      } catch {
+        // Best-effort fallback for stale session payloads.
+      }
+    }
+
+    loadOrganizations();
+  }, [organizations]);
+
+  const visibleOrganizations = useMemo(
+    () => (organizations.length > 0 ? organizations : fallbackOrganizations),
+    [organizations, fallbackOrganizations]
+  );
 
   async function handleSwitch(orgId: string) {
     if (orgId === organizationId) return;
 
     setSwitching(true);
     try {
-      // Validate on server side first
-      const res = await fetch("/api/organization/switch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId: orgId }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to switch organization");
-      }
-
-      // Update the JWT/session
+      // Client-side update sends POST to /api/auth/session
+      // which sets a new JWT cookie via Set-Cookie header.
       await switchOrganization(orgId);
       toast.success("Switched organization");
-      router.refresh();
+      // Hard navigation ensures the browser sends the new cookie
+      window.location.assign("/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to switch");
-    } finally {
       setSwitching(false);
     }
   }
@@ -99,7 +124,13 @@ export function OrgSwitcher() {
           Your Organizations
         </DropdownMenuLabel>
 
-        {organizations.map((org) => (
+        {visibleOrganizations.length === 0 && (
+          <DropdownMenuItem disabled className="text-muted-foreground">
+            No organizations assigned
+          </DropdownMenuItem>
+        )}
+
+        {visibleOrganizations.map((org) => (
           <DropdownMenuItem
             key={org.id}
             onClick={() => handleSwitch(org.id)}
@@ -107,6 +138,7 @@ export function OrgSwitcher() {
           >
             <div className="flex items-center gap-2 min-w-0">
               <Avatar className="h-6 w-6 flex-shrink-0">
+                <AvatarImage src={(org as { logo?: string | null }).logo ?? undefined} alt={org.name} />
                 <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                   {org.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
@@ -127,7 +159,7 @@ export function OrgSwitcher() {
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          onClick={() => router.push("/dashboard/settings/organization/new")}
+          onClick={() => router.push("/settings/organization/new")}
           className="cursor-pointer"
         >
           <Plus className="mr-2 h-4 w-4" />

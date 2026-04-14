@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const type = searchParams.get("type");
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * pageSize;
+        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
+        const skip = (page - 1) * limit;
 
         const where = {
             organizationId: ctx.organizationId,
@@ -54,12 +54,12 @@ export async function GET(req: NextRequest) {
                 where,
                 orderBy: { name: "asc" },
                 skip,
-                take: pageSize,
+                take: limit,
             }),
             prisma.product.count({ where }),
         ]);
 
-        return NextResponse.json({ products, total, page, pageSize });
+        return NextResponse.json({ data: products, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
     } catch (error) {
         return toErrorResponse(error);
     }

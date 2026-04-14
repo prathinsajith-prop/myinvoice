@@ -62,15 +62,19 @@ const PERIODS = [
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
-    TRAVEL: "Travel",
-    MEALS_AND_ENTERTAINMENT: "Meals & Entertainment",
-    OFFICE_SUPPLIES: "Office Supplies",
-    UTILITIES: "Utilities",
     RENT: "Rent",
+    UTILITIES: "Utilities",
+    TRAVEL: "Travel",
+    MEALS_ENTERTAINMENT: "Meals & Entertainment",
+    OFFICE_SUPPLIES: "Office Supplies",
     MARKETING: "Marketing",
-    PROFESSIONAL_SERVICES: "Professional Services",
+    SOFTWARE_SUBSCRIPTIONS: "Software Subscriptions",
+    PROFESSIONAL_FEES: "Professional Fees",
     INSURANCE: "Insurance",
-    MAINTENANCE: "Maintenance",
+    MAINTENANCE_REPAIRS: "Maintenance & Repairs",
+    SALARIES_WAGES: "Salaries & Wages",
+    TAX_PAYMENTS: "Tax Payments",
+    BANK_CHARGES: "Bank Charges",
     OTHER: "Other",
 };
 

@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         const where = {
             organizationId: ctx.organizationId,
             deletedAt: null,
-            ...(status ? { status: status as any } : {}),
+            ...(status ? { status: status as unknown as never } : {}),
             ...(search
                 ? {
                     OR: [
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
 
         const [records, total] = await Promise.all([
             prisma.bill.findMany({
-                where,
+                where: where as never,
                 include: {
                     supplier: { select: { id: true, name: true, email: true } },
                     _count: { select: { lineItems: true } },
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
                 skip,
                 take: limit,
             }),
-            prisma.bill.count({ where }),
+            prisma.bill.count({ where: where as never }),
         ]);
 
         return NextResponse.json({

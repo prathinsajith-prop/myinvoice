@@ -11,6 +11,16 @@ const updateExpenseSchema = z.object({
     description: z.string().min(1).optional(),
     expenseDate: z.string().datetime().optional(),
     category: z.string().optional(),
+    amount: z.number().positive().optional(),
+    currency: z.string().optional(),
+    vatTreatment: z
+        .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE", "REVERSE_CHARGE"])
+        .optional(),
+    vatRate: z.number().min(0).max(100).optional(),
+    isVatReclaimable: z.boolean().optional(),
+    paymentMethod: z
+        .enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "OTHER"])
+        .optional(),
     merchantName: z.string().optional().nullable(),
     isPaid: z.boolean().optional(),
     paidAt: z.string().datetime().optional().nullable(),
@@ -56,12 +66,35 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             );
         }
 
+        const { expenseDate, paidAt, paymentMethod, category, vatTreatment, ...rest } = result.data;
+
         const updated = await prisma.expense.update({
             where: { id },
             data: {
-                ...result.data,
-                ...(result.data.expenseDate ? { expenseDate: new Date(result.data.expenseDate) } : {}),
-                ...(result.data.paidAt ? { paidAt: new Date(result.data.paidAt) } : {}),
+                ...rest,
+                ...(expenseDate ? { expenseDate: new Date(expenseDate) } : {}),
+                ...(paidAt ? { paidAt: new Date(paidAt) } : {}),
+                ...(paymentMethod ? { paymentMethod: paymentMethod as import("@/generated/prisma").$Enums.PaymentMethod } : {}),
+                ...(category ? { category: category as import("@/generated/prisma").$Enums.ExpenseCategory } : {}),
+                ...(vatTreatment ? { vatTreatment: vatTreatment as import("@/generated/prisma").$Enums.VatTreatment } : {}),
+                vatAmount:
+                    result.data.amount !== undefined || result.data.vatRate !== undefined || vatTreatment !== undefined
+                        ? ((result.data.amount ?? Number(expense.amount)) * (
+                            ["STANDARD_RATED", "REVERSE_CHARGE"].includes(vatTreatment ?? expense.vatTreatment)
+                                ? (result.data.vatRate ?? Number(expense.vatRate)) / 100
+                                : 0
+                        ))
+                        : undefined,
+                total:
+                    result.data.amount !== undefined || result.data.vatRate !== undefined || vatTreatment !== undefined
+                        ? (() => {
+                            const amount = result.data.amount ?? Number(expense.amount);
+                            const vatRate = ["STANDARD_RATED", "REVERSE_CHARGE"].includes(vatTreatment ?? expense.vatTreatment)
+                                ? (result.data.vatRate ?? Number(expense.vatRate)) / 100
+                                : 0;
+                            return amount + amount * vatRate;
+                        })()
+                        : undefined,
             },
         });
 

@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * pageSize;
+        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
+        const skip = (page - 1) * limit;
 
         const where = {
             organizationId: ctx.organizationId,
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
                 where,
                 orderBy: { issueDate: "desc" },
                 skip,
-                take: pageSize,
+                take: limit,
                 select: {
                     id: true,
                     invoiceNumber: true,
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
             prisma.invoice.count({ where }),
         ]);
 
-        return NextResponse.json({ invoices, total, page, pageSize });
+        return NextResponse.json({ data: invoices, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
     } catch (error) {
         return toErrorResponse(error);
     }

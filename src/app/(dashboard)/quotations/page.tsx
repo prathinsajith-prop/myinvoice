@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, FileCheck, Loader2 } from "lucide-react";
 
+import { QuotationSheet } from "@/components/modals/quotation-sheet";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,18 +37,11 @@ interface Quotation {
 
 interface Pagination { total: number; page: number; limit: number; pages: number }
 
-const STATUS_BADGE: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    DRAFT: { variant: "secondary", label: "Draft" },
-    SENT: { variant: "default", label: "Sent" },
-    VIEWED: { variant: "default", label: "Viewed" },
-    ACCEPTED: { variant: "default", label: "Accepted" },
-    REJECTED: { variant: "destructive", label: "Rejected" },
-    CONVERTED: { variant: "secondary", label: "Converted" },
-    EXPIRED: { variant: "destructive", label: "Expired" },
-};
+
 
 export default function QuotationsPage() {
     const router = useRouter();
+    const createParamHandled = useRef(false);
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
@@ -54,11 +49,21 @@ export default function QuotationsPage() {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [sheetOpen, setSheetOpen] = useState(false);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setSheetOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const fetchQuotations = useCallback(async () => {
         setLoading(true);
@@ -89,11 +94,9 @@ export default function QuotationsPage() {
                         {pagination ? `${pagination.total} total quotations` : "Manage your sales quotations"}
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/quotations/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Quotation
-                    </Link>
+                <Button onClick={() => setSheetOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Quotation
                 </Button>
             </div>
 
@@ -115,12 +118,12 @@ export default function QuotationsPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="DRAFT">Draft</SelectItem>
-                                <SelectItem value="SENT">Sent</SelectItem>
-                                <SelectItem value="ACCEPTED">Accepted</SelectItem>
-                                <SelectItem value="REJECTED">Rejected</SelectItem>
-                                <SelectItem value="CONVERTED">Converted</SelectItem>
-                                <SelectItem value="EXPIRED">Expired</SelectItem>
+                                <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
+                                <SelectItem value="SENT"><StatusOption status="SENT" /></SelectItem>
+                                <SelectItem value="ACCEPTED"><StatusOption status="ACCEPTED" /></SelectItem>
+                                <SelectItem value="REJECTED"><StatusOption status="REJECTED" /></SelectItem>
+                                <SelectItem value="CONVERTED"><StatusOption status="CONVERTED" /></SelectItem>
+                                <SelectItem value="EXPIRED"><StatusOption status="EXPIRED" /></SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -138,8 +141,8 @@ export default function QuotationsPage() {
                                 {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first quotation"}
                             </p>
                             {!debouncedSearch && statusFilter === "ALL" && (
-                                <Button asChild className="mt-4" size="sm">
-                                    <Link href="/quotations/new"><Plus className="mr-2 h-4 w-4" />New Quotation</Link>
+                                <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />New Quotation
                                 </Button>
                             )}
                         </div>
@@ -162,7 +165,6 @@ export default function QuotationsPage() {
                                         const isExpired =
                                             !["CONVERTED", "REJECTED"].includes(q.status) &&
                                             new Date(q.validUntil) < new Date();
-                                        const statusInfo = STATUS_BADGE[q.status] ?? { variant: "secondary" as const, label: q.status };
                                         return (
                                             <tr
                                                 key={q.id}
@@ -183,7 +185,7 @@ export default function QuotationsPage() {
                                                     AED {Number(q.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                                                    <StatusBadge status={q.status} />
                                                 </td>
                                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
@@ -220,6 +222,11 @@ export default function QuotationsPage() {
                     )}
                 </CardContent>
             </Card>
+            <QuotationSheet
+                open={sheetOpen}
+                onClose={() => setSheetOpen(false)}
+                onSuccess={() => { fetchQuotations(); setSheetOpen(false); }}
+            />
         </div>
     );
 }
