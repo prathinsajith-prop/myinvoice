@@ -60,6 +60,9 @@ export async function GET(req: NextRequest) {
             invoiceStatusCounts,
             billStatusCounts,
             expenseCategoryCounts,
+            monthlyInvoices,
+            monthlyExpenses,
+            recentInvoices,
         ] = await Promise.all([
             prisma.invoice.aggregate({
                 where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: from, lte: to } },
@@ -125,6 +128,33 @@ export async function GET(req: NextRequest) {
                 _sum: { total: true },
                 orderBy: { _sum: { total: "desc" } },
             }),
+
+            // monthly trend — last 12 months
+            prisma.invoice.findMany({
+                where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: new Date(now.getFullYear(), now.getMonth() - 11, 1) } },
+                select: { issueDate: true, total: true },
+            }),
+
+            prisma.expense.findMany({
+                where: { organizationId: orgId, deletedAt: null, expenseDate: { gte: new Date(now.getFullYear(), now.getMonth() - 11, 1) } },
+                select: { expenseDate: true, total: true },
+            }),
+
+            // recent invoices for dashboard
+            prisma.invoice.findMany({
+                where: { organizationId: orgId, deletedAt: null },
+                orderBy: { issueDate: "desc" },
+                take: 5,
+                select: {
+                    id: true,
+                    invoiceNumber: true,
+                    status: true,
+                    total: true,
+                    outstanding: true,
+                    issueDate: true,
+                    customer: { select: { id: true, name: true } },
+                },
+            }),
         ]);
 
         const totalRevenue = Number(invoiceSummary._sum.total ?? 0);
@@ -141,6 +171,31 @@ export async function GET(req: NextRequest) {
         const outputVat = Number(invoiceSummary._sum.totalVat ?? 0);
         const inputVat = Number(billSummary._sum.inputVatAmount ?? 0) + Number(expenseSummary._sum.vatAmount ?? 0);
         const netVatPayable = outputVat - inputVat;
+
+        // Build monthly trend (last 12 months)
+        const monthlyMap: Record<string, { revenue: number; expenses: number }> = {};
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const label = d.toLocaleString("en", { month: "short", year: "numeric" });
+            monthlyMap[key] = { revenue: 0, expenses: 0 };
+            void label;
+        }
+        for (const inv of monthlyInvoices) {
+            const d = new Date(inv.issueDate);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            if (monthlyMap[key]) monthlyMap[key].revenue += Number(inv.total ?? 0);
+        }
+        for (const exp of monthlyExpenses) {
+            const d = new Date(exp.expenseDate);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            if (monthlyMap[key]) monthlyMap[key].expenses += Number(exp.total ?? 0);
+        }
+        const monthlyTrend = Object.entries(monthlyMap).map(([key, vals]) => {
+            const [y, m] = key.split("-");
+            const d = new Date(Number(y), Number(m) - 1, 1);
+            return { month: d.toLocaleString("en", { month: "short", year: "numeric" }), ...vals };
+        });
 
         return NextResponse.json({
             period: { start: from.toISOString(), end: to.toISOString() },
@@ -180,6 +235,16 @@ export async function GET(req: NextRequest) {
                 total: Number(c._sum.total ?? 0),
             })),
             vatSummary: { outputVat, inputVat, netVatPayable },
+            monthlyTrend,
+            recentInvoices: recentInvoices.map((inv) => ({
+                id: inv.id,
+                invoiceNumber: inv.invoiceNumber,
+                status: inv.status,
+                total: Number(inv.total),
+                outstanding: Number(inv.outstanding),
+                issueDate: inv.issueDate.toISOString(),
+                customer: inv.customer,
+            })),
         });
     } catch (error) {
         return toErrorResponse(error);

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 
 interface LineItem {
@@ -35,111 +33,108 @@ interface LineItem {
     total: number;
 }
 
-interface Payment {
-    id: string;
-    amount: number;
-    paymentDate: string;
-    paymentMethod: string;
-    reference: string;
+interface PaymentLink {
+    paymentOut: {
+        id: string;
+        paymentNumber: string;
+        amount: number;
+        paymentDate: string;
+        method: string;
+    };
 }
 
-interface Invoice {
+interface Bill {
     id: string;
-    invoiceNumber: string;
+    billNumber: string;
     status: string;
     issueDate: string;
     dueDate: string;
     currency: string;
+    supplierInvoiceNumber: string | null;
+    reference: string | null;
+    notes: string | null;
+    internalNotes: string | null;
     subtotal: number;
     discount: number;
-    taxableAmount: number;
     totalVat: number;
     total: number;
     outstanding: number;
-    notes: string;
-    terms: string;
-    customer: { id: string; name: string; email: string; phone: string; trn: string };
+    supplier: { id: string; name: string; email: string | null; phone: string | null; trn: string | null };
     lineItems: LineItem[];
-    payments: Payment[];
+    paymentsOut: PaymentLink[];
 }
 
-export default function InvoiceDetailPage() {
+export default function BillDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const [invoice, setInvoice] = useState<Invoice | null>(null);
+    const [bill, setBill] = useState<Bill | null>(null);
     const [loading, setLoading] = useState(true);
     const [voidOpen, setVoidOpen] = useState(false);
-    const [payOpen, setPayOpen] = useState(false);
-    const [paymentAmount, setPaymentAmount] = useState("");
-    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
-    const [paymentRef, setPaymentRef] = useState("");
     const [acting, setActing] = useState(false);
 
-    const fetchInvoice = useCallback(async () => {
+    const fetchBill = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/invoices/${params.id}`);
-            if (res.ok) setInvoice(await res.json());
-            else router.push("/invoices");
+            const res = await fetch(`/api/bills/${params.id}`);
+            if (res.ok) setBill(await res.json());
+            else router.push("/bills");
         } finally {
             setLoading(false);
         }
     }, [params.id, router]);
 
-    useEffect(() => { fetchInvoice(); }, [fetchInvoice]);
+    useEffect(() => { fetchBill(); }, [fetchBill]);
 
     async function doVoid() {
         setActing(true);
         try {
-            const res = await fetch(`/api/invoices/${params.id}/void`, { method: "POST" });
+            const res = await fetch(`/api/bills/${params.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "VOID" }),
+            });
             if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
-            toast.success("Invoice voided");
-            fetchInvoice();
+            toast.success("Bill voided");
+            fetchBill();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to void invoice");
+            toast.error(err instanceof Error ? err.message : "Failed to void bill");
         } finally {
             setActing(false);
             setVoidOpen(false);
         }
     }
 
-    async function doMarkPaid() {
+    async function markReceived() {
         setActing(true);
         try {
-            const res = await fetch(`/api/invoices/${params.id}/mark-paid`, {
-                method: "POST",
+            const res = await fetch(`/api/bills/${params.id}`, {
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    amount: Number(paymentAmount),
-                    paymentDate,
-                    reference: paymentRef,
-                    paymentMethod: "BANK_TRANSFER",
-                }),
+                body: JSON.stringify({ status: "RECEIVED" }),
             });
             if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
-            toast.success("Payment recorded");
-            fetchInvoice();
+            toast.success("Bill marked as received");
+            fetchBill();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to record payment");
+            toast.error(err instanceof Error ? err.message : "Failed");
         } finally {
             setActing(false);
-            setPayOpen(false);
         }
     }
 
-    async function markSent() {
+    async function markPaid() {
         setActing(true);
         try {
-            const res = await fetch(`/api/invoices/${params.id}`, {
+            const res = await fetch(`/api/bills/${params.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "SENT" }),
+                body: JSON.stringify({ status: "PAID" }),
             });
             if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
-            toast.success("Invoice marked as sent");
-            fetchInvoice();
+            toast.success("Bill marked as paid");
+            fetchBill();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed");
+            toast.error(err instanceof Error ? err.message : "Failed to mark as paid");
         } finally {
             setActing(false);
         }
@@ -153,45 +148,39 @@ export default function InvoiceDetailPage() {
         );
     }
 
-    if (!invoice) return null;
+    if (!bill) return null;
 
-    const canVoid = !["VOID", "CREDITED"].includes(invoice.status);
-    const canPay = !["PAID", "VOID", "CREDITED"].includes(invoice.status);
-    const canSend = invoice.status === "DRAFT";
+    const canVoid = !["VOID"].includes(bill.status);
+    const canPay = !["PAID", "VOID"].includes(bill.status);
+    const canReceive = bill.status === "DRAFT";
+    const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild>
-                        <Link href="/invoices"><ChevronLeft className="h-5 w-5" /></Link>
+                        <Link href="/bills"><ChevronLeft className="h-5 w-5" /></Link>
                     </Button>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h1 className="text-2xl font-bold tracking-tight">{invoice.invoiceNumber}</h1>
-                            <StatusBadge status={invoice.status} />
+                            <h1 className="text-2xl font-bold tracking-tight">{bill.billNumber}</h1>
+                            <StatusBadge status={bill.status} />
                         </div>
-                        <p className="text-muted-foreground text-sm">{invoice.customer?.name}</p>
+                        <p className="text-muted-foreground text-sm">{bill.supplier?.name}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {canSend && (
-                        <Button variant="outline" size="sm" onClick={markSent} disabled={acting}>
-                            <Send className="mr-2 h-4 w-4" />
-                            Mark Sent
+                    {canReceive && (
+                        <Button variant="outline" size="sm" onClick={markReceived} disabled={acting}>
+                            <PackageCheck className="mr-2 h-4 w-4" />
+                            Mark Received
                         </Button>
                     )}
                     {canPay && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                setPaymentAmount(String(Number(invoice.outstanding).toFixed(2)));
-                                setPayOpen(true);
-                            }}
-                        >
+                        <Button variant="outline" size="sm" onClick={markPaid} disabled={acting}>
                             <CheckCircle className="mr-2 h-4 w-4" />
-                            Record Payment
+                            Mark Paid
                         </Button>
                     )}
                     {canVoid && (
@@ -207,71 +196,82 @@ export default function InvoiceDetailPage() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                {/* Left sidebar */}
+                {/* Sidebar */}
                 <div className="space-y-4">
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Customer</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-base">Supplier</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
-                            <Link href={`/customers/${invoice.customer?.id}`} className="font-semibold hover:underline">
-                                {invoice.customer?.name}
+                            <Link href={`/suppliers/${bill.supplier?.id}`} className="font-semibold hover:underline">
+                                {bill.supplier?.name}
                             </Link>
-                            {invoice.customer?.email && <p className="text-muted-foreground">{invoice.customer.email}</p>}
-                            {invoice.customer?.phone && <p className="text-muted-foreground">{invoice.customer.phone}</p>}
-                            {invoice.customer?.trn && <p className="text-muted-foreground">TRN: {invoice.customer.trn}</p>}
+                            {bill.supplier?.email && <p className="text-muted-foreground">{bill.supplier.email}</p>}
+                            {bill.supplier?.phone && <p className="text-muted-foreground">{bill.supplier.phone}</p>}
+                            {bill.supplier?.trn && <p className="text-muted-foreground">TRN: {bill.supplier.trn}</p>}
                         </CardContent>
                     </Card>
+
                     <Card>
                         <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Invoice #</span>
-                                <span className="font-medium">{invoice.invoiceNumber}</span>
+                                <span className="text-muted-foreground">Bill #</span>
+                                <span className="font-medium">{bill.billNumber}</span>
                             </div>
+                            {bill.supplierInvoiceNumber && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Supplier Ref</span>
+                                    <span>{bill.supplierInvoiceNumber}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Issue Date</span>
-                                <span>{new Date(invoice.issueDate).toLocaleDateString("en-AE")}</span>
+                                <span className="text-muted-foreground">Bill Date</span>
+                                <span>{new Date(bill.issueDate).toLocaleDateString("en-AE")}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Due Date</span>
-                                <span>{new Date(invoice.dueDate).toLocaleDateString("en-AE")}</span>
+                                <span className={isOverdue ? "text-destructive font-medium" : ""}>
+                                    {new Date(bill.dueDate).toLocaleDateString("en-AE")}
+                                    {isOverdue && " (Overdue)"}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Currency</span>
-                                <span>{invoice.currency}</span>
+                                <span>{bill.currency}</span>
                             </div>
                         </CardContent>
                     </Card>
+
                     <Card>
                         <CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span>{Number(invoice.subtotal).toFixed(2)}</span>
+                                <span>{Number(bill.subtotal).toFixed(2)}</span>
                             </div>
-                            {Number(invoice.discount) > 0 && (
+                            {Number(bill.discount) > 0 && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Discount</span>
-                                    <span className="text-green-600">− {Number(invoice.discount).toFixed(2)}</span>
+                                    <span className="text-green-600">− {Number(bill.discount).toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">VAT</span>
-                                <span>{Number(invoice.totalVat).toFixed(2)}</span>
+                                <span>{Number(bill.totalVat).toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold">
                                 <span>Total</span>
-                                <span>{invoice.currency} {Number(invoice.total).toFixed(2)}</span>
+                                <span>{bill.currency} {Number(bill.total).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-amber-600 font-medium">
                                 <span>Outstanding</span>
-                                <span>{invoice.currency} {Number(invoice.outstanding).toFixed(2)}</span>
+                                <span>{bill.currency} {Number(bill.outstanding).toFixed(2)}</span>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Right main content */}
+                {/* Main content */}
                 <div className="lg:col-span-2 space-y-4">
                     <Card>
                         <CardHeader><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
@@ -289,7 +289,7 @@ export default function InvoiceDetailPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {invoice.lineItems?.map((item) => (
+                                        {bill.lineItems?.map((item) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>{item.description}</TableCell>
                                                 <TableCell className="text-right tabular-nums">{Number(item.quantity)}</TableCell>
@@ -305,26 +305,28 @@ export default function InvoiceDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {invoice.payments && invoice.payments.length > 0 && (
+                    {bill.paymentsOut && bill.paymentsOut.length > 0 && (
                         <Card>
                             <CardHeader><CardTitle className="text-base">Payment History</CardTitle></CardHeader>
                             <CardContent className="p-0">
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                            <TableHead>Payment #</TableHead>
                                             <TableHead>Date</TableHead>
                                             <TableHead>Method</TableHead>
-                                            <TableHead>Reference</TableHead>
                                             <TableHead className="text-right">Amount</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {invoice.payments.map((p) => (
-                                            <TableRow key={p.id}>
-                                                <TableCell>{new Date(p.paymentDate).toLocaleDateString("en-AE")}</TableCell>
-                                                <TableCell className="capitalize">{p.paymentMethod?.toLowerCase().replace("_", " ")}</TableCell>
-                                                <TableCell className="text-muted-foreground">{p.reference || "—"}</TableCell>
-                                                <TableCell className="text-right tabular-nums font-medium">{invoice.currency} {Number(p.amount).toFixed(2)}</TableCell>
+                                        {bill.paymentsOut.map((link) => (
+                                            <TableRow key={link.paymentOut.id}>
+                                                <TableCell className="font-medium">{link.paymentOut.paymentNumber}</TableCell>
+                                                <TableCell>{new Date(link.paymentOut.paymentDate).toLocaleDateString("en-AE")}</TableCell>
+                                                <TableCell className="capitalize">{link.paymentOut.method?.toLowerCase().replace("_", " ")}</TableCell>
+                                                <TableCell className="text-right tabular-nums font-medium">
+                                                    {bill.currency} {Number(link.paymentOut.amount).toFixed(2)}
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -333,12 +335,22 @@ export default function InvoiceDetailPage() {
                         </Card>
                     )}
 
-                    {(invoice.notes || invoice.termsAndConditions) && (
+                    {(bill.notes || bill.internalNotes) && (
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Notes & Terms</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
                             <CardContent className="space-y-3 text-sm">
-                                {invoice.notes && <div><p className="font-medium mb-1">Notes</p><p className="text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p></div>}
-                                {invoice.terms && <div><p className="font-medium mb-1">Terms & Conditions</p><p className="text-muted-foreground whitespace-pre-wrap">{invoice.terms}</p></div>}
+                                {bill.notes && (
+                                    <div>
+                                        <p className="font-medium mb-1">Notes</p>
+                                        <p className="text-muted-foreground whitespace-pre-wrap">{bill.notes}</p>
+                                    </div>
+                                )}
+                                {bill.internalNotes && (
+                                    <div>
+                                        <p className="font-medium mb-1">Internal Notes</p>
+                                        <p className="text-muted-foreground whitespace-pre-wrap">{bill.internalNotes}</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -349,54 +361,18 @@ export default function InvoiceDetailPage() {
             <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Void invoice?</AlertDialogTitle>
+                        <AlertDialogTitle>Void this bill?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will void {invoice.invoiceNumber}. The invoice will no longer be collectible. This action cannot be undone.
+                            This will mark the bill as void. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={doVoid} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            {acting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Void Invoice
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            {/* Record payment dialog */}
-            <AlertDialog open={payOpen} onOpenChange={setPayOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Record Payment</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Outstanding: {invoice.currency} {Number(invoice.outstanding).toFixed(2)}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-1.5">
-                            <Label>Amount</Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Payment Date</Label>
-                            <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Reference (optional)</Label>
-                            <Input placeholder="Transaction reference" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
-                        </div>
-                    </div>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={doMarkPaid} disabled={!paymentAmount || acting}>
-                            {acting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Record Payment
+                        <AlertDialogAction
+                            onClick={doVoid}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Void Bill
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

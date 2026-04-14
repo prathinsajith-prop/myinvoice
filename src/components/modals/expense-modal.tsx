@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,22 +47,29 @@ const schema = z.object({
     amount: z.coerce.number().positive("Amount must be greater than 0"),
     vatAmount: z.coerce.number().min(0).default(0),
     paymentMethod: z.string().default("CASH"),
-    currency: z.string().default("AED"),
+    currency: z.string().min(1),
     vendorName: z.string().optional().or(z.literal("")),
     receiptNumber: z.string().optional().or(z.literal("")),
     notes: z.string().optional().or(z.literal("")),
+}).superRefine((data, ctx) => {
+    if (data.vatAmount > data.amount) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "VAT amount cannot exceed the expense amount",
+            path: ["vatAmount"],
+        });
+    }
 });
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_VALUES: FormValues = {
+const DEFAULT_VALUES: Omit<FormValues, "currency"> = {
     description: "",
     category: "",
     expenseDate: new Date().toISOString().split("T")[0],
     amount: 0,
     vatAmount: 0,
     paymentMethod: "CASH",
-    currency: "AED",
     vendorName: "",
     receiptNumber: "",
     notes: "",
@@ -84,28 +92,33 @@ export function ExpenseModal({
 }: ExpenseModalProps) {
     const isEdit = Boolean(id);
     const [saving, setSaving] = useState(false);
+    const orgSettings = useOrgSettings();
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema) as Resolver<FormValues>,
-        defaultValues: DEFAULT_VALUES,
+        defaultValues: { ...DEFAULT_VALUES, currency: orgSettings.defaultCurrency },
     });
 
     useEffect(() => {
         if (open) {
-            form.reset(
-                initialData
-                    ? {
-                        ...DEFAULT_VALUES,
-                        ...initialData,
-                        expenseDate:
-                            initialData.expenseDate ??
-                            new Date().toISOString().split("T")[0],
-                    }
-                    : {
-                        ...DEFAULT_VALUES,
-                        expenseDate: new Date().toISOString().split("T")[0],
-                    }
-            );
+            loadOrgSettings().then((s) => {
+                form.reset(
+                    initialData
+                        ? {
+                            ...DEFAULT_VALUES,
+                            currency: s.defaultCurrency,
+                            ...initialData,
+                            expenseDate:
+                                initialData.expenseDate ??
+                                new Date().toISOString().split("T")[0],
+                        }
+                        : {
+                            ...DEFAULT_VALUES,
+                            currency: s.defaultCurrency,
+                            expenseDate: new Date().toISOString().split("T")[0],
+                        }
+                );
+            });
         }
     }, [open, initialData, form]);
 
@@ -149,6 +162,7 @@ export function ExpenseModal({
 
     const watchedAmount = form.watch("amount");
     const watchedVat = form.watch("vatAmount");
+    const watchedCurrency = form.watch("currency");
     const total = (Number(watchedAmount) || 0) + (Number(watchedVat) || 0);
 
     return (
@@ -232,7 +246,7 @@ export function ExpenseModal({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>
-                                                Amount (AED) <span className="text-destructive">*</span>
+                                                Amount <span className="text-destructive">*</span>
                                             </FormLabel>
                                             <FormControl>
                                                 <Input
@@ -252,7 +266,7 @@ export function ExpenseModal({
                                     name="vatAmount"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>VAT Amount (AED)</FormLabel>
+                                            <FormLabel>VAT Amount</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     type="number"
@@ -272,7 +286,7 @@ export function ExpenseModal({
                                 <div className="rounded-lg bg-muted/50 px-4 py-2.5 text-sm flex justify-between">
                                     <span className="text-muted-foreground">Total (incl. VAT)</span>
                                     <span className="font-semibold">
-                                        AED {total.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                        {watchedCurrency} {total.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                     </span>
                                 </div>
                             )}

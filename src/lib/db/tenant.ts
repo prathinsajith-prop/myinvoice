@@ -5,6 +5,18 @@ const TENANT_SCOPED_MODELS = new Set([
   "customer",
   "supplier",
   "product",
+  "invoice",
+  "quotation",
+  "creditnote",
+  "debitnote",
+  "bill",
+  "payment",
+  "paymentout",
+  "expense",
+  "invoicetemplate",
+  "attachment",
+  "vatreturn",
+  "documentsequence",
   "auditlog",
 ]);
 

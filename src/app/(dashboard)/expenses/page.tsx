@@ -1,22 +1,25 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus, Search, MoreHorizontal, CreditCard, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Plus, Search, CreditCard, Loader2, Eye, Pencil } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 
 import { ExpenseModal } from "@/components/modals/expense-modal";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { DataTable } from "@/components/ui/data-table";
 import {
     Select,
     SelectContent,
@@ -39,6 +42,27 @@ interface Expense {
 
 interface Pagination { total: number; page: number; limit: number; pages: number }
 
+interface ExpenseDetail {
+    id: string;
+    expenseNumber: string;
+    description: string;
+    category: string;
+    expenseDate: string;
+    amount: number;
+    vatAmount: number;
+    total: number;
+    currency: string;
+    vatTreatment: string;
+    vatRate: number;
+    isVatReclaimable: boolean;
+    paymentMethod: string;
+    isPaid: boolean;
+    paidAt: string | null;
+    merchantName: string | null;
+    reference: string | null;
+    notes: string | null;
+    status: string;
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
     TRAVEL: "Travel",
@@ -54,7 +78,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function ExpensesPage() {
-    const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -66,6 +91,7 @@ export default function ExpensesPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
+    const [viewDetail, setViewDetail] = useState<ExpenseDetail | null>(null);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
@@ -103,7 +129,13 @@ export default function ExpensesPage() {
 
     const totalAmount = expenses.reduce((s, e) => s + Number(e.total), 0);
 
-    async function openEdit(id: string) {
+    const openView = useCallback(async (id: string) => {
+        const res = await fetch(`/api/expenses/${id}`);
+        if (!res.ok) return;
+        setViewDetail(await res.json());
+    }, []);
+
+    const openEdit = useCallback(async (id: string) => {
         const res = await fetch(`/api/expenses/${id}`);
         if (!res.ok) return;
         const data = await res.json();
@@ -114,13 +146,83 @@ export default function ExpensesPage() {
             amount: data.amount ?? 0,
             vatAmount: data.vatAmount ?? 0,
             paymentMethod: data.paymentMethod ?? "CASH",
-            currency: data.currency ?? "AED",
+            currency: data.currency ?? currency,
             vendorName: data.vendorName ?? "",
             receiptNumber: data.receiptNumber ?? "",
             notes: data.notes ?? "",
         });
         setEditId(id);
-    }
+    }, [currency]);
+
+    const columns = useMemo<ColumnDef<Expense>[]>(() => [
+        {
+            accessorKey: "expenseNumber",
+            header: "Expense #",
+            cell: ({ row }) => <span className="font-medium">{row.getValue("expenseNumber")}</span>,
+        },
+        {
+            accessorKey: "description",
+            header: "Description",
+            cell: ({ row }) => <span className="max-w-[200px] truncate block">{row.getValue("description")}</span>,
+        },
+        {
+            accessorKey: "category",
+            header: "Category",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {CATEGORY_LABELS[row.getValue("category") as string] ?? row.getValue("category")}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "expenseDate",
+            header: "Date",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {new Date(row.getValue("expenseDate")).toLocaleDateString("en-AE")}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "paymentMethod",
+            header: "Method",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground capitalize">
+                    {(row.getValue("paymentMethod") as string)?.toLowerCase().replace(/_/g, " ")}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "total",
+            header: () => <div className="text-right">Amount</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums font-medium">
+                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+        },
+        {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                        onClick={() => openView(row.original.id)}>
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                        onClick={() => openEdit(row.original.id)}>
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
+        },
+    ], [currency, openView, openEdit]);
 
     return (
         <div className="space-y-6">
@@ -146,7 +248,7 @@ export default function ExpensesPage() {
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Amount (shown)</CardTitle></CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            AED {totalAmount.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                            {currency} {totalAmount.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                         </div>
                     </CardContent>
                 </Card>
@@ -204,68 +306,11 @@ export default function ExpensesPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/50">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Expense #</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Method</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                        <th className="px-4 py-3 w-10" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {expenses.map((expense) => {
-                                        return (
-                                            <tr
-                                                key={expense.id}
-                                                className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                                                onClick={() => router.push(`/expenses/${expense.id}`)}
-                                            >
-                                                <td className="px-4 py-3 font-medium">{expense.expenseNumber}</td>
-                                                <td className="px-4 py-3 max-w-[200px] truncate">{expense.description}</td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    {CATEGORY_LABELS[expense.category] ?? expense.category}
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    {new Date(expense.expenseDate).toLocaleDateString("en-AE")}
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground capitalize">
-                                                    {expense.paymentMethod?.toLowerCase().replace(/_/g, " ")}
-                                                </td>
-                                                <td className="px-4 py-3 text-right tabular-nums font-medium">
-                                                    AED {Number(expense.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <StatusBadge status={expense.status} />
-                                                </td>
-                                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={`/expenses/${expense.id}`}>View</Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => openEdit(expense.id)}>
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={expenses}
+                            onRowClick={(expense) => openView(expense.id)}
+                        />
                     )}
                     {pagination && pagination.pages > 1 && (
                         <div className="flex items-center justify-between border-t px-4 py-3">
@@ -288,6 +333,83 @@ export default function ExpensesPage() {
                 initialData={editData}
                 id={editId ?? undefined}
             />
+
+            {/* View Dialog */}
+            <Dialog open={viewDetail !== null} onOpenChange={(o) => { if (!o) setViewDetail(null); }}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center justify-between">
+                            <span>{viewDetail?.expenseNumber}</span>
+                            {viewDetail && <StatusBadge status={viewDetail.status} />}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {viewDetail && (
+                        <div className="space-y-4 text-sm">
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Description</p>
+                                    <p className="font-medium mt-0.5">{viewDetail.description}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Category</p>
+                                    <p className="font-medium mt-0.5">{CATEGORY_LABELS[viewDetail.category] ?? viewDetail.category}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Date</p>
+                                    <p className="font-medium mt-0.5">{new Date(viewDetail.expenseDate).toLocaleDateString("en-AE")}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Payment Method</p>
+                                    <p className="font-medium mt-0.5 capitalize">{viewDetail.paymentMethod?.toLowerCase().replace(/_/g, " ")}</p>
+                                </div>
+                                {viewDetail.merchantName && (
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Vendor</p>
+                                        <p className="font-medium mt-0.5">{viewDetail.merchantName}</p>
+                                    </div>
+                                )}
+                                {viewDetail.reference && (
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Reference</p>
+                                        <p className="font-medium mt-0.5">{viewDetail.reference}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <Separator />
+                            <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                                <div className="flex justify-between text-muted-foreground">
+                                    <span>Amount</span>
+                                    <span>{viewDetail.currency} {Number(viewDetail.amount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                {Number(viewDetail.vatAmount) > 0 && (
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span>VAT ({viewDetail.vatTreatment.replace(/_/g, " ")})</span>
+                                        <span>{viewDetail.currency} {Number(viewDetail.vatAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between font-semibold pt-1 border-t">
+                                    <span>Total</span>
+                                    <span>{viewDetail.currency} {Number(viewDetail.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                            {viewDetail.notes && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                                    <p className="text-sm text-muted-foreground">{viewDetail.notes}</p>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-center pt-1">
+                                <Badge variant={viewDetail.isPaid ? "default" : "secondary"}>
+                                    {viewDetail.isPaid ? "Paid" : "Unpaid"}
+                                </Badge>
+                                <Button size="sm" variant="outline" onClick={() => { setViewDetail(null); openEdit(viewDetail.id); }}>
+                                    <Pencil className="mr-2 h-3.5 w-3.5" />Edit
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

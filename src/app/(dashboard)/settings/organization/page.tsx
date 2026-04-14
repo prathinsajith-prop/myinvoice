@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import {
   Loader2,
   Building2,
@@ -52,6 +53,7 @@ const UAE_EMIRATES = [
 ];
 
 export default function OrganizationSettingsPage() {
+  const { update: updateSession } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [organization, setOrganization] = useState<UpdateOrganizationInput | null>(null);
@@ -150,6 +152,8 @@ export default function OrganizationSettingsPage() {
       toast.success("Organization updated successfully");
       setLogoChanged(false);
       reset(data); // Reset form state
+      // Refresh session so org name/logo update across the UI immediately
+      await updateSession({});
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update organization");
     } finally {

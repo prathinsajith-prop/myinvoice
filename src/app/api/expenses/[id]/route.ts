@@ -19,7 +19,7 @@ const updateExpenseSchema = z.object({
     vatRate: z.number().min(0).max(100).optional(),
     isVatReclaimable: z.boolean().optional(),
     paymentMethod: z
-        .enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "OTHER"])
+        .enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "STRIPE", "PAYBY", "TABBY", "TAMARA", "OTHER"])
         .optional(),
     merchantName: z.string().optional().nullable(),
     isPaid: z.boolean().optional(),

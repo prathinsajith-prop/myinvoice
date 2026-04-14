@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { USER_ROLE_META } from "@/lib/constants/users";
 
 interface Member {
@@ -191,17 +192,17 @@ export default function UsersPage() {
                             </div>
 
                             <div className="hidden overflow-x-auto md:block">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/40">
-                                            <th className="px-3 py-2 text-left font-medium text-muted-foreground">User</th>
-                                            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Email</th>
-                                            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Role</th>
-                                            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Last Login</th>
-                                            <th className="px-3 py-2 text-right font-medium text-muted-foreground">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/40 hover:bg-muted/40">
+                                            <TableHead>User</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Role</TableHead>
+                                            <TableHead>Last Login</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {filtered.map((member) => {
                                             const meta = USER_ROLE_META[member.role] ?? {
                                                 label: member.role,
@@ -210,8 +211,8 @@ export default function UsersPage() {
                                             };
                                             const Icon = meta.icon;
                                             return (
-                                                <tr key={member.id} className="border-b hover:bg-muted/20">
-                                                    <td className="px-3 py-3">
+                                                <TableRow key={member.id}>
+                                                    <TableCell>
                                                         <div className="flex items-center gap-2">
                                                             <Avatar size="default" className="border">
                                                                 <AvatarImage src={member.user.image ?? undefined} alt={member.user.name ?? member.user.email} />
@@ -219,27 +220,27 @@ export default function UsersPage() {
                                                             </Avatar>
                                                             <span className="font-medium">{member.user.name ?? "Unnamed User"}</span>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-muted-foreground">{member.user.email}</td>
-                                                    <td className="px-3 py-3">
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground">{member.user.email}</TableCell>
+                                                    <TableCell>
                                                         <Badge variant={meta.variant} className="gap-1">
                                                             <Icon className="h-3 w-3" />
                                                             {meta.label}
                                                         </Badge>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-muted-foreground">
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground">
                                                         {member.user.lastLoginAt ? new Date(member.user.lastLoginAt).toLocaleString("en-AE") : "Never"}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right">
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
                                                         <Button variant="ghost" size="sm" onClick={() => setSelectedMember(member)}>
                                                             View
                                                         </Button>
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             );
                                         })}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         </>
                     )}

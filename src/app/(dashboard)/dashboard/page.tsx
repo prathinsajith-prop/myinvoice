@@ -11,6 +11,19 @@ import {
     TrendingUp,
     Users,
 } from "lucide-react";
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+} from "recharts";
 
 import {
     Card,
@@ -21,6 +34,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 type ReportResponse = {
     revenue?: {
@@ -71,6 +85,7 @@ type ReportResponse = {
             name: string;
         };
     }>;
+    monthlyTrend?: Array<{ month: string; revenue: number; expenses: number }>;
     kpis?: {
         totalRevenue: number;
         outstandingReceivables: number;
@@ -88,10 +103,10 @@ type CustomerListResponse = {
     };
 };
 
-function formatCurrency(amount: number) {
+function formatCurrency(amount: number, currency: string) {
     return new Intl.NumberFormat("en-AE", {
         style: "currency",
-        currency: "AED",
+        currency,
         maximumFractionDigits: 0,
     }).format(amount);
 }
@@ -135,7 +150,18 @@ function getDashboardStatsData(report: ReportResponse) {
 }
 
 
+const STATUS_COLORS: Record<string, string> = {
+    DRAFT: "#94a3b8",
+    SENT: "#60a5fa",
+    PAID: "#34d399",
+    OVERDUE: "#f87171",
+    PARTIAL: "#fbbf24",
+    VOID: "#d1d5db",
+};
+
 export default function DashboardPage() {
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const [report, setReport] = useState<ReportResponse | null>(null);
     const [customerTotal, setCustomerTotal] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -188,15 +214,15 @@ export default function DashboardPage() {
         return [
             {
                 name: "Total Revenue",
-                value: formatCurrency(normalized.revenue.totalInvoiced),
-                description: `${formatCurrency(normalized.revenue.totalCollected)} collected`,
+                value: formatCurrency(normalized.revenue.totalInvoiced, currency),
+                description: `${formatCurrency(normalized.revenue.totalCollected, currency)} collected`,
                 trend: normalized.revenue.totalInvoiced >= normalized.revenue.totalCollected ? "up" : "down",
                 delta: `${normalized.revenue.invoiceCount} invoices`,
                 icon: TrendingUp,
             },
             {
                 name: "Outstanding",
-                value: formatCurrency(normalized.revenue.outstanding),
+                value: formatCurrency(normalized.revenue.outstanding, currency),
                 description: `${normalized.revenue.overdueCount} overdue`,
                 trend: normalized.revenue.overdueCount > 0 ? "down" : "up",
                 delta: normalized.revenue.overdueCount > 0 ? "Needs follow-up" : "Under control",
@@ -215,11 +241,11 @@ export default function DashboardPage() {
                 value: String(customerTotal),
                 description: `${normalized.expenses.count} expenses recorded`,
                 trend: customerTotal > 0 ? "up" : "down",
-                delta: formatCurrency(normalized.expenses.total),
+                delta: formatCurrency(normalized.expenses.total, currency),
                 icon: Users,
             },
         ];
-    }, [customerTotal, report]);
+    }, [customerTotal, report, currency]);
 
     const recentInvoices = useMemo(() => {
         if (!report) return [];
@@ -235,6 +261,8 @@ export default function DashboardPage() {
         if (!report) return [];
         return getDashboardStatsData(report).invoiceStatusBreakdown;
     }, [report]);
+
+    const monthlyTrend = useMemo(() => report?.monthlyTrend ?? [], [report]);
 
     return (
         <div className="space-y-6">
@@ -301,6 +329,75 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="grid gap-6 lg:grid-cols-7">
+                        {/* Monthly Revenue vs Expenses */}
+                        <Card className="lg:col-span-4">
+                            <CardHeader>
+                                <CardTitle>Revenue vs Expenses</CardTitle>
+                                <CardDescription>Last 12 months overview</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {monthlyTrend.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                        No data yet for this period.
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart data={monthlyTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                                            <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                            <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
+                                            <Bar dataKey="revenue" name="Revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="expenses" name="Expenses" fill="#f87171" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Invoice Status Donut */}
+                        <Card className="lg:col-span-3">
+                            <CardHeader>
+                                <CardTitle>Invoice Status</CardTitle>
+                                <CardDescription>Breakdown by status (this month)</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {invoiceStatusBreakdown.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                        No invoice activity in this period.
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <PieChart>
+                                            <Pie
+                                                data={invoiceStatusBreakdown}
+                                                dataKey="total"
+                                                nameKey="status"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={55}
+                                                outerRadius={85}
+                                                paddingAngle={3}
+                                            >
+                                                {invoiceStatusBreakdown.map((entry) => (
+                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#a5b4fc"} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
+                                            <Legend
+                                                formatter={(value) => value.replaceAll("_", " ")}
+                                                iconType="circle"
+                                                iconSize={8}
+                                                wrapperStyle={{ fontSize: 12 }}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-7">
                         <Card className="lg:col-span-4">
                             <CardHeader>
                                 <CardTitle>Recent Invoices</CardTitle>
@@ -330,7 +427,7 @@ export default function DashboardPage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3 sm:justify-end">
-                                                    <span className="font-medium">{formatCurrency(invoice.total)}</span>
+                                                    <span className="font-medium">{formatCurrency(invoice.total, currency)}</span>
                                                     <StatusBadge status={invoice.status} />
                                                 </div>
                                             </div>
@@ -377,44 +474,19 @@ export default function DashboardPage() {
                                 <CardContent className="space-y-2 text-sm">
                                     <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
                                         <span>Output VAT</span>
-                                        <span>{formatCurrency(vatSummary.outputVat)}</span>
+                                        <span>{formatCurrency(vatSummary.outputVat, currency)}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
                                         <span>Input VAT</span>
-                                        <span>{formatCurrency(vatSummary.inputVat)}</span>
+                                        <span>{formatCurrency(vatSummary.inputVat, currency)}</span>
                                     </div>
                                     <div className="flex items-center justify-between font-medium text-orange-800 dark:text-orange-200">
                                         <span>Net VAT Payable</span>
-                                        <span>{formatCurrency(vatSummary.netVatPayable)}</span>
+                                        <span>{formatCurrency(vatSummary.netVatPayable, currency)}</span>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Invoice Status</CardTitle>
-                                    <CardDescription>Current invoice breakdown by status</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {invoiceStatusBreakdown.length === 0 ? (
-                                            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                                                No invoice activity in this period.
-                                            </div>
-                                        ) : (
-                                            invoiceStatusBreakdown.map((status) => (
-                                                <div key={status.status} className="flex items-center justify-between rounded-lg border p-3">
-                                                    <div>
-                                                        <p className="font-medium">{status.status.replaceAll("_", " ")}</p>
-                                                        <p className="text-sm text-muted-foreground">{status.count} invoices</p>
-                                                    </div>
-                                                    <div className="text-right font-medium">{formatCurrency(status.total)}</div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
                         </div>
                     </div>
                 </>

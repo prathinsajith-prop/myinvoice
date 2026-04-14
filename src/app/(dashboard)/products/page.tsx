@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, Package, Loader2 } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { ProductModal } from "@/components/modals/product-modal";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -50,6 +53,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function ProductsPage() {
     const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
     const [products, setProducts] = useState<Product[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -95,6 +100,86 @@ export default function ProductsPage() {
 
     useEffect(() => { fetchProducts(); }, [fetchProducts]);
     useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
+
+    const columns = useMemo<ColumnDef<Product>[]>(() => [
+        {
+            accessorKey: "name",
+            header: "Name",
+            cell: ({ row }) => (
+                <div>
+                    <div className="font-medium">{row.getValue("name")}</div>
+                    {row.original.category && (
+                        <div className="text-xs text-muted-foreground">{row.original.category}</div>
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "sku",
+            header: "SKU",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground font-mono text-xs">
+                    {(row.getValue("sku") as string | null) ?? "—"}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "type",
+            header: "Type",
+            cell: ({ row }) => (
+                <Badge variant="outline" className="text-xs">
+                    {TYPE_LABELS[row.getValue("type") as string] ?? row.getValue("type")}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: "unitPrice",
+            header: () => <div className="text-right">Unit Price</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    {currency} {Number(row.getValue("unitPrice")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    <span className="text-xs text-muted-foreground ml-1">/{row.original.unitOfMeasure}</span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: "vatTreatment",
+            header: "VAT",
+            cell: ({ row }) => (
+                <span className="text-xs text-muted-foreground">
+                    {(row.getValue("vatTreatment") as string)?.replace("_", " ") ?? "—"}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "isActive",
+            header: "Status",
+            cell: ({ row }) => (
+                <Badge variant={row.getValue("isActive") ? "default" : "secondary"} className="text-xs">
+                    {row.getValue("isActive") ? "Active" : "Inactive"}
+                </Badge>
+            ),
+        },
+        {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/products/${row.original.id}`)}>View</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(row.original.id)}>Edit</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            ),
+        },
+    ], [currency, router]);
 
     async function openEdit(id: string) {
         const res = await fetch(`/api/products/${id}`);
@@ -175,72 +260,11 @@ export default function ProductsPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/50">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">SKU</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Unit Price</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">VAT</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                        <th className="px-4 py-3 w-10" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {products.map((product) => (
-                                        <tr
-                                            key={product.id}
-                                            className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                                            onClick={() => router.push(`/products/${product.id}`)}
-                                        >
-                                            <td className="px-4 py-3">
-                                                <div className="font-medium">{product.name}</div>
-                                                {product.category && (
-                                                    <div className="text-xs text-muted-foreground">{product.category}</div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                                                {product.sku ?? "—"}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant="outline" className="text-xs">
-                                                    {TYPE_LABELS[product.type] ?? product.type}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 text-right tabular-nums">
-                                                AED {Number(product.unitPrice).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                <span className="text-xs text-muted-foreground ml-1">/{product.unitOfMeasure}</span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="text-xs text-muted-foreground">
-                                                    {product.vatTreatment?.replace("_", " ") ?? "—"}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant={product.isActive ? "default" : "secondary"} className="text-xs">
-                                                    {product.isActive ? "Active" : "Inactive"}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => router.push(`/products/${product.id}`)}>View</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openEdit(product.id)}>Edit</DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={products}
+                            onRowClick={(product) => router.push(`/products/${product.id}`)}
+                        />
                     )}
                     {pagination && pagination.pages > 1 && (
                         <div className="flex items-center justify-between border-t px-4 py-3">

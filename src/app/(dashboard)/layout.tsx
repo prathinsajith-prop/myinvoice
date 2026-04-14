@@ -21,6 +21,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useState } from "react";
+import { useUIStore } from "@/lib/stores/ui-store";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -197,12 +198,16 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { sidebarOpen, setSidebarOpen } = useUIStore();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen">
       {/* Desktop Sidebar */}
-      <aside className="hidden w-64 flex-shrink-0 border-r bg-card lg:block">
+      <aside className={cn(
+        "hidden w-64 flex-shrink-0 border-r bg-card transition-all duration-200 lg:block",
+        !sidebarOpen && "lg:hidden"
+      )}>
         <SidebarContent />
       </aside>
 
@@ -226,6 +231,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Menu className="h-6 w-6" />
               <span className="sr-only">Toggle menu</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden lg:flex"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Toggle sidebar</span>
             </Button>
           </div>
 

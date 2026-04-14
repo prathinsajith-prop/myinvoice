@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getCountryOptions } from "@/lib/utils/countries";
+import { CountrySelect } from "@/components/ui/country-select";
 
 const schema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -86,7 +86,7 @@ export function CustomerModal({
 }: CustomerModalProps) {
     const isEdit = Boolean(id);
     const [saving, setSaving] = useState(false);
-    const countries = useMemo(() => getCountryOptions(), []);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<FormValues>({
@@ -367,28 +367,12 @@ export function CustomerModal({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Country</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select country" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent className="max-h-72">
-                                                    {countries.map((country) => (
-                                                        <SelectItem key={country.value} value={country.value}>
-                                                            <div className="flex items-center gap-2">
-                                                                <span
-                                                                    aria-hidden
-                                                                    className="h-3.5 w-5 rounded-[2px] border"
-                                                                    style={{ backgroundImage: `url(${country.flagImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                                                                />
-                                                                <span>{country.label}</span>
-                                                                <span className="text-xs text-muted-foreground">{country.value}</span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <FormControl>
+                                                <CountrySelect
+                                                    value={field.value ?? "AE"}
+                                                    onChange={field.onChange}
+                                                />
+                                            </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}

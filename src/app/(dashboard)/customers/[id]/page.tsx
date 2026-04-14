@@ -22,6 +22,8 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CustomerModal } from "@/components/modals/customer-modal";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 interface Customer {
     id: string;
@@ -65,6 +67,8 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "o
 export default function CustomerDetailPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [loading, setLoading] = useState(true);
     const [editOpen, setEditOpen] = useState(false);
@@ -142,20 +146,20 @@ export default function CustomerDetailPage() {
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Total Invoiced</span>
                                 <span className="font-medium">
-                                    AED {Number(customer.totalInvoiced).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                    {currency} {Number(customer.totalInvoiced).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Total Paid</span>
                                 <span className="font-medium text-emerald-600">
-                                    AED {Number(customer.totalPaid).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                    {currency} {Number(customer.totalPaid).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                             <Separator />
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Outstanding</span>
                                 <span className={`font-semibold ${Number(customer.totalOutstanding) > 0 ? "text-amber-600" : ""}`}>
-                                    AED {Number(customer.totalOutstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                    {currency} {Number(customer.totalOutstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </CardContent>
@@ -233,41 +237,41 @@ export default function CustomerDetailPage() {
                                     <p className="text-sm text-muted-foreground">No invoices yet</p>
                                 </div>
                             ) : (
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/50">
-                                            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Invoice</th>
-                                            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Date</th>
-                                            <th className="px-4 py-2 text-right font-medium text-muted-foreground">Amount</th>
-                                            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                            <TableHead>Invoice</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {customer.invoices.map((inv) => (
-                                            <tr
+                                            <TableRow
                                                 key={inv.id}
-                                                className="border-b hover:bg-muted/30 cursor-pointer"
+                                                className="cursor-pointer hover:bg-muted/30"
                                                 onClick={() => router.push(`/invoices/${inv.id}`)}
                                             >
-                                                <td className="px-4 py-3 font-medium">{inv.invoiceNumber}</td>
-                                                <td className="px-4 py-3 text-muted-foreground">
+                                                <TableCell className="font-medium">{inv.invoiceNumber}</TableCell>
+                                                <TableCell className="text-muted-foreground">
                                                     {new Date(inv.issueDate).toLocaleDateString("en-AE")}
-                                                </td>
-                                                <td className="px-4 py-3 text-right tabular-nums">
-                                                    AED {Number(inv.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </TableCell>
+                                                <TableCell className="text-right tabular-nums">
+                                                    {currency} {Number(inv.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                                </TableCell>
+                                                <TableCell>
                                                     <Badge
                                                         variant={STATUS_COLORS[inv.status] ?? "secondary"}
                                                         className="text-xs"
                                                     >
                                                         {inv.status.replace("_", " ")}
                                                     </Badge>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             )}
                         </CardContent>
                     </Card>

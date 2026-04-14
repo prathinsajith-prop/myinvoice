@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -222,30 +223,30 @@ export default function QuotationDetailPage() {
                         <CardHeader><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/50">
-                                            <th className="px-4 py-2 text-left font-medium text-muted-foreground">Description</th>
-                                            <th className="px-4 py-2 text-right font-medium text-muted-foreground">Qty</th>
-                                            <th className="px-4 py-2 text-right font-medium text-muted-foreground">Unit Price</th>
-                                            <th className="px-4 py-2 text-right font-medium text-muted-foreground">Disc%</th>
-                                            <th className="px-4 py-2 text-right font-medium text-muted-foreground">VAT</th>
-                                            <th className="px-4 py-2 text-right font-medium text-muted-foreground">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="text-right">Qty</TableHead>
+                                            <TableHead className="text-right">Unit Price</TableHead>
+                                            <TableHead className="text-right">Disc%</TableHead>
+                                            <TableHead className="text-right">VAT</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {quotation.lineItems?.map((item) => (
-                                            <tr key={item.id} className="border-b">
-                                                <td className="px-4 py-2">{item.description}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.quantity)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.unitPrice).toFixed(2)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.discount).toFixed(0)}%</td>
-                                                <td className="px-4 py-2 text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</td>
-                                            </tr>
+                                            <TableRow key={item.id}>
+                                                <TableCell>{item.description}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{Number(item.quantity)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{Number(item.unitPrice).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{Number(item.discount).toFixed(0)}%</TableCell>
+                                                <TableCell className="text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         </CardContent>
                     </Card>
