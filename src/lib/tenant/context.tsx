@@ -26,6 +26,7 @@ interface TenantContextType {
   organizationId: string | null;
   organizationSlug: string | null;
   organizationName: string | null;
+  organizationLogo: string | null;
   role: MemberRole | null;
   organizations: Organization[];
   isLoading: boolean;
@@ -69,6 +70,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     organizationId: session?.user.organizationId ?? null,
     organizationSlug: session?.user.organizationSlug ?? null,
     organizationName: currentOrg?.name ?? null,
+    organizationLogo: session?.user.organizationLogo ?? null,
     role,
     organizations: session?.user.organizations ?? [],
     isLoading: status === "loading" || isSwitching,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
@@ -35,17 +36,28 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH /api/notifications — mark notifications as read
+const patchNotificationsSchema = z.union([
+  z.object({ markAll: z.literal(true) }),
+  z.object({
+    markAll: z.literal(false).optional(),
+    notificationIds: z.array(z.string().cuid()).min(1).max(100),
+  }),
+]);
+
 export async function PATCH(req: NextRequest) {
   try {
     const ctx = await resolveApiContext(req);
     const body = await req.json();
 
-    const { notificationIds, markAll } = body as {
-      notificationIds?: string[];
-      markAll?: boolean;
-    };
+    const result = patchNotificationsSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: result.error.flatten() },
+        { status: 400 }
+      );
+    }
 
-    if (markAll) {
+    if ("markAll" in result.data && result.data.markAll) {
       await prisma.notification.updateMany({
         where: { userId: ctx.userId, isRead: false },
         data: { isRead: true, readAt: new Date() },
@@ -53,9 +65,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (!notificationIds?.length) {
-      return NextResponse.json({ error: "notificationIds required" }, { status: 400 });
-    }
+    const { notificationIds } = result.data as { notificationIds: string[] };
 
     await prisma.notification.updateMany({
       where: { id: { in: notificationIds }, userId: ctx.userId },

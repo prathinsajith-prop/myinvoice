@@ -15,13 +15,15 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const { isSigningIn, setSigningIn, setAuthError, clearAuthError } = useAuthStore();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -32,7 +34,8 @@ function LoginForm() {
   });
 
   const onSubmit = async (data: LoginInput) => {
-    setIsLoading(true);
+    setSigningIn(true);
+    clearAuthError();
     try {
       const result = await signIn("credentials", {
         email: data.email,
@@ -41,14 +44,15 @@ function LoginForm() {
       });
 
       if (result?.error) {
+        setAuthError("Invalid email or password");
         toast.error("Invalid email or password");
       } else {
         window.location.href = callbackUrl;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
-      setIsLoading(false);
+      setSigningIn(false);
     }
   };
 
@@ -56,7 +60,7 @@ function LoginForm() {
     setIsGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl });
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
       setIsGoogleLoading(false);
     }
@@ -79,7 +83,7 @@ function LoginForm() {
             type="email"
             placeholder="name@company.ae"
             autoComplete="email"
-            disabled={isLoading}
+            disabled={isSigningIn}
             {...register("email")}
           />
           {errors.email && (
@@ -103,7 +107,7 @@ function LoginForm() {
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               autoComplete="current-password"
-              disabled={isLoading}
+              disabled={isSigningIn}
               className="pr-10"
               {...register("password")}
             />
@@ -128,8 +132,8 @@ function LoginForm() {
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
+        <Button type="submit" className="w-full" disabled={isSigningIn}>
+          {isSigningIn ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Signing in...

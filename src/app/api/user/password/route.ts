@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { compare, hash } from "bcryptjs";
 import prisma from "@/lib/db/prisma";
 import { updatePasswordSchema } from "@/lib/validations/settings";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveUserContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
 // PATCH /api/user/password
 export async function PATCH(req: NextRequest) {
   try {
-    const ctx = await resolveApiContext(req);
+    const ctx = await resolveUserContext(req);
     const body = await req.json();
 
     const result = updatePasswordSchema.safeParse(body);

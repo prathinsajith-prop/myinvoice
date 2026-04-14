@@ -2,7 +2,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TenantProvider } from "@/lib/tenant/context";
 import { type ReactNode } from "react";
 
@@ -21,18 +21,7 @@ export function Providers({ children }: ProvidersProps) {
       >
         <TenantProvider>
           {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              classNames: {
-                toast: "group toast",
-                title: "text-foreground",
-                description: "text-muted-foreground",
-                actionButton: "bg-primary text-primary-foreground",
-                cancelButton: "bg-muted text-muted-foreground",
-              },
-            }}
-          />
+          <Toaster position="top-right" />
         </TenantProvider>
       </ThemeProvider>
     </SessionProvider>
