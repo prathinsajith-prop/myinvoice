@@ -4,6 +4,7 @@ import { signIn, signOut, unstable_update } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import prisma from "@/lib/db/prisma";
+import { seedNewOrganization } from "@/lib/db/seed-org";
 import { AuthError } from "next-auth";
 
 export type ActionResult = {
@@ -70,6 +71,9 @@ export async function registerAction(data: RegisterInput): Promise<ActionResult>
         acceptedAt: new Date(),
       },
     });
+
+    // Seed subscription, settings, and document sequences
+    await seedNewOrganization(org.id);
 
     return {
       success: true,

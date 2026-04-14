@@ -1,22 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreHorizontal, FileCheck, Loader2 } from "lucide-react";
+import { Plus, Search, Eye, FileCheck, Loader2 } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 
 import { QuotationSheet } from "@/components/modals/quotation-sheet";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
+import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -41,6 +37,8 @@ interface Pagination { total: number; page: number; limit: number; pages: number
 
 export default function QuotationsPage() {
     const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -84,6 +82,66 @@ export default function QuotationsPage() {
 
     useEffect(() => { fetchQuotations(); }, [fetchQuotations]);
     useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const columns = useMemo<ColumnDef<Quotation>[]>(() => [
+        {
+            accessorKey: "quoteNumber",
+            header: "Quote #",
+            cell: ({ row }) => <span className="font-medium">{row.getValue("quoteNumber")}</span>,
+        },
+        {
+            id: "customer",
+            header: "Customer",
+            cell: ({ row }) => row.original.customer?.name,
+        },
+        {
+            accessorKey: "issueDate",
+            header: "Issue Date",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {new Date(row.getValue("issueDate")).toLocaleDateString("en-AE")}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "validUntil",
+            header: "Valid Until",
+            cell: ({ row }) => {
+                const isExpired = !["CONVERTED", "REJECTED"].includes(row.original.status) && new Date(row.getValue("validUntil")) < new Date();
+                return (
+                    <span className={isExpired ? "text-destructive font-medium" : "text-muted-foreground"}>
+                        {new Date(row.getValue("validUntil")).toLocaleDateString("en-AE")}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: "total",
+            header: () => <div className="text-right">Total</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+        },
+        {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                        onClick={() => router.push(`/quotations/${row.original.id}`)}>
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
+        },
+    ], [currency, router]);
 
     return (
         <div className="space-y-6">
@@ -147,66 +205,11 @@ export default function QuotationsPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/50">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Quote #</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Customer</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Issue Date</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Valid Until</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                        <th className="px-4 py-3 w-10" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {quotations.map((q) => {
-                                        const isExpired =
-                                            !["CONVERTED", "REJECTED"].includes(q.status) &&
-                                            new Date(q.validUntil) < new Date();
-                                        return (
-                                            <tr
-                                                key={q.id}
-                                                className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                                                onClick={() => router.push(`/quotations/${q.id}`)}
-                                            >
-                                                <td className="px-4 py-3 font-medium">{q.quoteNumber}</td>
-                                                <td className="px-4 py-3">{q.customer?.name}</td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    {new Date(q.issueDate).toLocaleDateString("en-AE")}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={isExpired ? "text-destructive font-medium" : "text-muted-foreground"}>
-                                                        {new Date(q.validUntil).toLocaleDateString("en-AE")}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right tabular-nums">
-                                                    AED {Number(q.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <StatusBadge status={q.status} />
-                                                </td>
-                                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={`/quotations/${q.id}`}>View</Link>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={quotations}
+                            onRowClick={(q) => router.push(`/quotations/${q.id}`)}
+                        />
                     )}
                     {pagination && pagination.pages > 1 && (
                         <div className="flex items-center justify-between border-t px-4 py-3">

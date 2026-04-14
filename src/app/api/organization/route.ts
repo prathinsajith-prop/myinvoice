@@ -30,8 +30,17 @@ const ORG_SELECT = {
   defaultCurrency: true,
   fiscalYearStart: true,
   invoicePrefix: true,
+  proformaPrefix: true,
   quotePrefix: true,
+  creditNotePrefix: true,
+  debitNotePrefix: true,
+  billPrefix: true,
+  paymentPrefix: true,
   defaultPaymentTerms: true,
+  defaultDueDateDays: true,
+  defaultVatRate: true,
+  defaultNotes: true,
+  defaultTerms: true,
   isActive: true,
   createdAt: true,
   subscription: {
@@ -210,11 +219,57 @@ export async function PATCH(req: NextRequest) {
       select: ORG_SELECT,
     });
 
-    const organization = await prisma.organization.update({
-      where: { id: ctx.organizationId },
-      data: result.data,
-      select: ORG_SELECT,
+    const data = result.data;
+
+    const organization = await prisma.$transaction(async (tx) => {
+      const updatedOrg = await tx.organization.update({
+        where: { id: ctx.organizationId },
+        data,
+        select: ORG_SELECT,
+      });
+
+      const prefixUpdates: Array<{ documentType: "INVOICE" | "PROFORMA" | "QUOTATION" | "CREDIT_NOTE" | "DEBIT_NOTE" | "BILL"; prefix?: string }> = [
+        { documentType: "INVOICE", prefix: data.invoicePrefix },
+        { documentType: "PROFORMA", prefix: data.proformaPrefix },
+        { documentType: "QUOTATION", prefix: data.quotePrefix },
+        { documentType: "CREDIT_NOTE", prefix: data.creditNotePrefix },
+        { documentType: "DEBIT_NOTE", prefix: data.debitNotePrefix },
+        { documentType: "BILL", prefix: data.billPrefix },
+      ];
+
+      await Promise.all(
+        prefixUpdates
+          .filter((p) => typeof p.prefix === "string" && p.prefix.trim().length > 0)
+          .map((p) =>
+            tx.documentSequence.updateMany({
+              where: { organizationId: ctx.organizationId, documentType: p.documentType },
+              data: { prefix: p.prefix!.trim().toUpperCase() },
+            })
+          )
+      );
+
+      return updatedOrg;
     });
+
+    // Sync prefix changes to DocumentSequence rows
+    const PREFIX_MAP = [
+      ["invoicePrefix", "INVOICE"],
+      ["proformaPrefix", "PROFORMA"],
+      ["quotePrefix", "QUOTATION"],
+      ["creditNotePrefix", "CREDIT_NOTE"],
+      ["debitNotePrefix", "DEBIT_NOTE"],
+      ["billPrefix", "BILL"],
+      ["paymentPrefix", "PAYMENT"],
+    ] as const;
+
+    const prefixUpdates = PREFIX_MAP.filter(([field]) => result.data[field] !== undefined).map(
+      ([field, documentType]) =>
+        prisma.documentSequence.updateMany({
+          where: { organizationId: ctx.organizationId, documentType: documentType as never },
+          data: { prefix: result.data[field] as string },
+        })
+    );
+    if (prefixUpdates.length > 0) await Promise.all(prefixUpdates);
 
     await logAudit({
       action: "UPDATE",

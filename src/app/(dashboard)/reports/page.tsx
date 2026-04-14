@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, FileText, Receipt, CreditCard } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
     Select,
     SelectContent,
@@ -11,6 +11,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    AreaChart,
+    Area,
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    Cell,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Legend,
+} from "recharts";
 
 interface KPIs {
     totalRevenue: number;
@@ -50,6 +65,7 @@ interface ReportData {
         inputVat: number;
         netVatPayable: number;
     };
+    monthlyTrend?: Array<{ month: string; revenue: number; expenses: number }>;
 }
 
 const PERIODS = [
@@ -78,8 +94,21 @@ const CATEGORY_LABELS: Record<string, string> = {
     OTHER: "Other",
 };
 
-function fmt(n: number) {
-    return `AED ${Number(n || 0).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const CATEGORY_COLORS = [
+    "#6366f1", "#f59e0b", "#10b981", "#f87171", "#60a5fa", "#a78bfa", "#34d399", "#fb923c",
+];
+
+const STATUS_COLORS: Record<string, string> = {
+    DRAFT: "#94a3b8",
+    SENT: "#60a5fa",
+    PAID: "#34d399",
+    OVERDUE: "#f87171",
+    PARTIAL: "#fbbf24",
+    VOID: "#d1d5db",
+};
+
+function fmt(n: number, currency: string) {
+    return `${currency} ${Number(n || 0).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function KpiCard({ title, value, sub, icon: Icon, trend }: {
@@ -113,6 +142,8 @@ export default function ReportsPage() {
     const [period, setPeriod] = useState("this_month");
     const [report, setReport] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
 
     const fetchReport = useCallback(async () => {
         setLoading(true);
@@ -162,20 +193,20 @@ export default function ReportsPage() {
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <KpiCard
                                 title="Total Revenue"
-                                value={fmt(kpis!.totalRevenue)}
+                                value={fmt(kpis!.totalRevenue, currency)}
                                 sub={`${kpis!.invoiceCount} invoice${kpis!.invoiceCount !== 1 ? "s" : ""}`}
                                 icon={DollarSign}
                                 trend="up"
                             />
                             <KpiCard
                                 title="Total Expenses"
-                                value={fmt(kpis!.totalExpenses)}
+                                value={fmt(kpis!.totalExpenses, currency)}
                                 sub={`Bills + direct expenses`}
                                 icon={CreditCard}
                             />
                             <KpiCard
                                 title="Net Profit"
-                                value={fmt(kpis!.netProfit)}
+                                value={fmt(kpis!.netProfit, currency)}
                                 sub={`${(kpis!.netProfitMargin ?? 0).toFixed(1)}% margin`}
                                 icon={isProfit ? TrendingUp : TrendingDown}
                                 trend={isProfit ? "up" : "down"}
@@ -196,7 +227,7 @@ export default function ReportsPage() {
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <KpiCard
                                 title="Outstanding Receivables"
-                                value={fmt(kpis!.outstandingReceivables)}
+                                value={fmt(kpis!.outstandingReceivables, currency)}
                                 sub="Awaiting collection"
                                 icon={TrendingUp}
                             />
@@ -209,7 +240,7 @@ export default function ReportsPage() {
                             />
                             <KpiCard
                                 title="Outstanding Payables"
-                                value={fmt(kpis!.outstandingPayables)}
+                                value={fmt(kpis!.outstandingPayables, currency)}
                                 sub="To be paid to suppliers"
                                 icon={TrendingDown}
                             />
@@ -223,6 +254,39 @@ export default function ReportsPage() {
                         </div>
                     </div>
 
+                    {/* Monthly Trend Chart */}
+                    {(report.monthlyTrend ?? []).length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Revenue vs Expenses Trend</CardTitle>
+                                <CardDescription>Last 12 months</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ResponsiveContainer width="100%" height={240}>
+                                    <AreaChart data={report.monthlyTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#f87171" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                        <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                        <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
+                                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                                        <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#6366f1" fill="url(#revGrad)" strokeWidth={2} dot={false} />
+                                        <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f87171" fill="url(#expGrad)" strokeWidth={2} dot={false} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* VAT Summary */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
@@ -230,16 +294,16 @@ export default function ReportsPage() {
                             <CardContent className="space-y-3 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Output VAT (collected on sales)</span>
-                                    <span className="font-medium">{fmt(report.vatSummary?.outputVat ?? kpis!.totalVatCollected)}</span>
+                                    <span className="font-medium">{fmt(report.vatSummary?.outputVat ?? kpis!.totalVatCollected, currency)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Input VAT (paid on purchases)</span>
-                                    <span className="font-medium">{fmt(report.vatSummary?.inputVat ?? kpis!.totalVatPaid)}</span>
+                                    <span className="font-medium">{fmt(report.vatSummary?.inputVat ?? kpis!.totalVatPaid, currency)}</span>
                                 </div>
                                 <div className="flex justify-between border-t pt-3 font-semibold">
                                     <span>Net VAT Payable</span>
                                     <span className={(report.vatSummary?.netVatPayable ?? kpis!.netVatPayable) >= 0 ? "text-destructive" : "text-green-600"}>
-                                        {fmt(report.vatSummary?.netVatPayable ?? kpis!.netVatPayable)}
+                                        {fmt(report.vatSummary?.netVatPayable ?? kpis!.netVatPayable, currency)}
                                     </span>
                                 </div>
                             </CardContent>
@@ -250,17 +314,26 @@ export default function ReportsPage() {
                             <CardHeader><CardTitle className="text-base">Expenses by Category</CardTitle></CardHeader>
                             <CardContent>
                                 {report.expensesByCategory && report.expensesByCategory.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {report.expensesByCategory.slice(0, 6).map((cat) => (
-                                            <div key={cat.category} className="flex items-center justify-between text-sm">
-                                                <span>{CATEGORY_LABELS[cat.category] ?? cat.category}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-muted-foreground text-xs">{cat.count} records</span>
-                                                    <span className="font-medium">{fmt(cat.total)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart
+                                            data={report.expensesByCategory.slice(0, 8).map((c) => ({
+                                                name: CATEGORY_LABELS[c.category] ?? c.category,
+                                                total: c.total,
+                                            }))}
+                                            layout="vertical"
+                                            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                                            <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
+                                            <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
+                                            <Bar dataKey="total" name="Amount" radius={[0, 4, 4, 0]}>
+                                                {report.expensesByCategory.slice(0, 8).map((_, i) => (
+                                                    <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">No expenses in this period</p>
                                 )}
@@ -268,25 +341,32 @@ export default function ReportsPage() {
                         </Card>
                     </div>
 
-                    {/* Invoice & Bill status breakdown */}
+                    {/* Invoice status chart + Bills by Status */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
                             <CardHeader><CardTitle className="text-base">Invoices by Status</CardTitle></CardHeader>
                             <CardContent>
                                 {report.invoicesByStatus && report.invoicesByStatus.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {report.invoicesByStatus.map((s) => (
-                                            <div key={s.status} className="flex items-center justify-between text-sm">
-                                                <Badge variant="outline" className="text-xs capitalize">
-                                                    {s.status.toLowerCase().replace("_", " ")}
-                                                </Badge>
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-muted-foreground">{s.count} invoices</span>
-                                                    <span className="font-medium">{fmt(s.total)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <PieChart>
+                                            <Pie
+                                                data={report.invoicesByStatus}
+                                                dataKey="total"
+                                                nameKey="status"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={90}
+                                                paddingAngle={3}
+                                            >
+                                                {report.invoicesByStatus.map((entry) => (
+                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#a5b4fc"} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
+                                            <Legend formatter={(value) => value.replaceAll("_", " ")} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">No invoices in this period</p>
                                 )}
@@ -297,19 +377,22 @@ export default function ReportsPage() {
                             <CardHeader><CardTitle className="text-base">Bills by Status</CardTitle></CardHeader>
                             <CardContent>
                                 {report.billsByStatus && report.billsByStatus.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {report.billsByStatus.map((s) => (
-                                            <div key={s.status} className="flex items-center justify-between text-sm">
-                                                <Badge variant="outline" className="text-xs capitalize">
-                                                    {s.status.toLowerCase().replace("_", " ")}
-                                                </Badge>
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-muted-foreground">{s.count} bills</span>
-                                                    <span className="font-medium">{fmt(s.total)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart
+                                            data={report.billsByStatus.map((s) => ({
+                                                name: s.status.replace("_", " "),
+                                                total: s.total,
+                                                count: s.count,
+                                            }))}
+                                            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                                            <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                            <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                            <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
+                                            <Bar dataKey="total" name="Amount" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">No bills in this period</p>
                                 )}

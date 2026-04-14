@@ -1,22 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreHorizontal, Receipt, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Search, Receipt, Loader2, AlertCircle, Eye } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 
 import { BillSheet } from "@/components/modals/bill-sheet";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
+import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -41,6 +37,8 @@ interface Pagination { total: number; page: number; limit: number; pages: number
 
 export default function BillsPage() {
     const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
     const [bills, setBills] = useState<Bill[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -50,6 +48,7 @@ export default function BillsPage() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [viewId, setViewId] = useState<string | null>(null);
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
@@ -87,6 +86,78 @@ export default function BillsPage() {
 
     const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstanding), 0);
 
+    const columns = useMemo<ColumnDef<Bill>[]>(() => [
+        {
+            accessorKey: "billNumber",
+            header: "Bill #",
+            cell: ({ row }) => <span className="font-medium">{row.getValue("billNumber")}</span>,
+        },
+        {
+            id: "supplier",
+            header: "Supplier",
+            cell: ({ row }) => row.original.supplier?.name,
+        },
+        {
+            accessorKey: "issueDate",
+            header: "Bill Date",
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {new Date(row.getValue("issueDate")).toLocaleDateString("en-AE")}
+                </span>
+            ),
+        },
+        {
+            accessorKey: "dueDate",
+            header: "Due Date",
+            cell: ({ row }) => {
+                const isOverdue = !["PAID", "VOID"].includes(row.original.status) && new Date(row.getValue("dueDate")) < new Date();
+                return (
+                    <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
+                        {isOverdue && <AlertCircle className="inline h-3 w-3 mr-1" />}
+                        {new Date(row.getValue("dueDate")).toLocaleDateString("en-AE")}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: "total",
+            header: () => <div className="text-right">Amount</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "outstanding",
+            header: () => <div className="text-right">Outstanding</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    <span className={Number(row.getValue("outstanding")) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                        {currency} {Number(row.getValue("outstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+        },
+        {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                        onClick={() => router.push(`/bills/${row.original.id}`)}>
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
+        },
+    ], [currency, router]);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -111,7 +182,7 @@ export default function BillsPage() {
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Outstanding (shown)</CardTitle></CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-amber-600">
-                            AED {totalOutstanding.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                            {currency} {totalOutstanding.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                         </div>
                     </CardContent>
                 </Card>
@@ -170,71 +241,11 @@ export default function BillsPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/50">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Bill #</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Supplier</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Bill Date</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Due Date</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Outstanding</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                        <th className="px-4 py-3 w-10" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {bills.map((bill) => {
-                                        const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
-                                        return (
-                                            <tr
-                                                key={bill.id}
-                                                className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                                                onClick={() => router.push(`/bills/${bill.id}`)}
-                                            >
-                                                <td className="px-4 py-3 font-medium">{bill.billNumber}</td>
-                                                <td className="px-4 py-3">{bill.supplier?.name}</td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    {new Date(bill.issueDate).toLocaleDateString("en-AE")}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
-                                                        {isOverdue && <AlertCircle className="inline h-3 w-3 mr-1" />}
-                                                        {new Date(bill.dueDate).toLocaleDateString("en-AE")}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right tabular-nums">
-                                                    AED {Number(bill.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="px-4 py-3 text-right tabular-nums">
-                                                    <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                        AED {Number(bill.outstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <StatusBadge status={bill.status} />
-                                                </td>
-                                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={`/bills/${bill.id}`}>View</Link>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={bills}
+                            onRowClick={(bill) => router.push(`/bills/${bill.id}`)}
+                        />
                     )}
                     {pagination && pagination.pages > 1 && (
                         <div className="flex items-center justify-between border-t px-4 py-3">

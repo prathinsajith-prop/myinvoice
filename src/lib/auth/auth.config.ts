@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import { compare } from "bcryptjs";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import { seedNewOrganization } from "@/lib/db/seed-org";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -37,6 +38,14 @@ export const authConfig: NextAuthConfig = {
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
         });
+
+        // Record login history — fire-and-forget
+        prisma.loginHistory.create({
+          data: {
+            userId: user.id,
+            success: true,
+          },
+        }).catch(() => { });
 
         return {
           id: user.id,
@@ -195,7 +204,7 @@ export const authConfig: NextAuthConfig = {
           orgIds.length > 0
             ? prisma.organization.findMany({
               where: { id: { in: orgIds } },
-              select: { id: true, logo: true },
+              select: { id: true, name: true, logo: true },
             })
             : [],
         ]);
@@ -205,14 +214,15 @@ export const authConfig: NextAuthConfig = {
           session.user.image = freshUser.image ?? null;
         }
 
-        const logoMap = new Map(freshOrgs.map((o) => [o.id, o.logo]));
+        const orgMap = new Map(freshOrgs.map((o) => [o.id, o]));
         session.user.organizations = tokenOrgs.map((o) => ({
           ...o,
-          logo: logoMap.get(o.id) ?? null,
+          name: orgMap.get(o.id)?.name ?? o.name,
+          logo: orgMap.get(o.id)?.logo ?? null,
         }));
 
         session.user.organizationLogo =
-          logoMap.get(token.organizationId as string) ?? null;
+          orgMap.get(token.organizationId as string)?.logo ?? null;
       } else {
         session.user.organizations = tokenOrgs.map((o) => ({
           ...o,
@@ -226,19 +236,6 @@ export const authConfig: NextAuthConfig = {
   },
 
   events: {
-    async signIn({ user }) {
-      if (!user.id) return;
-      try {
-        await prisma.loginHistory.create({
-          data: {
-            userId: user.id,
-            success: true,
-          },
-        });
-      } catch {
-        // non-critical — do not block sign-in
-      }
-    },
     async createUser({ user }) {
       if (!user.id) return;
 
@@ -261,6 +258,9 @@ export const authConfig: NextAuthConfig = {
           acceptedAt: new Date(),
         },
       });
+
+      // Seed subscription, settings, and document sequences
+      await seedNewOrganization(org.id);
     },
   },
 

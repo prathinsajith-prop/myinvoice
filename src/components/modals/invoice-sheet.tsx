@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,7 +42,7 @@ const schema = z.object({
     customerId: z.string().min(1, "Customer required"),
     issueDate: z.string().min(1, "Issue date required"),
     dueDate: z.string().min(1, "Due date required"),
-    currency: z.string().default("AED"),
+    currency: z.string().min(1),
     notes: z.string().optional(),
     termsAndConditions: z.string().optional(),
     lineItems: z.array(lineItemSchema).min(1, "At least one line item required"),
@@ -72,25 +73,27 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const orgSettings = useOrgSettings();
 
     const today = new Date().toISOString().split("T")[0];
-    const plus30 = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+    const dueDate = new Date(Date.now() + orgSettings.defaultDueDateDays * 86400000).toISOString().split("T")[0];
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema) as Resolver<FormValues>,
         defaultValues: {
             customerId: defaultCustomerId ?? "",
             issueDate: today,
-            dueDate: plus30,
-            currency: "AED",
-            notes: "",
-            termsAndConditions: "",
+            dueDate,
+            currency: orgSettings.defaultCurrency,
+            notes: orgSettings.defaultNotes,
+            termsAndConditions: orgSettings.defaultTerms,
             lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD" }],
         },
     });
 
     const { fields, append, remove } = useFieldArray({ control: form.control, name: "lineItems" });
     const watchedItems = form.watch("lineItems");
+    const currency = form.watch("currency");
 
     const fetchData = useCallback(async () => {
         const [c, p] = await Promise.all([
@@ -104,14 +107,17 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
     useEffect(() => {
         if (open) {
             fetchData();
-            form.reset({
-                customerId: defaultCustomerId ?? "",
-                issueDate: today,
-                dueDate: plus30,
-                currency: "AED",
-                notes: "",
-                termsAndConditions: "",
-                lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD" }],
+            loadOrgSettings().then((s) => {
+                const due = new Date(Date.now() + s.defaultDueDateDays * 86400000).toISOString().split("T")[0];
+                form.reset({
+                    customerId: defaultCustomerId ?? "",
+                    issueDate: today,
+                    dueDate: due,
+                    currency: s.defaultCurrency,
+                    notes: s.defaultNotes,
+                    termsAndConditions: s.defaultTerms,
+                    lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD" }],
+                });
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,7 +149,25 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                 body: JSON.stringify(values),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error ?? "Failed to create invoice");
+            if (!res.ok) {
+                // Propagate server-side field errors into the form
+                const fieldErrors: Record<string, string[]> = data?.details?.fieldErrors ?? {};
+                let hasFieldError = false;
+                for (const [key, msgs] of Object.entries(fieldErrors)) {
+                    const message = Array.isArray(msgs) ? msgs[0] : String(msgs);
+                    // Map API field names back to frontend schema names
+                    const frontendKey = key.replace(/\.discount\b/, ".discountPercent").replace(
+                        /lineItems\.(\d+)\./,
+                        (_, i) => `lineItems.${i}.`
+                    ) as Parameters<typeof form.setError>[0];
+                    form.setError(frontendKey as never, { message });
+                    hasFieldError = true;
+                }
+                if (!hasFieldError) {
+                    toast.error(data.error ?? "Failed to create invoice");
+                }
+                return;
+            }
             toast.success("Invoice created");
             onSuccess(data);
             onClose();
@@ -275,7 +299,7 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                                     <Input className="h-8 text-sm" type="number" min="0" step="0.001" {...form.register(`lineItems.${index}.quantity`)} />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-xs">Price (AED)</Label>
+                                                    <Label className="text-xs">Price ({currency})</Label>
                                                     <Input className="h-8 text-sm" type="number" min="0" step="0.01" {...form.register(`lineItems.${index}.unitPrice`)} />
                                                 </div>
                                                 <div className="space-y-1.5">
@@ -296,8 +320,8 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                                 </div>
                                             </div>
                                             <div className="flex justify-end gap-4 text-xs text-muted-foreground pt-1">
-                                                <span>VAT: AED {vatAmt.toFixed(2)}</span>
-                                                <span className="font-medium text-foreground">Total: AED {lineTotal.toFixed(2)}</span>
+                                                <span>VAT: {currency} {vatAmt.toFixed(2)}</span>
+                                                <span className="font-medium text-foreground">Total: {currency} {lineTotal.toFixed(2)}</span>
                                             </div>
                                         </div>
                                     );
@@ -310,19 +334,19 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                         {/* Totals */}
                         <div className="rounded-lg bg-muted/40 p-4 space-y-2 text-sm">
                             <div className="flex justify-between text-muted-foreground">
-                                <span>Subtotal</span><span>AED {totals.subtotal.toFixed(2)}</span>
+                                <span>Subtotal</span><span>{currency} {totals.subtotal.toFixed(2)}</span>
                             </div>
                             {totals.discount > 0 && (
                                 <div className="flex justify-between text-muted-foreground">
-                                    <span>Discount</span><span className="text-green-600">− AED {totals.discount.toFixed(2)}</span>
+                                    <span>Discount</span><span className="text-green-600">− {currency} {totals.discount.toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between text-muted-foreground">
-                                <span>VAT</span><span>AED {totals.vat.toFixed(2)}</span>
+                                <span>VAT</span><span>{currency} {totals.vat.toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold text-base">
-                                <span>Total</span><span>AED {totals.total.toFixed(2)}</span>
+                                <span>Total</span><span>{currency} {totals.total.toFixed(2)}</span>
                             </div>
                         </div>
 

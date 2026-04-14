@@ -6,6 +6,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { enforceInvoiceLimit } from "@/lib/plans.server";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -95,6 +96,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const ctx = await resolveApiContext(req);
+
+        // Enforce plan invoice limit before creating
+        await enforceInvoiceLimit(ctx.organizationId);
+
         const raw = await req.json();
         const body = normalizeDocumentBody(raw);
 
@@ -160,6 +165,18 @@ export async function POST(req: NextRequest) {
                 customer: { select: { id: true, name: true, email: true, trn: true } },
             },
         });
+
+        // Audit log — feeds enforceInvoiceLimit counter
+        prisma.auditLog.create({
+            data: {
+                organizationId: ctx.organizationId,
+                userId: ctx.userId,
+                action: "CREATE",
+                entityType: "Invoice",
+                entityId: invoice.id,
+                newData: { invoiceNumber: invoice.invoiceNumber },
+            },
+        }).catch(() => { }); // fire-and-forget, non-critical
 
         return NextResponse.json(invoice, { status: 201 });
     } catch (error) {

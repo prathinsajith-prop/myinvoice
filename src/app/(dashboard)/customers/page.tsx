@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     Plus,
@@ -9,9 +9,12 @@ import {
     Building2,
     Mail,
     Phone,
-    ArrowUpDown,
     Loader2,
+    Eye,
+    Pencil,
+    FileText,
 } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,12 +24,13 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CustomerModal } from "@/components/modals/customer-modal";
+import { DataTable } from "@/components/ui/data-table";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 interface Customer {
     id: string;
@@ -51,6 +55,8 @@ interface Pagination {
 
 export default function CustomersPage() {
     const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -102,6 +108,115 @@ export default function CustomersPage() {
     useEffect(() => {
         setPage(1);
     }, [debouncedSearch]);
+
+    const columns = useMemo<ColumnDef<Customer>[]>(() => [
+        {
+            id: "name",
+            header: "Customer",
+            accessorFn: (row) => row.name,
+            cell: ({ row }) => (
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 border">
+                        <AvatarImage src={row.original.image ?? undefined} alt={row.original.name} />
+                        <AvatarFallback>
+                            {row.original.name.split(" ").filter(Boolean).map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <div className="font-medium">{row.original.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                            {row.original.invoiceCount} invoice{row.original.invoiceCount !== 1 ? "s" : ""}
+                        </div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            id: "contact",
+            header: "Contact",
+            cell: ({ row }) => (
+                <div className="flex flex-col gap-0.5">
+                    {row.original.email && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />{row.original.email}
+                        </span>
+                    )}
+                    {row.original.phone && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />{row.original.phone}
+                        </span>
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "type",
+            header: "Type",
+            cell: ({ row }) => (
+                <Badge variant="outline" className="text-xs capitalize">
+                    {(row.getValue("type") as string)?.toLowerCase() ?? "business"}
+                </Badge>
+            ),
+        },
+        {
+            accessorKey: "totalInvoiced",
+            header: () => <div className="text-right">Invoiced</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    {currency} {Number(row.getValue("totalInvoiced")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "totalOutstanding",
+            header: () => <div className="text-right">Outstanding</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    <span className={Number(row.getValue("totalOutstanding")) > 0 ? "text-amber-600 font-medium" : ""}>
+                        {currency} {Number(row.getValue("totalOutstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: "isActive",
+            header: "Status",
+            cell: ({ row }) => (
+                <Badge variant={row.getValue("isActive") ? "default" : "secondary"} className="text-xs">
+                    {row.getValue("isActive") ? "Active" : "Inactive"}
+                </Badge>
+            ),
+        },
+        {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                        onClick={() => router.push(`/customers/${row.original.id}`)}>
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                        onClick={() => openEdit(row.original.id)}>
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setInvoiceCustomerId(row.original.id); setInvoiceOpen(true); }}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                New Invoice
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            ),
+        },
+    ], [currency, router]);
 
     async function openEdit(id: string) {
         const res = await fetch(`/api/customers/${id}`);
@@ -160,7 +275,7 @@ export default function CustomersPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            AED{" "}
+                            {currency}{" "}
                             {customers
                                 .reduce((s, c) => s + Number(c.totalInvoiced), 0)
                                 .toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -173,7 +288,7 @@ export default function CustomersPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-amber-600">
-                            AED{" "}
+                            {currency}{" "}
                             {customers
                                 .reduce((s, c) => s + Number(c.totalOutstanding), 0)
                                 .toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -219,123 +334,11 @@ export default function CustomersPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/50">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                            <button className="flex items-center gap-1 hover:text-foreground">
-                                                Customer <ArrowUpDown className="h-3 w-3" />
-                                            </button>
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                            Contact
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                                            Invoiced
-                                        </th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                                            Outstanding
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                            Status
-                                        </th>
-                                        <th className="px-4 py-3 w-10" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {customers.map((customer) => (
-                                        <tr
-                                            key={customer.id}
-                                            className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                                            onClick={() => router.push(`/customers/${customer.id}`)}
-                                        >
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="h-10 w-10 border">
-                                                        <AvatarImage src={customer.image ?? undefined} alt={customer.name} />
-                                                        <AvatarFallback>
-                                                            {customer.name.split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <div className="font-medium">{customer.name}</div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {customer.invoiceCount} invoice{customer.invoiceCount !== 1 ? "s" : ""}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col gap-0.5">
-                                                    {customer.email && (
-                                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Mail className="h-3 w-3" />
-                                                            {customer.email}
-                                                        </span>
-                                                    )}
-                                                    {customer.phone && (
-                                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Phone className="h-3 w-3" />
-                                                            {customer.phone}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant="outline" className="text-xs capitalize">
-                                                    {customer.type?.toLowerCase() ?? "business"}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 text-right tabular-nums">
-                                                AED{" "}
-                                                {Number(customer.totalInvoiced).toLocaleString("en-AE", {
-                                                    minimumFractionDigits: 2,
-                                                })}
-                                            </td>
-                                            <td className="px-4 py-3 text-right tabular-nums">
-                                                <span
-                                                    className={
-                                                        Number(customer.totalOutstanding) > 0 ? "text-amber-600 font-medium" : ""
-                                                    }
-                                                >
-                                                    AED{" "}
-                                                    {Number(customer.totalOutstanding).toLocaleString("en-AE", {
-                                                        minimumFractionDigits: 2,
-                                                    })}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant={customer.isActive ? "default" : "secondary"} className="text-xs">
-                                                    {customer.isActive ? "Active" : "Inactive"}
-                                                </Badge>
-                                            </td>
-                                            <td
-                                                className="px-4 py-3"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>View</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openEdit(customer.id)}>Edit</DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => { setInvoiceCustomerId(customer.id); setInvoiceOpen(true); }}>
-                                                            New Invoice
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={customers}
+                            onRowClick={(customer) => router.push(`/customers/${customer.id}`)}
+                        />
                     )}
 
                     {/* Pagination */}

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { invalidateOrgSettingsCache } from "@/lib/hooks/use-org-settings";
 
 const CURRENCIES = [
     { value: "AED", label: "AED — UAE Dirham" },
@@ -143,6 +144,7 @@ export default function InvoiceSettingsPage() {
             }
 
             toast.success("Invoice settings saved");
+            invalidateOrgSettingsCache();
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to save settings");
         } finally {

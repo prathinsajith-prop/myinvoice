@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupplierModal } from "@/components/modals/supplier-modal";
 import { BillSheet } from "@/components/modals/bill-sheet";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 interface Bill { id: string; billNumber: string; status: string; total: number; outstanding: number; issueDate: string; dueDate: string }
 
@@ -44,6 +46,8 @@ interface Supplier {
 export default function SupplierDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
     const [supplier, setSupplier] = useState<Supplier | null>(null);
     const [loading, setLoading] = useState(true);
     const [editOpen, setEditOpen] = useState(false);
@@ -164,12 +168,12 @@ export default function SupplierDetailPage() {
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Total Billed</span>
-                                <span className="font-medium">AED {Number(supplier.totalBilled || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                <span className="font-medium">{currency} {Number(supplier.totalBilled || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Outstanding</span>
                                 <span className={`font-medium ${Number(supplier.outstanding) > 0 ? "text-amber-600" : ""}`}>
-                                    AED {Number(supplier.outstanding || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                    {currency} {Number(supplier.outstanding || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         </CardContent>
@@ -192,44 +196,40 @@ export default function SupplierDetailPage() {
                                     <p className="text-sm text-muted-foreground">No bills yet</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b bg-muted/50">
-                                                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Bill #</th>
-                                                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Date</th>
-                                                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Due</th>
-                                                <th className="px-4 py-2 text-right font-medium text-muted-foreground">Total</th>
-                                                <th className="px-4 py-2 text-right font-medium text-muted-foreground">Outstanding</th>
-                                                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {supplier.bills.map((bill) => {
-                                                return (
-                                                    <tr
-                                                        key={bill.id}
-                                                        className="border-b hover:bg-muted/30 cursor-pointer"
-                                                        onClick={() => router.push(`/bills/${bill.id}`)}
-                                                    >
-                                                        <td className="px-4 py-2 font-medium">{bill.billNumber}</td>
-                                                        <td className="px-4 py-2 text-muted-foreground">{new Date(bill.issueDate).toLocaleDateString("en-AE")}</td>
-                                                        <td className="px-4 py-2 text-muted-foreground">{new Date(bill.dueDate).toLocaleDateString("en-AE")}</td>
-                                                        <td className="px-4 py-2 text-right tabular-nums">AED {Number(bill.total).toFixed(2)}</td>
-                                                        <td className="px-4 py-2 text-right tabular-nums">
-                                                            <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                                                                AED {Number(bill.outstanding).toFixed(2)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-2">
-                                                            <StatusBadge status={bill.status} />
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                            <TableHead>Bill #</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Due</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                            <TableHead className="text-right">Outstanding</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {supplier.bills.map((bill) => (
+                                            <TableRow
+                                                key={bill.id}
+                                                className="cursor-pointer hover:bg-muted/30"
+                                                onClick={() => router.push(`/bills/${bill.id}`)}
+                                            >
+                                                <TableCell className="font-medium">{bill.billNumber}</TableCell>
+                                                <TableCell className="text-muted-foreground">{new Date(bill.issueDate).toLocaleDateString("en-AE")}</TableCell>
+                                                <TableCell className="text-muted-foreground">{new Date(bill.dueDate).toLocaleDateString("en-AE")}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{currency} {Number(bill.total).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">
+                                                    <span className={Number(bill.outstanding) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                                                        {currency} {Number(bill.outstanding).toFixed(2)}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <StatusBadge status={bill.status} />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             )}
                         </CardContent>
                     </Card>

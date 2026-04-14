@@ -55,12 +55,10 @@ export async function enforceInvoiceLimit(organizationId: string) {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  // AuditLog-based count (replace with Invoice model count when available)
-  const count = await prisma.auditLog.count({
+  const count = await prisma.invoice.count({
     where: {
       organizationId,
-      entityType: "Invoice",
-      action: "CREATE",
+      deletedAt: null,
       createdAt: { gte: startOfMonth },
     },
   });
@@ -88,11 +86,10 @@ export async function getUsageStats(organizationId: string) {
     prisma.organizationMembership.count({
       where: { organizationId, isActive: true },
     }),
-    prisma.auditLog.count({
+    prisma.invoice.count({
       where: {
         organizationId,
-        entityType: "Invoice",
-        action: "CREATE",
+        deletedAt: null,
         createdAt: { gte: startOfMonth },
       },
     }),
