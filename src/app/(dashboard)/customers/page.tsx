@@ -21,6 +21,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -61,6 +68,7 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
+    const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
@@ -85,6 +93,7 @@ export default function CustomersPage() {
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
             if (normalizedSearch) params.set("search", normalizedSearch);
+            if (typeFilter !== "ALL") params.set("type", typeFilter);
             const res = await fetch(`/api/customers?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -94,7 +103,7 @@ export default function CustomersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, normalizedSearch]);
+    }, [page, normalizedSearch, typeFilter]);
 
     useEffect(() => {
         fetchCustomers();
@@ -103,6 +112,11 @@ export default function CustomersPage() {
     const handleSearchChange = (value: string) => {
         setPage(1);
         setSearch(value);
+    };
+
+    const handleTypeFilterChange = (value: string) => {
+        setPage(1);
+        setTypeFilter(value);
     };
 
     const columns = useMemo<ColumnDef<Customer>[]>(() => [
@@ -296,8 +310,8 @@ export default function CustomersPage() {
             {/* Table */}
             <Card>
                 <CardHeader className="pb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="relative flex-1 max-w-sm">
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className="relative flex-1 min-w-[200px] max-w-sm">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Search customers..."
@@ -306,6 +320,14 @@ export default function CustomersPage() {
                                 className="pl-9"
                             />
                         </div>
+                        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
+                            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">All Types</SelectItem>
+                                <SelectItem value="BUSINESS">Business</SelectItem>
+                                <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -318,11 +340,11 @@ export default function CustomersPage() {
                             <Building2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No customers found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {normalizedSearch
-                                    ? "Try a different search term"
+                                {normalizedSearch || typeFilter !== "ALL"
+                                    ? "Try adjusting your filters"
                                     : "Add your first customer to get started"}
                             </p>
-                            {!normalizedSearch && (
+                            {!normalizedSearch && typeFilter === "ALL" && (
                                 <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Customer

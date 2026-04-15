@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 
 interface VatReturn {
@@ -114,11 +115,11 @@ export default function VatReturnsPage() {
                 <CardContent className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                            <label className="text-sm text-muted-foreground">Period start</label>
+                            <Label>Period start</Label>
                             <DatePicker value={from} onChange={setFrom} />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm text-muted-foreground">Period end</label>
+                            <Label>Period end</Label>
                             <DatePicker value={to} onChange={setTo} />
                         </div>
                     </div>

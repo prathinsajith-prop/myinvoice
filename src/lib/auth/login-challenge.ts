@@ -7,7 +7,7 @@ import { type LoginAttemptMetadata } from "@/lib/security/request-metadata";
 
 const LOGIN_CHALLENGE_TYPE = "login-challenge";
 const LOGIN_CHALLENGE_TTL_MINUTES = 10;
-const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const MAX_FAILED_LOGIN_ATTEMPTS = 10;
 const LOCKOUT_MINUTES = 15;
 
 function generateLoginCode() {

@@ -151,20 +151,21 @@ export default function RegisterPage() {
                   className={`h-px w-8 ${isCompleted ? "bg-primary" : "bg-border"}`}
                 />
               )}
-              <button
+              <Button
                 type="button"
+                variant={isActive ? "default" : isCompleted ? "ghost" : "secondary"}
+                size="sm"
                 onClick={() => isCompleted && setStep(s.id)}
-                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : isCompleted
-                      ? "bg-primary/10 text-primary cursor-pointer"
-                      : "bg-muted text-muted-foreground"
-                }`}
+                className={`rounded-full gap-2 ${isCompleted && !isActive
+                    ? "bg-primary/10 text-primary cursor-pointer"
+                    : !isActive && !isCompleted
+                      ? "text-muted-foreground"
+                      : ""
+                  }`}
               >
                 <Icon className="h-4 w-4" />
                 {s.title}
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -215,15 +216,17 @@ export default function RegisterPage() {
                   className="pr-10"
                   {...register("password")}
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-muted-foreground hover:text-foreground focus:outline-none"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7"
                   tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                </Button>
               </div>
               {errors.password ? (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
@@ -246,15 +249,17 @@ export default function RegisterPage() {
                   className="pr-10"
                   {...register("confirmPassword")}
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-muted-foreground hover:text-foreground focus:outline-none"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-7 w-7"
                   tabIndex={-1}
                   aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                </Button>
               </div>
               {errors.confirmPassword && (
                 <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Users, Loader2, UserPlus, Clock } from "lucide-react";
+import { Users, Loader2, UserPlus, Clock, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -61,6 +61,7 @@ export default function UsersPage() {
     const { data: session } = useSession();
     const { role: currentRole, hasPermission } = useTenant();
     const [search, setSearch] = useState("");
+    const [roleFilter, setRoleFilter] = useState("ALL");
     const [selectedMember, setSelectedMember] = useState<Member | null>(null);
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState("");
@@ -80,15 +81,21 @@ export default function UsersPage() {
     const members = data?.members ?? [];
 
     const filtered = useMemo(() => {
+        let result = members;
+        if (roleFilter !== "ALL") {
+            result = result.filter((m) => m.role === roleFilter);
+        }
         const q = search.trim().toLowerCase();
-        if (!q) return members;
-        return members.filter((m) => {
-            const name = (m.user.name ?? "").toLowerCase();
-            const email = (m.user.email ?? "").toLowerCase();
-            const role = m.role.toLowerCase();
-            return name.includes(q) || email.includes(q) || role.includes(q);
-        });
-    }, [members, search]);
+        if (q) {
+            result = result.filter((m) => {
+                const name = (m.user.name ?? "").toLowerCase();
+                const email = (m.user.email ?? "").toLowerCase();
+                const role = m.role.toLowerCase();
+                return name.includes(q) || email.includes(q) || role.includes(q);
+            });
+        }
+        return result;
+    }, [members, search, roleFilter]);
 
     const counts = useMemo(() => {
         return members.reduce(
@@ -254,12 +261,30 @@ export default function UsersPage() {
                 <CardHeader className="gap-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <CardTitle className="text-base">User Listing</CardTitle>
-                        <Input
-                            className="w-full sm:w-64"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by name, email, or role"
-                        />
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    className="pl-9"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Search by name, email, or role"
+                                />
+                            </div>
+                            <Select value={roleFilter} onValueChange={setRoleFilter}>
+                                <SelectTrigger className="w-40">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All Roles</SelectItem>
+                                    <SelectItem value="OWNER">Owner</SelectItem>
+                                    <SelectItem value="ADMIN">Admin</SelectItem>
+                                    <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
+                                    <SelectItem value="MEMBER">Member</SelectItem>
+                                    <SelectItem value="VIEWER">Viewer</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>

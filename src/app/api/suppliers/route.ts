@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
         const ctx = await resolveApiContext(req);
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
+        const type = searchParams.get("type") ?? "";
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
         const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
         const skip = (page - 1) * limit;
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
             organizationId: ctx.organizationId,
             isActive: true,
             deletedAt: null,
+            ...(type && type !== "ALL" ? { type } : {}),
             ...(search
                 ? {
                     OR: [

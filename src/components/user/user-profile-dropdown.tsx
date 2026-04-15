@@ -14,6 +14,7 @@ import {
   Moon,
   Sun,
   Check,
+  Shield,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -68,70 +69,76 @@ export function UserProfileDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
             <AvatarImage
               src={session.user.image || undefined}
               alt={session.user.name || "User"}
             />
-            <AvatarFallback className="bg-primary text-primary-foreground">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
               {initials || "U"}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 max-h-[calc(100vh-5rem)] overflow-y-auto" align="end" forceMount>
+      <DropdownMenuContent className="w-72" align="end" sideOffset={8} forceMount>
         {/* User Info Header */}
-        <DropdownMenuLabel className="font-normal">
+        <div className="px-3 py-3">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-10 w-10 ring-2 ring-border">
               <AvatarImage
                 src={session.user.image || undefined}
                 alt={session.user.name || "User"}
               />
-              <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                 {initials || "U"}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <p className="text-sm font-semibold leading-none truncate">
                 {session.user.name || "User"}
               </p>
-              <p className="text-xs leading-none text-muted-foreground">
+              <p className="text-xs text-muted-foreground truncate">
                 {session.user.email}
               </p>
               {session.user.organizations?.find(o => o.id === session.user.organizationId)?.name && (
-                <span className="text-xs text-muted-foreground/80 leading-none truncate max-w-[140px]">
-                  {session.user.organizations.find(o => o.id === session.user.organizationId)!.name}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">
+                    {session.user.organizations.find(o => o.id === session.user.organizationId)!.name}
+                  </span>
+                </div>
               )}
-              <Badge variant="outline" className="mt-0.5 w-fit text-[10px] capitalize">
-                {session.user.role?.toLowerCase() ?? "member"}
-              </Badge>
             </div>
           </div>
-        </DropdownMenuLabel>
+          <div className="mt-2">
+            <Badge variant="secondary" className="text-[10px] capitalize font-medium">
+              <Shield className="mr-1 h-3 w-3" />
+              {session.user.role?.toLowerCase() ?? "member"}
+            </Badge>
+          </div>
+        </div>
 
         <DropdownMenuSeparator />
 
         {/* Account Section */}
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
-            <User className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={() => router.push("/settings/profile")} className="gap-2 py-2">
+            <User className="h-4 w-4 text-muted-foreground" />
             <span>Profile</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings/organization")}>
-            <Building2 className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={() => router.push("/settings/organization")} className="gap-2 py-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
             <span>Organization</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings/billing")}>
-            <CreditCard className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={() => router.push("/settings/billing")} className="gap-2 py-2">
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
             <span>Billing & Plans</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings")}>
-            <Settings className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={() => router.push("/settings")} className="gap-2 py-2">
+            <Settings className="h-4 w-4 text-muted-foreground" />
             <span>Settings</span>
-            <ChevronRight className="ml-auto h-4 w-4" />
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
           </DropdownMenuItem>
         </DropdownMenuGroup>
 
@@ -139,28 +146,28 @@ export function UserProfileDropdown() {
 
         {/* Theme Switcher */}
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger className="gap-2 py-2">
             {theme === "dark" ? (
-              <Moon className="mr-2 h-4 w-4" />
+              <Moon className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <Sun className="mr-2 h-4 w-4" />
+              <Sun className="h-4 w-4 text-muted-foreground" />
             )}
             <span>Theme</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                <Sun className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2">
+                <Sun className="h-4 w-4" />
                 <span>Light</span>
                 {theme === "light" && <Check className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                <Moon className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2">
+                <Moon className="h-4 w-4" />
                 <span>Dark</span>
                 {theme === "dark" && <Check className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                <Settings className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2">
+                <Settings className="h-4 w-4" />
                 <span>System</span>
                 {theme === "system" && <Check className="ml-auto h-4 w-4" />}
               </DropdownMenuItem>
@@ -171,15 +178,16 @@ export function UserProfileDropdown() {
         <DropdownMenuSeparator />
 
         {/* Help & Sign Out */}
-        <DropdownMenuItem onClick={() => window.open("https://help.myinvoice.ae", "_blank")}>
-          <HelpCircle className="mr-2 h-4 w-4" />
+        <DropdownMenuItem onClick={() => window.open("https://help.myinvoice.ae", "_blank")} className="gap-2 py-2">
+          <HelpCircle className="h-4 w-4 text-muted-foreground" />
           <span>Help & Support</span>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+          className="gap-2 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
           onClick={handleSignOut}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="h-4 w-4" />
           <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
