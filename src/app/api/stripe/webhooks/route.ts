@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/db/prisma";
 import { getStripeServer } from "@/lib/stripe/server";
+import { STRIPE_WEBHOOK_SECRET } from "@/lib/constants/env";
 
 export async function POST(req: NextRequest) {
     const signature = req.headers.get("stripe-signature");
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = STRIPE_WEBHOOK_SECRET;
 
     if (!signature || !webhookSecret) {
         return NextResponse.json({ error: "Webhook signature is missing" }, { status: 400 });

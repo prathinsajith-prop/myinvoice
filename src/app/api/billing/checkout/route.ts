@@ -4,15 +4,21 @@ import prisma from "@/lib/db/prisma";
 import { resolveApiContextWithRole } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { getStripeServer } from "@/lib/stripe/server";
+import {
+    APP_URL,
+    STRIPE_PRICE_ENTERPRISE,
+    STRIPE_PRICE_PROFESSIONAL,
+    STRIPE_PRICE_STARTER,
+} from "@/lib/constants/env";
 
 const schema = z.object({
     plan: z.enum(["STARTER", "PROFESSIONAL", "ENTERPRISE"]),
 });
 
 const PRICE_ENV_MAP: Record<string, string | undefined> = {
-    STARTER: process.env.STRIPE_PRICE_STARTER,
-    PROFESSIONAL: process.env.STRIPE_PRICE_PROFESSIONAL,
-    ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE,
+    STARTER: STRIPE_PRICE_STARTER,
+    PROFESSIONAL: STRIPE_PRICE_PROFESSIONAL,
+    ENTERPRISE: STRIPE_PRICE_ENTERPRISE,
 };
 
 export async function POST(req: NextRequest) {
@@ -45,7 +51,7 @@ export async function POST(req: NextRequest) {
         }
 
         const stripe = getStripeServer();
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+        const appUrl = APP_URL || req.nextUrl.origin;
 
         let customerId = organization.subscription.stripeCustomerId || undefined;
         if (!customerId) {

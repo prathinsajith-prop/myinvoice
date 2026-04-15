@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { MessageCircle, Loader2 } from "lucide-react";
+import { APP_URL } from "@/lib/constants/env.client";
 import { useState } from "react";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/db/prisma";
@@ -37,7 +38,7 @@ async function PortalInvoiceContent({ token }: { token: string }) {
     });
 
     const waText = encodeURIComponent(
-        `Invoice ${invoice.invoiceNumber} from ${invoice.organization.legalName || invoice.organization.name}\nAmount: ${invoice.currency} ${Number(invoice.total).toFixed(2)}\nView: ${process.env.NEXT_PUBLIC_APP_URL || ""}/portal/${invoice.publicToken}`
+        `Invoice ${invoice.invoiceNumber} from ${invoice.organization.legalName || invoice.organization.name}\nAmount: ${invoice.currency} ${Number(invoice.total).toFixed(2)}\nView: ${APP_URL}/portal/${invoice.publicToken}`
     );
 
     return (

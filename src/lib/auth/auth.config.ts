@@ -5,6 +5,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { seedNewOrganization } from "@/lib/db/seed-org";
 import { verifyTotpCode } from "@/lib/security/totp";
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "@/lib/constants/env";
 import {
   finalizeSuccessfulLoginWithMetadata,
   recordSecondFactorFailure,
@@ -68,8 +69,8 @@ export const authConfig: NextAuthConfig = {
     }),
 
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
     }),
   ],

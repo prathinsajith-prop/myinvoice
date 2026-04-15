@@ -13,6 +13,7 @@ import {
 } from "@/lib/errors";
 import { hasRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
+import { APP_URL } from "@/lib/constants/env";
 import { inviteEmail } from "@/lib/email/templates";
 
 const inviteMemberSchema = z.object({
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = result.data.email.trim().toLowerCase();
     const { role } = result.data;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+    const appUrl = APP_URL || req.nextUrl.origin;
 
     const [inviter, organization] = await Promise.all([
       prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true, email: true } }),

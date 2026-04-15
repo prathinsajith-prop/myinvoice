@@ -3,6 +3,7 @@ import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 import { getStripeServer } from "@/lib/stripe/server";
+import { APP_URL, STRIPE_SECRET_KEY } from "@/lib/constants/env";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const ctx = await resolveApiContext(req);
         const { id } = await params;
 
-        if (!process.env.STRIPE_SECRET_KEY) {
+        if (!STRIPE_SECRET_KEY) {
             return NextResponse.json(
                 { error: "Online payments are not configured for this account." },
                 { status: 400 }
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         }
 
         const stripe = getStripeServer();
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+        const appUrl = APP_URL || req.nextUrl.origin;
 
         const session = await stripe.checkout.sessions.create({
             mode: "payment",

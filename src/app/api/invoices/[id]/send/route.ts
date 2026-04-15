@@ -6,6 +6,7 @@ import { toErrorResponse, NotFoundError } from "@/lib/errors";
 import { generatePublicToken } from "@/lib/crypto/token";
 import { sendEmail } from "@/lib/email";
 import { invoiceEmail } from "@/lib/email/templates";
+import { APP_URL } from "@/lib/constants/env";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest, { params }: Params) {
             await prisma.invoice.update({ where: { id: invoice.id }, data: { publicToken: token } });
         }
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+        const appUrl = APP_URL || req.nextUrl.origin;
         const portalUrl = `${appUrl}/portal/${token}`;
         const pdfUrl = `${appUrl}/api/invoices/${invoice.id}/pdf`;
 

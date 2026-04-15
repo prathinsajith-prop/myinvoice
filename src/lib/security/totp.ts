@@ -1,7 +1,8 @@
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
+import { TOTP_ISSUER } from "@/lib/constants/env";
 
-const issuer = process.env.TOTP_ISSUER || "myinvoice.ae";
+const issuer = TOTP_ISSUER;
 
 export function createTotpSecret() {
     return generateSecret();

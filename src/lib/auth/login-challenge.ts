@@ -5,6 +5,7 @@ import prisma from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/email";
 import { loginCodeEmail } from "@/lib/email/templates";
 import { type LoginAttemptMetadata } from "@/lib/security/request-metadata";
+import { APP_URL } from "@/lib/constants/env";
 
 const LOGIN_CHALLENGE_TYPE = "login-challenge";
 const LOGIN_CHALLENGE_TTL_MINUTES = 10;
@@ -107,7 +108,7 @@ export async function issueLoginChallenge(user: { id: string; email: string; nam
         },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = APP_URL;
     const template = loginCodeEmail({
         name: user.name || user.email,
         code,

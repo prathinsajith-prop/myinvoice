@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { APP_URL } from "@/lib/constants/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
   authors: [{ name: "myinvoice.ae" }],
   creator: "myinvoice.ae",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    APP_URL
   ),
   openGraph: {
     type: "website",
