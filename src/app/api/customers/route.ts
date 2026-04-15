@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
                 : {}),
         };
 
-        const [customers, total] = await Promise.all([
+        const [rawCustomers, total] = await Promise.all([
             prisma.customer.findMany({
                 where,
                 orderBy: { name: "asc" },
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
                     currency: true,
                     totalInvoiced: true,
                     totalOutstanding: true,
-                    invoiceCount: true,
+                    _count: { select: { invoices: { where: { deletedAt: null, status: { not: "VOID" as const } } } } },
                     lastInvoiceDate: true,
                     isActive: true,
                     createdAt: true,
@@ -92,6 +92,8 @@ export async function GET(req: NextRequest) {
             }),
             prisma.customer.count({ where }),
         ]);
+
+        const customers = rawCustomers.map(({ _count, ...c }) => ({ ...c, invoiceCount: _count.invoices }));
 
         return NextResponse.json({ data: customers, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
     } catch (error) {

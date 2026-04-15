@@ -35,7 +35,7 @@ const lineItemSchema = z.object({
     quantity: z.coerce.number().positive("Must be > 0"),
     unitPrice: z.coerce.number().min(0),
     discountPercent: z.coerce.number().min(0).max(100).default(0),
-    vatTreatment: z.string().default("STANDARD"),
+    vatTreatment: z.string().default("STANDARD_RATED"),
     productId: z.string().optional(),
 });
 
@@ -168,7 +168,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
         form.setValue(`lineItems.${index}.productId`, productId);
         form.setValue(`lineItems.${index}.description`, p.name);
         form.setValue(`lineItems.${index}.unitPrice`, p.unitPrice);
-        form.setValue(`lineItems.${index}.vatTreatment`, p.vatTreatment ?? "STANDARD");
+        form.setValue(`lineItems.${index}.vatTreatment`, p.vatTreatment ?? "STANDARD_RATED");
     }
 
     async function onSubmit(values: FormValues) {
@@ -264,73 +264,21 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Line Items</p>
                             </div>
 
-                            {/* Desktop table header */}
-                            <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_72px_90px_64px_80px_80px_32px] gap-x-2 px-3 pb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                                <span>Product</span>
-                                <span>Description</span>
-                                <span className="text-right">Qty</span>
-                                <span className="text-right">Price</span>
-                                <span className="text-right">Disc%</span>
-                                <span>VAT</span>
-                                <span className="text-right">Total</span>
-                                <span />
-                            </div>
-
                             <div className="rounded-lg border divide-y">
                                 {fields.map((field, index) => {
                                     const item = watchedItems[index] ?? {};
                                     const { vatAmt, lineTotal } = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD_RATED");
                                     return (
-                                        <div key={field.id} className="p-3">
-                                            {/* Desktop row */}
-                                            <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_72px_90px_64px_80px_80px_32px] gap-x-2 items-start">
-                                                <div>
-                                                    <Select onValueChange={(v) => applyProduct(index, v)}>
-                                                        <SelectTrigger className="h-8 text-xs">
-                                                            <SelectValue placeholder="Catalog..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {products.map((p) => (
-                                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <Input className="h-8 text-sm" placeholder="Description *" {...form.register(`lineItems.${index}.description`)} />
-                                                <Input className="h-8 text-sm text-right" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                <Input className="h-8 text-sm text-right" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                <Input className="h-8 text-sm text-right" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
-                                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="STANDARD_RATED">5%</SelectItem>
-                                                        <SelectItem value="ZERO_RATED">0%</SelectItem>
-                                                        <SelectItem value="EXEMPT">Exempt</SelectItem>
-                                                        <SelectItem value="OUT_OF_SCOPE">OOS</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <div className="flex items-center h-8 justify-end text-sm font-medium tabular-nums">
-                                                    {lineTotal.toFixed(2)}
-                                                </div>
-                                                <div className="flex items-center justify-center h-8">
-                                                    {fields.length > 1 && (
-                                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    )}
-                                                </div>
+                                        <div key={field.id} className="p-3 space-y-2.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-medium text-muted-foreground">Item {index + 1}</span>
+                                                {fields.length > 1 && (
+                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                )}
                                             </div>
-
-                                            {/* Mobile layout */}
-                                            <div className="sm:hidden space-y-2.5">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-medium text-muted-foreground">Item {index + 1}</span>
-                                                    {fields.length > 1 && (
-                                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    )}
-                                                </div>
+                                            <div className="grid gap-2 sm:grid-cols-2">
                                                 <Select onValueChange={(v) => applyProduct(index, v)}>
                                                     <SelectTrigger className="h-8 text-xs">
                                                         <SelectValue placeholder="Auto-fill from catalog..." />
@@ -341,37 +289,43 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
-                                                <Input className="h-8 text-sm" placeholder="Description *" {...form.register(`lineItems.${index}.description`)} />
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[11px] text-muted-foreground">Qty</Label>
-                                                        <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[11px] text-muted-foreground">Price ({currency})</Label>
-                                                        <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[11px] text-muted-foreground">Disc %</Label>
-                                                        <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[11px] text-muted-foreground">VAT</Label>
-                                                        <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
-                                                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="STANDARD_RATED">Std 5%</SelectItem>
-                                                                <SelectItem value="ZERO_RATED">0%</SelectItem>
-                                                                <SelectItem value="EXEMPT">Exempt</SelectItem>
-                                                                <SelectItem value="OUT_OF_SCOPE">OOS</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
+                                                <div>
+                                                    <Input className="h-8 text-sm" placeholder="Description *" {...form.register(`lineItems.${index}.description`)} />
+                                                    {form.formState.errors.lineItems?.[index]?.description && (
+                                                        <p className="text-xs text-destructive mt-1">{form.formState.errors.lineItems[index]?.description?.message}</p>
+                                                    )}
                                                 </div>
-                                                <div className="flex justify-end gap-4 text-xs text-muted-foreground">
-                                                    <span>VAT: {currency} {vatAmt.toFixed(2)}</span>
-                                                    <span className="font-medium text-foreground">Total: {currency} {lineTotal.toFixed(2)}</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                <div className="space-y-1">
+                                                    <Label className="text-[11px] text-muted-foreground">Qty</Label>
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
                                                 </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[11px] text-muted-foreground">Price ({currency})</Label>
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[11px] text-muted-foreground">Disc %</Label>
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[11px] text-muted-foreground">VAT</Label>
+                                                    <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
+                                                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="STANDARD_RATED">Std 5%</SelectItem>
+                                                            <SelectItem value="ZERO_RATED">0%</SelectItem>
+                                                            <SelectItem value="EXEMPT">Exempt</SelectItem>
+                                                            <SelectItem value="OUT_OF_SCOPE">OOS</SelectItem>
+                                                            <SelectItem value="REVERSE_CHARGE">Reverse</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end gap-4 text-xs text-muted-foreground pt-0.5">
+                                                <span>VAT: {currency} {vatAmt.toFixed(2)}</span>
+                                                <span className="font-medium text-foreground">Total: {currency} {lineTotal.toFixed(2)}</span>
                                             </div>
                                         </div>
                                     );
