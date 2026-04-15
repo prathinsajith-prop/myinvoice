@@ -3,8 +3,6 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
-import { getNextDocumentNumber } from "@/lib/services/numbering";
-import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 
 type Params = { params: Promise<{ id: string }> };
 

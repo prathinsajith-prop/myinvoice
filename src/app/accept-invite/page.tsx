@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import useSWR from "swr";
 import { Loader2, CheckCircle2, XCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -186,7 +187,7 @@ function AcceptInviteContent() {
           </Button>
           <p className="text-xs text-center text-muted-foreground">
             Already have an account?{" "}
-            <a href="/login" className="underline">Sign in instead</a>
+            <Link href="/login" className="underline">Sign in instead</Link>
           </p>
         </CardContent>
       </Card>

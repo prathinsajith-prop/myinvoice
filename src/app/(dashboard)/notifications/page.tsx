@@ -180,7 +180,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications(true);
-  }, [filter]);
+  }, [filter, fetchNotifications]);
 
   const handleLoadMore = () => {
     setOffset((prev) => prev + limit);

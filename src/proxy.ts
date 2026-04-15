@@ -3,8 +3,9 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
 
+const PUBLIC_EXACT = ["/"];
+
 const PUBLIC_PREFIXES = [
-  "/",
   "/features",
   "/pricing",
   "/legal",
@@ -21,7 +22,11 @@ function matchesPrefix(path: string, prefixes: string[]): boolean {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
-export async function proxy(req: NextRequest) {
+function isPublicPath(path: string): boolean {
+  return PUBLIC_EXACT.includes(path) || matchesPrefix(path, PUBLIC_PREFIXES);
+}
+
+export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const localeMatch = pathname.match(/^\/(ar|en)(?=\/|$)/);
   const localeFromPath = localeMatch?.[1];
@@ -32,11 +37,11 @@ export async function proxy(req: NextRequest) {
     ? pathname.replace(/^\/(ar|en)(?=\/|$)/, "") || "/"
     : pathname;
 
-  // API rate limiting
-  if (normalizedPath.startsWith("/api/")) {
+  // API rate limiting (exclude session endpoint — polled frequently by SessionProvider)
+  if (normalizedPath.startsWith("/api/") && normalizedPath !== "/api/auth/session") {
     const ip = getClientIp(req.headers);
     const isAuthApi = normalizedPath.startsWith("/api/auth/");
-    const limit = isAuthApi ? 30 : 300;
+    const limit = isAuthApi ? 60 : 300;
     const windowMs = 15 * 60 * 1000;
     const rl = rateLimit(`${ip}:${isAuthApi ? "auth" : "api"}`, limit, windowMs);
 
@@ -59,7 +64,7 @@ export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const isLoggedIn = !!token?.sub;
 
-  const isPublic = matchesPrefix(normalizedPath, PUBLIC_PREFIXES);
+  const isPublic = isPublicPath(normalizedPath);
   const isApiRoute = normalizedPath.startsWith("/api/");
   const isProtected = !isPublic && !isApiRoute;
   const isAuthRoute = matchesPrefix(normalizedPath, AUTH_PREFIXES);

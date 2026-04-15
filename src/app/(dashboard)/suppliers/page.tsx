@@ -2,14 +2,14 @@
 
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreHorizontal, Truck, Mail, Phone, Loader2, Eye, Pencil, FileText } from "lucide-react";
+import { Plus, MoreHorizontal, Truck, Mail, Phone, Eye, Pencil, FileText } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { SupplierModal } from "@/components/modals/supplier-modal";
 import { BillSheet } from "@/components/modals/bill-sheet";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
@@ -26,6 +26,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/page-header";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { LoadingState } from "@/components/loading-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { formatAmount } from "@/lib/format";
 
 interface Supplier {
     id: string;
@@ -228,31 +234,41 @@ export default function SuppliersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
-                    </p>
-                </div>
-                <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Supplier
-                </Button>
-            </div>
+            <PageHeader
+                title="Suppliers"
+                description={pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={suppliers}
+                            columns={[
+                                { header: "Name", accessor: "name" },
+                                { header: "Email", accessor: "email" },
+                                { header: "Phone", accessor: "phone" },
+                                { header: "Type", accessor: "type" },
+                                { header: "Total Billed", accessor: "totalBilled", format: (v) => formatAmount(v) },
+                                { header: "Outstanding", accessor: "totalOutstanding", format: (v) => formatAmount(v) },
+                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                            ]}
+                            filename="suppliers"
+                            title="Suppliers Report"
+                        />
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Supplier
+                        </Button>
+                    </>
+                }
+            />
 
             <Card>
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
-                        <div className="relative flex-1 min-w-[200px] max-w-sm">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Search suppliers..."
-                                value={search}
-                                onChange={(e) => handleSearchChange(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
+                        <SearchInput
+                            placeholder="Search suppliers..."
+                            value={search}
+                            onChange={handleSearchChange}
+                        />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -265,23 +281,14 @@ export default function SuppliersPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState />
                     ) : suppliers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <Truck className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                            <p className="text-sm font-medium">No suppliers found</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first supplier"}
-                            </p>
-                            {!normalizedSearch && typeFilter === "ALL" && (
-                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Supplier
-                                </Button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon={Truck}
+                            title="No suppliers found"
+                            description={normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first supplier"}
+                            action={!normalizedSearch && typeFilter === "ALL" ? { label: "Add Supplier", onClick: () => setCreateOpen(true) } : undefined}
+                        />
                     ) : (
                         <DataTable
                             columns={columns}
@@ -289,17 +296,8 @@ export default function SuppliersPage() {
                             onRowClick={(supplier) => router.push(`/suppliers/${supplier.id}`)}
                         />
                     )}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between border-t px-4 py-3">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                                <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-                            </div>
-                        </div>
+                    {pagination && (
+                        <PaginationControls pagination={pagination} page={page} onPageChange={setPage} />
                     )}
                 </CardContent>
             </Card>

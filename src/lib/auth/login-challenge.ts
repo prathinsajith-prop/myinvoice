@@ -1,4 +1,5 @@
 import { compare, hash } from "bcryptjs";
+import crypto from "node:crypto";
 
 import prisma from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/email";
@@ -11,7 +12,7 @@ const MAX_FAILED_LOGIN_ATTEMPTS = 10;
 const LOCKOUT_MINUTES = 15;
 
 function generateLoginCode() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    return String(crypto.randomInt(100000, 1000000));
 }
 
 async function recordLoginAttempt(

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useTenant } from "@/lib/tenant/context";
 import { Building2, Loader2, CheckCircle2, ArrowRightLeft, Plus } from "lucide-react";
@@ -59,7 +58,6 @@ interface OrganizationDetail {
 }
 
 export default function OrganizationsPage() {
-    const router = useRouter();
     const { organizationId, switchOrganization } = useTenant();
     const [switchingId, setSwitchingId] = useState<string | null>(null);
     const [selectedOrganization, setSelectedOrganization] = useState<OrganizationDetail | null>(null);
@@ -76,7 +74,7 @@ export default function OrganizationsPage() {
         }
     );
 
-    const organizations = data?.organizations ?? [];
+    const organizations = useMemo(() => data?.organizations ?? [], [data]);
 
     const stats = useMemo(() => {
         return organizations.reduce(

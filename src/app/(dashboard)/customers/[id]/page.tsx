@@ -37,9 +37,14 @@ interface Customer {
     mobile: string | null;
     type: string;
     trn: string | null;
-    addressLine1: string | null;
+    unitNumber: string | null;
+    buildingName: string | null;
+    street: string | null;
+    area: string | null;
     city: string | null;
+    emirate: string | null;
     country: string | null;
+    postalCode: string | null;
     website: string | null;
     notes: string | null;
     isActive: boolean;
@@ -198,11 +203,11 @@ export default function CustomerDetailPage() {
                                     <span className="text-xs text-muted-foreground">(mobile)</span>
                                 </div>
                             )}
-                            {(customer.addressLine1 || customer.city) && (
+                            {(customer.unitNumber || customer.buildingName || customer.street || customer.city) && (
                                 <div className="flex items-start gap-2 text-sm">
                                     <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground flex-shrink-0" />
                                     <span>
-                                        {[customer.addressLine1, customer.city, customer.country]
+                                        {[customer.unitNumber, customer.buildingName, customer.street, customer.area, customer.city, customer.emirate, customer.country]
                                             .filter(Boolean)
                                             .join(", ")}
                                     </span>
@@ -299,9 +304,14 @@ export default function CustomerDetailPage() {
                     image: customer.image ?? "",
                     type: (customer.type as "BUSINESS" | "INDIVIDUAL") ?? "BUSINESS",
                     taxRegistrationNumber: customer.trn ?? "",
-                    address: customer.addressLine1 ?? "",
+                    unitNumber: customer.unitNumber ?? "",
+                    buildingName: customer.buildingName ?? "",
+                    street: customer.street ?? "",
+                    area: customer.area ?? "",
                     city: customer.city ?? "",
+                    emirate: customer.emirate ?? "",
                     country: customer.country ?? "",
+                    postalCode: customer.postalCode ?? "",
                     website: customer.website ?? "",
                     notes: customer.notes ?? "",
                 }}

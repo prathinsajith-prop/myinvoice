@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Users, Loader2, UserPlus, Clock, Search } from "lucide-react";
+import { Users, Loader2, UserPlus, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +22,8 @@ import { PermissionGate } from "@/components/tenant/permission-gate";
 import { useTenant } from "@/lib/tenant/context";
 import { USER_ROLE_META } from "@/lib/constants/users";
 import { jsonFetcher } from "@/lib/fetcher";
+import { PageHeader } from "@/components/page-header";
+import { SearchInput } from "@/components/search-input";
 
 interface Member {
     id: string;
@@ -59,7 +61,7 @@ function initials(name: string | null, email: string): string {
 
 export default function UsersPage() {
     const { data: session } = useSession();
-    const { role: currentRole, hasPermission } = useTenant();
+    const { role: currentRole } = useTenant();
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState("ALL");
     const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -78,7 +80,7 @@ export default function UsersPage() {
         }
     );
 
-    const members = data?.members ?? [];
+    const members = useMemo(() => data?.members ?? [], [data]);
 
     const filtered = useMemo(() => {
         let result = members;
@@ -220,23 +222,23 @@ export default function UsersPage() {
 
     return (
         <div className="space-y-6 xl:space-y-8">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-                    <p className="text-sm text-muted-foreground">People assigned to your current organization</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <PermissionGate permission="manage_team">
-                        <Button onClick={() => setInviteOpen(true)}>
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Invite User
+            <PageHeader
+                title="Users"
+                description="People assigned to your current organization"
+                actions={
+                    <>
+                        <PermissionGate permission="manage_team">
+                            <Button onClick={() => setInviteOpen(true)}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Invite User
+                            </Button>
+                        </PermissionGate>
+                        <Button variant="outline" asChild>
+                            <Link href="/settings/team">Manage Team</Link>
                         </Button>
-                    </PermissionGate>
-                    <Button variant="outline" asChild>
-                        <Link href="/settings/team">Manage Team</Link>
-                    </Button>
-                </div>
-            </div>
+                    </>
+                }
+            />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <Card>
@@ -262,15 +264,12 @@ export default function UsersPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <CardTitle className="text-base">User Listing</CardTitle>
                         <div className="flex items-center gap-3 flex-wrap">
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    className="pl-9"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search by name, email, or role"
-                                />
-                            </div>
+                            <SearchInput
+                                placeholder="Search by name, email, or role"
+                                value={search}
+                                onChange={setSearch}
+                                className="relative w-full sm:w-64"
+                            />
                             <Select value={roleFilter} onValueChange={setRoleFilter}>
                                 <SelectTrigger className="w-40">
                                     <SelectValue />

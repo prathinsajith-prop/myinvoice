@@ -19,8 +19,9 @@ import {
   Plus,
   Moon,
   Sun,
+  Monitor,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUIStore } from "@/lib/stores/ui-store";
 
 import { cn } from "@/lib/utils";
@@ -40,31 +41,90 @@ import { OrgSwitcher } from "@/components/tenant/org-switcher";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration guard
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" aria-label="Toggle theme">
+        <Sun className="h-4 w-4" />
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      aria-label="Toggle theme"
-    >
-      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Toggle theme">
+          {resolvedTheme === "dark" ? (
+            <Moon className="h-4 w-4" />
+          ) : (
+            <Sun className="h-4 w-4" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          <Sun className="mr-2 h-4 w-4" />
+          Light
+          {theme === "light" && <span className="ml-auto text-xs text-muted-foreground">✓</span>}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          <Moon className="mr-2 h-4 w-4" />
+          Dark
+          {theme === "dark" && <span className="ml-auto text-xs text-muted-foreground">✓</span>}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")}>
+          <Monitor className="mr-2 h-4 w-4" />
+          System
+          {theme === "system" && <span className="ml-auto text-xs text-muted-foreground">✓</span>}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Invoices", href: "/invoices", icon: FileText },
-  { name: "Quotations", href: "/quotations", icon: FileCheck },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Suppliers", href: "/suppliers", icon: Building2 },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Bills", href: "/bills", icon: Receipt },
-  { name: "Expenses", href: "/expenses", icon: CreditCard },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "VAT Returns", href: "/vat-returns", icon: Receipt },
+type NavItem = { name: string; href: string; icon: typeof LayoutDashboard };
+type NavSection = { label?: string; items: NavItem[] };
+
+const navigation: NavSection[] = [
+  {
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      { name: "Invoices", href: "/invoices", icon: FileText },
+      { name: "Quotations", href: "/quotations", icon: FileCheck },
+      { name: "Customers", href: "/customers", icon: Users },
+    ],
+  },
+  {
+    label: "Purchases",
+    items: [
+      { name: "Bills", href: "/bills", icon: Receipt },
+      { name: "Suppliers", href: "/suppliers", icon: Building2 },
+      { name: "Expenses", href: "/expenses", icon: CreditCard },
+    ],
+  },
+  {
+    label: "Catalog",
+    items: [
+      { name: "Products", href: "/products", icon: Package },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { name: "Reports", href: "/reports", icon: BarChart3 },
+      { name: "VAT Returns", href: "/vat-returns", icon: Receipt },
+    ],
+  },
 ];
 
 const bottomNavigation = [
@@ -146,29 +206,40 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 space-y-1 px-3">
-        {navigation.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
-              <span className="flex-1">{item.name}</span>
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 py-1">
+        {navigation.map((section, sIdx) => (
+          <div key={sIdx} className={cn(sIdx > 0 && "mt-4")}>
+            {section.label && (
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={onLinkClick}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span className="flex-1">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <Separator />
@@ -246,11 +317,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Button>
             </div>
 
-            <div className="flex items-center gap-1">
-              <LanguageSwitcher />
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="hidden sm:block">
+                <LanguageSwitcher />
+              </div>
               <ThemeToggle />
               <NotificationDropdown />
-              <Separator orientation="vertical" className="mx-1 h-6" />
+              <Separator orientation="vertical" className="mx-1 h-6 hidden sm:block" />
               <UserProfileDropdown />
             </div>
           </div>
@@ -258,7 +331,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-[1920px] p-4 lg:p-6 2xl:px-10">{children}</div>
+          <div className="mx-auto w-full max-w-[1920px] p-3 sm:p-4 lg:p-6 2xl:px-10">{children}</div>
         </main>
       </div>
     </div>

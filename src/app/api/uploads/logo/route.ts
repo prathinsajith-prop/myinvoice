@@ -11,7 +11,6 @@ const ALLOWED_TYPES = new Set([
     "image/png",
     "image/gif",
     "image/webp",
-    "image/svg+xml",
 ]);
 
 export async function POST(req: NextRequest) {

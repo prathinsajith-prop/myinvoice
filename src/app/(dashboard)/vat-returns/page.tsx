@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -44,8 +43,8 @@ function quarterEnd(d: Date) {
 
 export default function VatReturnsPage() {
     const now = new Date();
-    const [from, setFrom] = useState(quarterStart(now).toISOString().slice(0, 10));
-    const [to, setTo] = useState(quarterEnd(now).toISOString().slice(0, 10));
+    const [from, setFrom] = useState(() => quarterStart(now).toISOString().slice(0, 10));
+    const [to, setTo] = useState(() => quarterEnd(now).toISOString().slice(0, 10));
     const [loading, setLoading] = useState(true);
     const [computing, setComputing] = useState(false);
     const [saving, setSaving] = useState(false);

@@ -6,6 +6,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 import { enforceInvoiceLimit } from "@/lib/plans.server";
 import { generateFtaQrPayload } from "@/lib/services/fta-qr";
 import { generatePublicToken } from "@/lib/crypto/token";
@@ -199,6 +200,18 @@ export async function POST(req: NextRequest) {
                 newData: { invoiceNumber: invoice.invoiceNumber },
             },
         }).catch(() => { }); // fire-and-forget, non-critical
+
+        // Notify org members about new invoice
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Invoice Created",
+            message: `Invoice ${invoice.invoiceNumber} has been created`,
+            type: "INVOICE_CREATED",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            actionUrl: `/invoices/${invoice.id}`,
+        }).catch(() => { }); // fire-and-forget
 
         return NextResponse.json(invoice, { status: 201 });
     } catch (error) {

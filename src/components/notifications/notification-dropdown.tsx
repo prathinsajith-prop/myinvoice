@@ -263,7 +263,7 @@ export function NotificationDropdown() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="justify-center text-sm text-primary"
-          onClick={() => router.push("/dashboard/settings/notifications")}
+          onClick={() => router.push("/settings/notifications")}
         >
           View all notifications
         </DropdownMenuItem>

@@ -5,6 +5,21 @@ type Bucket = {
 
 const buckets = new Map<string, Bucket>();
 
+// Periodic cleanup of expired buckets to prevent memory leaks
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+let lastCleanup = Date.now();
+
+function cleanupExpiredBuckets() {
+    const now = Date.now();
+    if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
+    lastCleanup = now;
+    for (const [key, bucket] of buckets) {
+        if (bucket.resetAt <= now) {
+            buckets.delete(key);
+        }
+    }
+}
+
 export interface RateLimitResult {
     allowed: boolean;
     remaining: number;
@@ -17,6 +32,8 @@ export function getClientIp(headers: Headers): string {
 }
 
 export function rateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+    cleanupExpiredBuckets();
+
     const now = Date.now();
     const current = buckets.get(key);
 

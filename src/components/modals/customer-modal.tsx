@@ -45,9 +45,14 @@ const schema = z.object({
     type: z.enum(["BUSINESS", "INDIVIDUAL"]).default("BUSINESS"),
     image: z.string().optional().or(z.literal("")),
     taxRegistrationNumber: z.string().optional().or(z.literal("")),
-    address: z.string().optional().or(z.literal("")),
+    unitNumber: z.string().optional().or(z.literal("")),
+    buildingName: z.string().optional().or(z.literal("")),
+    street: z.string().optional().or(z.literal("")),
+    area: z.string().optional().or(z.literal("")),
     city: z.string().optional().or(z.literal("")),
+    emirate: z.string().optional().or(z.literal("")),
     country: z.string().optional().or(z.literal("")),
+    postalCode: z.string().optional().or(z.literal("")),
     website: z.string().optional().or(z.literal("")),
     notes: z.string().optional().or(z.literal("")),
 });
@@ -62,9 +67,14 @@ const DEFAULT_VALUES: FormValues = {
     type: "BUSINESS",
     image: "",
     taxRegistrationNumber: "",
-    address: "",
+    unitNumber: "",
+    buildingName: "",
+    street: "",
+    area: "",
     city: "",
+    emirate: "",
     country: "AE",
+    postalCode: "",
     website: "",
     notes: "",
 };
@@ -136,9 +146,14 @@ export function CustomerModal({
                 website: values.website || null,
                 trn: values.taxRegistrationNumber || null,
                 isVatRegistered: Boolean(values.taxRegistrationNumber),
-                addressLine1: values.address || null,
+                unitNumber: values.unitNumber || null,
+                buildingName: values.buildingName || null,
+                street: values.street || null,
+                area: values.area || null,
                 city: values.city || null,
+                emirate: values.emirate || null,
                 country: values.country || "AE",
+                postalCode: values.postalCode || null,
                 notes: values.notes || null,
             };
             const res = await fetch(url, {
@@ -337,12 +352,51 @@ export function CustomerModal({
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <FormField
                                     control={form.control}
-                                    name="address"
+                                    name="unitNumber"
                                     render={({ field }) => (
-                                        <FormItem className="sm:col-span-2">
-                                            <FormLabel>Street Address</FormLabel>
+                                        <FormItem>
+                                            <FormLabel>Unit / Office No.</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Office 101, Building Name" {...field} />
+                                                <Input placeholder="e.g. Office 101" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="buildingName"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Building Name</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g. Al Masraf Tower" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="street"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Street</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g. Sheikh Zayed Road" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="area"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Area / District</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g. Business Bay" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -356,6 +410,45 @@ export function CustomerModal({
                                             <FormLabel>City</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="Dubai" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="emirate"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Emirate</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select emirate" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="ABU_DHABI">Abu Dhabi</SelectItem>
+                                                    <SelectItem value="DUBAI">Dubai</SelectItem>
+                                                    <SelectItem value="SHARJAH">Sharjah</SelectItem>
+                                                    <SelectItem value="AJMAN">Ajman</SelectItem>
+                                                    <SelectItem value="UMM_AL_QUWAIN">Umm Al Quwain</SelectItem>
+                                                    <SelectItem value="RAS_AL_KHAIMAH">Ras Al Khaimah</SelectItem>
+                                                    <SelectItem value="FUJAIRAH">Fujairah</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="postalCode"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>P.O. Box</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g. 12345" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>

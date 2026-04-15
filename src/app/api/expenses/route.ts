@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 
 const createExpenseSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -170,6 +171,18 @@ export async function POST(req: NextRequest) {
                 notes: data.notes ?? null,
             },
         });
+
+        // Notify org members about new expense
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Expense Recorded",
+            message: `Expense ${expense.expenseNumber} — ${data.description}`,
+            type: "GENERAL",
+            entityType: "Expense",
+            entityId: expense.id,
+            actionUrl: `/expenses`,
+        }).catch(() => { });
 
         return NextResponse.json(expense, { status: 201 });
     } catch (error) {

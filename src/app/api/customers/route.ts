@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 
 const createCustomerSchema = z.object({
     name: z.string().min(1).max(255),
@@ -16,8 +17,10 @@ const createCustomerSchema = z.object({
     image: z.string().optional().nullable(),
     trn: z.string().optional().nullable(),
     isVatRegistered: z.boolean().default(false),
-    addressLine1: z.string().optional().nullable(),
-    addressLine2: z.string().optional().nullable(),
+    unitNumber: z.string().optional().nullable(),
+    buildingName: z.string().optional().nullable(),
+    street: z.string().optional().nullable(),
+    area: z.string().optional().nullable(),
     city: z.string().optional().nullable(),
     emirate: z.string().optional().nullable(),
     country: z.string().default("AE"),
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
 
         const where = {
             organizationId: ctx.organizationId,
-            ...(status === "INACTIVE" ? { isActive: false } : status === "ACTIVE" ? { isActive: true } : { isActive: true }),
+            ...(status === "INACTIVE" ? { isActive: false } : status === "ACTIVE" ? { isActive: true } : {}),
             deletedAt: null,
             ...(type && type !== "ALL" ? { type } : {}),
             ...(search
@@ -116,6 +119,18 @@ export async function POST(req: NextRequest) {
                 organizationId: ctx.organizationId,
             },
         });
+
+        // Notify org members about new customer
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Customer Added",
+            message: `Customer ${customer.name} has been added`,
+            type: "CUSTOMER_ADDED",
+            entityType: "Customer",
+            entityId: customer.id,
+            actionUrl: `/customers/${customer.id}`,
+        }).catch(() => { });
 
         return NextResponse.json(customer, { status: 201 });
     } catch (error) {

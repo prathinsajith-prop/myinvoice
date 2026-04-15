@@ -182,7 +182,7 @@ async function main() {
   console.log("✅ owner added as MEMBER to Sara Trading FZE");
 
   // ── Customers ─────────────────────────────────────────────────────────────
-  const [cust1, cust2] = await Promise.all([
+  const [cust1, _cust2] = await Promise.all([
     prisma.customer.upsert({
       where: { organizationId_email: { organizationId: org.id, email: "accounts@dubaitech.ae" } },
       update: {},

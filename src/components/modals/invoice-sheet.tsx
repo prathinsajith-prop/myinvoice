@@ -5,7 +5,7 @@ import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Loader2, X, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -29,6 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatePicker } from "@/components/ui/date-picker";
+import { CustomerModal } from "@/components/modals/customer-modal";
 
 const lineItemSchema = z.object({
     description: z.string().min(1, "Description required"),
@@ -74,6 +75,7 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [customerModalOpen, setCustomerModalOpen] = useState(false);
     const orgSettings = useOrgSettings();
 
     const today = new Date().toISOString().split("T")[0];
@@ -180,203 +182,285 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
     }
 
     return (
-        <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-            <SheetContent
-                side="right"
-                className="w-full sm:max-w-3xl flex flex-col p-0"
-                showCloseButton={false}
-            >
-                <SheetHeader className="px-6 pt-5 pb-4 border-b shrink-0">
-                    <div className="flex items-center justify-between">
-                        <SheetTitle className="text-lg">New Invoice</SheetTitle>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Close</span>
-                        </Button>
-                    </div>
-                </SheetHeader>
-
-                <ScrollArea className="flex-1">
-                    <form id="invoice-sheet-form" onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-4 space-y-6">
-                        {/* Invoice Details */}
-                        <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Invoice Details</p>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="sm:col-span-2 space-y-1.5">
-                                    <Label>Customer <span className="text-destructive">*</span></Label>
-                                    <Select value={form.watch("customerId")} onValueChange={(v) => form.setValue("customerId", v, { shouldValidate: true })}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select customer..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {customers.map((c) => (
-                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {form.formState.errors.customerId && (
-                                        <p className="text-xs text-destructive">{form.formState.errors.customerId.message}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>Issue Date <span className="text-destructive">*</span></Label>
-                                    <DatePicker value={form.watch("issueDate")} onChange={(v) => form.setValue("issueDate", v, { shouldValidate: true })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>Due Date <span className="text-destructive">*</span></Label>
-                                    <DatePicker value={form.watch("dueDate")} onChange={(v) => form.setValue("dueDate", v, { shouldValidate: true })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>Currency</Label>
-                                    <Select value={form.watch("currency")} onValueChange={(v) => form.setValue("currency", v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="AED">AED — UAE Dirham</SelectItem>
-                                            <SelectItem value="USD">USD — US Dollar</SelectItem>
-                                            <SelectItem value="EUR">EUR — Euro</SelectItem>
-                                            <SelectItem value="GBP">GBP — British Pound</SelectItem>
-                                            <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+        <>
+            <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+                <SheetContent
+                    side="right"
+                    className="w-full sm:max-w-3xl flex flex-col p-0"
+                    showCloseButton={false}
+                >
+                    <SheetHeader className="px-6 pt-5 pb-4 border-b shrink-0">
+                        <div className="flex items-center justify-between">
+                            <SheetTitle className="text-lg">New Invoice</SheetTitle>
+                            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Close</span>
+                            </Button>
                         </div>
+                    </SheetHeader>
 
-                        <Separator />
-
-                        {/* Line Items */}
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Line Items</p>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => append({ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD" })}
-                                >
-                                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Line
-                                </Button>
-                            </div>
-                            {form.formState.errors.lineItems?.root && (
-                                <p className="text-xs text-destructive mb-2">{form.formState.errors.lineItems.root.message}</p>
-                            )}
-                            <div className="space-y-3">
-                                {fields.map((field, index) => {
-                                    const item = watchedItems[index] ?? {};
-                                    const { vatAmt, lineTotal } = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD");
-                                    return (
-                                        <div key={field.id} className="rounded-lg border p-3 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-medium text-muted-foreground">Item {index + 1}</span>
-                                                {fields.length > 1 && (
-                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => remove(index)}>
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs">Product (optional)</Label>
-                                                <Select onValueChange={(v) => applyProduct(index, v)}>
-                                                    <SelectTrigger className="h-8 text-xs">
-                                                        <SelectValue placeholder="Auto-fill from catalog..." />
+                    <ScrollArea className="flex-1">
+                        <form id="invoice-sheet-form" onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-4 space-y-6">
+                            {/* Invoice Details */}
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Invoice Details</p>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="sm:col-span-2 space-y-1.5">
+                                        <Label>Customer <span className="text-destructive">*</span></Label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <Select value={form.watch("customerId")} onValueChange={(v) => form.setValue("customerId", v, { shouldValidate: true })}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select customer..." />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {products.map((p) => (
-                                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                        {customers.map((c) => (
+                                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs">Description <span className="text-destructive">*</span></Label>
-                                                <Input className="h-8 text-sm" placeholder="Item description" {...form.register(`lineItems.${index}.description`)} />
-                                                {form.formState.errors.lineItems?.[index]?.description && (
-                                                    <p className="text-xs text-destructive">{form.formState.errors.lineItems[index]?.description?.message}</p>
-                                                )}
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs">Qty</Label>
-                                                    <Input className="h-8 text-sm" type="number" min="0" step="0.001" {...form.register(`lineItems.${index}.quantity`)} />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs">Price ({currency})</Label>
-                                                    <Input className="h-8 text-sm" type="number" min="0" step="0.01" {...form.register(`lineItems.${index}.unitPrice`)} />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs">Disc %</Label>
-                                                    <Input className="h-8 text-sm" type="number" min="0" max="100" step="0.01" {...form.register(`lineItems.${index}.discountPercent`)} />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs">VAT</Label>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="shrink-0"
+                                                onClick={() => setCustomerModalOpen(true)}
+                                            >
+                                                <UserPlus className="h-4 w-4" />
+                                                <span className="sr-only">New Customer</span>
+                                            </Button>
+                                        </div>
+                                        {form.formState.errors.customerId && (
+                                            <p className="text-xs text-destructive">{form.formState.errors.customerId.message}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label>Issue Date <span className="text-destructive">*</span></Label>
+                                        <DatePicker value={form.watch("issueDate")} onChange={(v) => form.setValue("issueDate", v, { shouldValidate: true })} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label>Due Date <span className="text-destructive">*</span></Label>
+                                        <DatePicker value={form.watch("dueDate")} onChange={(v) => form.setValue("dueDate", v, { shouldValidate: true })} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label>Currency</Label>
+                                        <Select value={form.watch("currency")} onValueChange={(v) => form.setValue("currency", v)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+                                                <SelectItem value="USD">USD — US Dollar</SelectItem>
+                                                <SelectItem value="EUR">EUR — Euro</SelectItem>
+                                                <SelectItem value="GBP">GBP — British Pound</SelectItem>
+                                                <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Line Items */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Line Items</p>
+                                </div>
+                                {form.formState.errors.lineItems?.root && (
+                                    <p className="text-xs text-destructive mb-2">{form.formState.errors.lineItems.root.message}</p>
+                                )}
+
+                                {/* Desktop table header */}
+                                <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_72px_90px_64px_80px_80px_32px] gap-x-2 px-3 pb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                                    <span>Product</span>
+                                    <span>Description</span>
+                                    <span className="text-right">Qty</span>
+                                    <span className="text-right">Price</span>
+                                    <span className="text-right">Disc%</span>
+                                    <span>VAT</span>
+                                    <span className="text-right">Total</span>
+                                    <span />
+                                </div>
+
+                                <div className="rounded-lg border divide-y">
+                                    {fields.map((field, index) => {
+                                        const item = watchedItems[index] ?? {};
+                                        const { vatAmt, lineTotal } = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD");
+                                        return (
+                                            <div key={field.id} className="p-3">
+                                                {/* Desktop row */}
+                                                <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_72px_90px_64px_80px_80px_32px] gap-x-2 items-start">
+                                                    <div>
+                                                        <Select onValueChange={(v) => applyProduct(index, v)}>
+                                                            <SelectTrigger className="h-8 text-xs">
+                                                                <SelectValue placeholder="Catalog..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {products.map((p) => (
+                                                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div>
+                                                        <Input className="h-8 text-sm" placeholder="Description *" {...form.register(`lineItems.${index}.description`)} />
+                                                        {form.formState.errors.lineItems?.[index]?.description && (
+                                                            <p className="text-[10px] text-destructive mt-0.5">{form.formState.errors.lineItems[index]?.description?.message}</p>
+                                                        )}
+                                                    </div>
+                                                    <Input className="h-8 text-sm text-right" type="number" min="0" step="0.001" {...form.register(`lineItems.${index}.quantity`)} />
+                                                    <Input className="h-8 text-sm text-right" type="number" min="0" step="0.01" {...form.register(`lineItems.${index}.unitPrice`)} />
+                                                    <Input className="h-8 text-sm text-right" type="number" min="0" max="100" step="0.01" {...form.register(`lineItems.${index}.discountPercent`)} />
                                                     <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
                                                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="STANDARD">Std 5%</SelectItem>
+                                                            <SelectItem value="STANDARD">5%</SelectItem>
                                                             <SelectItem value="ZERO_RATED">0%</SelectItem>
                                                             <SelectItem value="EXEMPT">Exempt</SelectItem>
                                                             <SelectItem value="OUT_OF_SCOPE">OOS</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                    <div className="flex items-center h-8 justify-end text-sm font-medium tabular-nums">
+                                                        {lineTotal.toFixed(2)}
+                                                    </div>
+                                                    <div className="flex items-center justify-center h-8">
+                                                        {fields.length > 1 && (
+                                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobile layout */}
+                                                <div className="sm:hidden space-y-2.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-medium text-muted-foreground">Item {index + 1}</span>
+                                                        {fields.length > 1 && (
+                                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    <Select onValueChange={(v) => applyProduct(index, v)}>
+                                                        <SelectTrigger className="h-8 text-xs">
+                                                            <SelectValue placeholder="Auto-fill from catalog..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {products.map((p) => (
+                                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <div>
+                                                        <Input className="h-8 text-sm" placeholder="Description *" {...form.register(`lineItems.${index}.description`)} />
+                                                        {form.formState.errors.lineItems?.[index]?.description && (
+                                                            <p className="text-[10px] text-destructive mt-0.5">{form.formState.errors.lineItems[index]?.description?.message}</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-[11px] text-muted-foreground">Qty</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.001" {...form.register(`lineItems.${index}.quantity`)} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-[11px] text-muted-foreground">Price ({currency})</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.01" {...form.register(`lineItems.${index}.unitPrice`)} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-[11px] text-muted-foreground">Disc %</Label>
+                                                            <Input className="h-8 text-sm" type="number" min="0" max="100" step="0.01" {...form.register(`lineItems.${index}.discountPercent`)} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-[11px] text-muted-foreground">VAT</Label>
+                                                            <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
+                                                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="STANDARD">Std 5%</SelectItem>
+                                                                    <SelectItem value="ZERO_RATED">0%</SelectItem>
+                                                                    <SelectItem value="EXEMPT">Exempt</SelectItem>
+                                                                    <SelectItem value="OUT_OF_SCOPE">OOS</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-end gap-4 text-xs text-muted-foreground">
+                                                        <span>VAT: {currency} {vatAmt.toFixed(2)}</span>
+                                                        <span className="font-medium text-foreground">Total: {currency} {lineTotal.toFixed(2)}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-end gap-4 text-xs text-muted-foreground pt-1">
-                                                <span>VAT: {currency} {vatAmt.toFixed(2)}</span>
-                                                <span className="font-medium text-foreground">Total: {currency} {lineTotal.toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Totals */}
-                        <div className="rounded-lg bg-muted/40 p-4 space-y-2 text-sm">
-                            <div className="flex justify-between text-muted-foreground">
-                                <span>Subtotal</span><span>{currency} {totals.subtotal.toFixed(2)}</span>
-                            </div>
-                            {totals.discount > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                    <span>Discount</span><span className="text-green-600">− {currency} {totals.discount.toFixed(2)}</span>
+                                        );
+                                    })}
                                 </div>
-                            )}
-                            <div className="flex justify-between text-muted-foreground">
-                                <span>VAT</span><span>{currency} {totals.vat.toFixed(2)}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="mt-2 w-full border border-dashed text-muted-foreground hover:text-foreground"
+                                    onClick={() => append({ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD" })}
+                                >
+                                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Line Item
+                                </Button>
                             </div>
+
                             <Separator />
-                            <div className="flex justify-between font-semibold text-base">
-                                <span>Total</span><span>{currency} {totals.total.toFixed(2)}</span>
-                            </div>
-                        </div>
 
-                        <Separator />
-
-                        {/* Notes */}
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-1.5">
-                                <Label className="text-xs">Notes</Label>
-                                <Textarea placeholder="Notes to customer..." rows={3} {...form.register("notes")} />
+                            {/* Totals */}
+                            <div className="rounded-lg bg-muted/40 p-4 space-y-2 text-sm">
+                                <div className="flex justify-between text-muted-foreground">
+                                    <span>Subtotal</span><span>{currency} {totals.subtotal.toFixed(2)}</span>
+                                </div>
+                                {totals.discount > 0 && (
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span>Discount</span><span className="text-green-600">− {currency} {totals.discount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-muted-foreground">
+                                    <span>VAT</span><span>{currency} {totals.vat.toFixed(2)}</span>
+                                </div>
+                                <Separator />
+                                <div className="flex justify-between font-semibold text-base">
+                                    <span>Total</span><span>{currency} {totals.total.toFixed(2)}</span>
+                                </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-xs">Terms & Conditions</Label>
-                                <Textarea placeholder="Payment terms..." rows={3} {...form.register("termsAndConditions")} />
-                            </div>
-                        </div>
-                    </form>
-                </ScrollArea>
 
-                <SheetFooter className="px-6 py-4 border-t gap-2 shrink-0">
-                    <Button variant="outline" onClick={onClose} disabled={submitting}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" form="invoice-sheet-form" disabled={submitting} className="flex-1 sm:flex-none">
-                        {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Create Invoice
-                    </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                            <Separator />
+
+                            {/* Notes */}
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs">Notes</Label>
+                                    <Textarea placeholder="Notes to customer..." rows={3} {...form.register("notes")} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs">Terms & Conditions</Label>
+                                    <Textarea placeholder="Payment terms..." rows={3} {...form.register("termsAndConditions")} />
+                                </div>
+                            </div>
+                        </form>
+                    </ScrollArea>
+
+                    <SheetFooter className="px-6 py-4 border-t gap-2 shrink-0">
+                        <Button variant="outline" onClick={onClose} disabled={submitting}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" form="invoice-sheet-form" disabled={submitting} className="flex-1 sm:flex-none">
+                            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Create Invoice
+                        </Button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+            <CustomerModal
+                open={customerModalOpen}
+                onClose={() => setCustomerModalOpen(false)}
+                onSuccess={(customer) => {
+                    setCustomers((prev) => [...prev, customer]);
+                    form.setValue("customerId", customer.id, { shouldValidate: true });
+                    setCustomerModalOpen(false);
+                }}
+            />
+        </>
     );
 }

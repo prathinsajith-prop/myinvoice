@@ -279,7 +279,7 @@ export default function DashboardPage() {
                 </Card>
             ) : (
                 <>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                         {stats.map((stat) => (
                             <Card key={stat.name}>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -425,7 +425,7 @@ export default function DashboardPage() {
                                     <CardDescription>Go directly to the most-used flows</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <Button variant="outline" className="h-auto py-3" asChild>
                                             <Link href="/invoices?create=1">Create Invoice</Link>
                                         </Button>

@@ -612,16 +612,20 @@ model Customer {
   trn             String?
   isVatRegistered Boolean @default(false)
 
-  addressLine1 String?
-  addressLine2 String?
+  unitNumber   String?
+  buildingName String?
+  street       String?
+  area         String?
   city         String?
   emirate      String?
   country      String  @default("AE")
   postalCode   String?
   poBox        String?
 
-  shippingAddressLine1 String?
-  shippingAddressLine2 String?
+  shippingUnitNumber   String?
+  shippingBuildingName String?
+  shippingStreet       String?
+  shippingArea         String?
   shippingCity         String?
   shippingEmirate      String?
   shippingCountry      String?

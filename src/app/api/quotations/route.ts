@@ -6,6 +6,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -152,6 +153,18 @@ export async function POST(req: NextRequest) {
                 customer: { select: { id: true, name: true, email: true } },
             },
         });
+
+        // Notify org members about new quotation
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Quotation Created",
+            message: `Quotation ${quotation.quoteNumber} has been created`,
+            type: "GENERAL",
+            entityType: "Quotation",
+            entityId: quotation.id,
+            actionUrl: `/quotations/${quotation.id}`,
+        }).catch(() => { });
 
         return NextResponse.json(quotation, { status: 201 });
     } catch (error) {
