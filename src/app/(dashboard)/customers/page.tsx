@@ -311,6 +311,8 @@ export default function CustomersPage() {
                             placeholder="Search customers..."
                             value={search}
                             onChange={handleSearchChange}
+                            onRefresh={fetchCustomers}
+                            isRefreshing={loading}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>

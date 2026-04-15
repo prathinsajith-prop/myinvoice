@@ -499,7 +499,7 @@ export function CustomerModal({
                     <Button variant="outline" onClick={onClose} disabled={saving}>
                         Cancel
                     </Button>
-                    <Button type="submit" form="customer-form" disabled={saving}>
+                    <Button type="submit" form="customer-form" disabled={saving || (isEdit && !form.formState.isDirty)}>
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isEdit ? "Save Changes" : "Create Customer"}
                     </Button>

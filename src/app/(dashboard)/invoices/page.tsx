@@ -244,6 +244,8 @@ export default function InvoicesPage() {
                             placeholder="Search invoices..."
                             value={search}
                             onChange={handleSearchChange}
+                            onRefresh={fetchInvoices}
+                            isRefreshing={loading}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40">

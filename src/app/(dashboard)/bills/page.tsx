@@ -247,6 +247,8 @@ export default function BillsPage() {
                             placeholder="Search bills..."
                             value={search}
                             onChange={handleSearchChange}
+                            onRefresh={fetchBills}
+                            isRefreshing={loading}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>

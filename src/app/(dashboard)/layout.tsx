@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   FileText,
   FileCheck,
+  FileMinus,
+  FilePlus,
   Users,
   Building2,
   Package,
@@ -101,6 +103,8 @@ const navigation: NavSection[] = [
     items: [
       { name: "Invoices", href: "/invoices", icon: FileText },
       { name: "Quotations", href: "/quotations", icon: FileCheck },
+      { name: "Credit Notes", href: "/credit-notes", icon: FileMinus },
+      { name: "Debit Notes", href: "/debit-notes", icon: FilePlus },
       { name: "Customers", href: "/customers", icon: Users },
     ],
   },

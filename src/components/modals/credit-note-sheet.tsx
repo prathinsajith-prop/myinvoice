@@ -30,74 +30,79 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatePicker } from "@/components/ui/date-picker";
 
+const VAT_TREATMENT = ["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE", "REVERSE_CHARGE"] as const;
+
 const lineItemSchema = z.object({
+    productId: z.string().optional(),
     description: z.string().min(1, "Description required"),
     quantity: z.coerce.number().positive("Must be > 0"),
     unitPrice: z.coerce.number().min(0),
-    discountPercent: z.coerce.number().min(0).max(100).default(0),
-    vatTreatment: z.string().default("STANDARD_RATED"),
-    productId: z.string().optional(),
+    vatTreatment: z.enum(VAT_TREATMENT).default("STANDARD_RATED"),
+    vatRate: z.coerce.number().min(0).max(100).default(5),
 });
 
 const schema = z.object({
     customerId: z.string().min(1, "Customer required"),
+    invoiceId: z.string().min(1, "Invoice required"),
+    reason: z.string().min(1, "Reason required"),
     issueDate: z.string().min(1),
-    validUntil: z.string().min(1, "Valid until required"),
     currency: z.string().min(1),
+    sellerTrn: z.string().optional(),
+    buyerTrn: z.string().optional(),
     notes: z.string().optional(),
-    termsAndConditions: z.string().optional(),
     lineItems: z.array(lineItemSchema).min(1, "At least one line item required"),
 });
 
 type FormValues = z.infer<typeof schema>;
 interface Customer { id: string; name: string }
+interface Invoice { id: string; invoiceNumber: string; status: string }
 interface Product { id: string; name: string; unitPrice: number; vatTreatment: string }
 
-const VAT_RATES: Record<string, number> = { STANDARD_RATED: 0.05, STANDARD: 0.05, EXEMPT: 0, ZERO_RATED: 0, OUT_OF_SCOPE: 0, REVERSE_CHARGE: 0 };
+const VAT_RATES: Record<string, number> = { STANDARD_RATED: 0.05, REVERSE_CHARGE: 0.05, EXEMPT: 0, ZERO_RATED: 0, OUT_OF_SCOPE: 0 };
 
-function calcLine(qty: number, price: number, disc: number, vat: string) {
-    const sub = qty * price;
-    const discAmt = sub * (disc / 100);
-    const taxable = sub - discAmt;
+function calcLine(qty: number, price: number, vat: string) {
+    const taxable = qty * price;
     const vatAmt = taxable * (VAT_RATES[vat] ?? 0.05);
-    return { subtotal: sub, discountAmt: discAmt, vatAmt, lineTotal: taxable + vatAmt };
+    return { taxable, vatAmt, lineTotal: taxable + vatAmt };
 }
 
-interface QuotationSheetProps {
+interface CreditNoteSheetProps {
     open: boolean;
     onClose: () => void;
-    onSuccess: (quotation: { id: string }) => void;
+    onSuccess: (note: { id: string }) => void;
     defaultCustomerId?: string;
-    editQuotationId?: string | null;
+    defaultInvoiceId?: string;
 }
 
-export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, editQuotationId }: QuotationSheetProps) {
+export function CreditNoteSheet({ open, onClose, onSuccess, defaultCustomerId, defaultInvoiceId }: CreditNoteSheetProps) {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
+    const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
     const [submitting, setSubmitting] = useState(false);
-    const [loadingQuotation, setLoadingQuotation] = useState(false);
     const orgSettings = useOrgSettings();
 
     const today = new Date().toISOString().split("T")[0];
-    const validUntil = new Date(Date.now() + orgSettings.defaultDueDateDays * 86400000).toISOString().split("T")[0];
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema) as Resolver<FormValues>,
         mode: "onChange",
         defaultValues: {
             customerId: defaultCustomerId ?? "",
+            invoiceId: defaultInvoiceId ?? "",
+            reason: "",
             issueDate: today,
-            validUntil,
             currency: orgSettings.defaultCurrency,
-            notes: orgSettings.defaultNotes,
-            termsAndConditions: orgSettings.defaultTerms,
-            lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" }],
+            sellerTrn: "",
+            buyerTrn: "",
+            notes: "",
+            lineItems: [{ description: "", quantity: 1, unitPrice: 0, vatTreatment: "STANDARD_RATED", vatRate: 5 }],
         },
     });
 
     const { fields, append, remove } = useFieldArray({ control: form.control, name: "lineItems" });
     const watchedItems = form.watch("lineItems");
     const currency = form.watch("currency");
+    const watchedCustomerId = form.watch("customerId");
 
     const fetchData = useCallback(async () => {
         const [c, p] = await Promise.all([
@@ -111,79 +116,65 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
     useEffect(() => {
         if (open) {
             fetchData();
-            if (editQuotationId) {
-                setLoadingQuotation(true);
-                fetch(`/api/quotations/${editQuotationId}`)
-                    .then(res => res.ok ? res.json() : null)
-                    .then(quotation => {
-                        if (quotation) {
-                            form.reset({
-                                customerId: quotation.customer.id,
-                                issueDate: quotation.issueDate.split('T')[0],
-                                validUntil: quotation.validUntil.split('T')[0],
-                                currency: quotation.currency,
-                                notes: quotation.notes || "",
-                                termsAndConditions: quotation.terms || "",
-                                lineItems: quotation.lineItems.map((item: any) => ({
-                                    description: item.description,
-                                    quantity: item.quantity,
-                                    unitPrice: item.unitPrice,
-                                    discountPercent: item.discount,
-                                    vatTreatment: item.vatTreatment,
-                                    productId: item.productId,
-                                })),
-                            });
-                        }
-                    })
-                    .finally(() => setLoadingQuotation(false));
-            } else {
-                loadOrgSettings().then((s) => {
-                    const validUntilDate = new Date(Date.now() + s.defaultDueDateDays * 86400000).toISOString().split("T")[0];
-                    form.reset({
-                        customerId: defaultCustomerId ?? "",
-                        issueDate: today,
-                        validUntil: validUntilDate,
-                        currency: s.defaultCurrency,
-                        notes: s.defaultNotes,
-                        termsAndConditions: s.defaultTerms,
-                        lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" }],
-                    });
+            loadOrgSettings().then((s) => {
+                form.reset({
+                    customerId: defaultCustomerId ?? "",
+                    invoiceId: defaultInvoiceId ?? "",
+                    reason: "",
+                    issueDate: today,
+                    currency: s.defaultCurrency,
+                    sellerTrn: "",
+                    buyerTrn: "",
+                    notes: "",
+                    lineItems: [{ description: "", quantity: 1, unitPrice: 0, vatTreatment: "STANDARD_RATED", vatRate: 5 }],
                 });
-            }
+            });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, editQuotationId]);
+    }, [open]);
+
+    useEffect(() => {
+        if (!watchedCustomerId) { setCustomerInvoices([]); return; }
+        fetch(`/api/invoices?customerId=${watchedCustomerId}&limit=100`)
+            .then((r) => r.ok ? r.json() : { data: [] })
+            .then((d) => setCustomerInvoices((d.data ?? []).filter((inv: Invoice) => inv.status !== "VOID")));
+    }, [watchedCustomerId]);
 
     const totals = watchedItems.reduce(
         (acc, item) => {
-            const r = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD_RATED");
-            return { subtotal: acc.subtotal + r.subtotal, discount: acc.discount + r.discountAmt, vat: acc.vat + r.vatAmt, total: acc.total + r.lineTotal };
+            const r = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, item.vatTreatment ?? "STANDARD_RATED");
+            return { taxable: acc.taxable + r.taxable, vat: acc.vat + r.vatAmt, total: acc.total + r.lineTotal };
         },
-        { subtotal: 0, discount: 0, vat: 0, total: 0 }
+        { taxable: 0, vat: 0, total: 0 }
     );
 
     function applyProduct(index: number, productId: string) {
         const p = products.find((x) => x.id === productId);
         if (!p) return;
+        const vat = (VAT_TREATMENT.includes(p.vatTreatment as typeof VAT_TREATMENT[number]) ? p.vatTreatment : "STANDARD_RATED") as typeof VAT_TREATMENT[number];
         form.setValue(`lineItems.${index}.productId`, productId);
         form.setValue(`lineItems.${index}.description`, p.name);
         form.setValue(`lineItems.${index}.unitPrice`, p.unitPrice);
-        form.setValue(`lineItems.${index}.vatTreatment`, p.vatTreatment ?? "STANDARD_RATED");
+        form.setValue(`lineItems.${index}.vatTreatment`, vat);
+        form.setValue(`lineItems.${index}.vatRate`, vat === "STANDARD_RATED" || vat === "REVERSE_CHARGE" ? 5 : 0);
     }
 
     async function onSubmit(values: FormValues) {
         setSubmitting(true);
         try {
-            const url = editQuotationId ? `/api/quotations/${editQuotationId}` : "/api/quotations";
-            const method = editQuotationId ? "PATCH" : "POST";
-            const res = await fetch(url, {
-                method,
+            const res = await fetch("/api/credit-notes", {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
+                body: JSON.stringify({
+                    ...values,
+                    sellerTrn: values.sellerTrn || null,
+                    buyerTrn: values.buyerTrn || null,
+                    notes: values.notes || null,
+                }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error ?? `Failed to ${editQuotationId ? 'update' : 'create'} quotation`);
-            toast.success(`Quotation ${editQuotationId ? 'updated' : 'created'}`);
+            if (!res.ok) throw new Error(data.error ?? "Failed to create credit note");
+            toast.success("Credit note created");
             onSuccess(data);
             onClose();
         } catch (err) {
@@ -195,14 +186,10 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
 
     return (
         <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-            <SheetContent
-                side="right"
-                className="w-full sm:max-w-3xl flex flex-col p-0"
-                showCloseButton={false}
-            >
+            <SheetContent side="right" className="w-full sm:max-w-3xl flex flex-col p-0" showCloseButton={false}>
                 <SheetHeader className="px-6 pt-5 pb-4 border-b shrink-0">
                     <div className="flex items-center justify-between">
-                        <SheetTitle className="text-lg">{editQuotationId ? "Edit Quotation" : "New Quotation"}</SheetTitle>
+                        <SheetTitle className="text-lg">New Credit Note</SheetTitle>
                         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
                             <X className="h-4 w-4" />
                             <span className="sr-only">Close</span>
@@ -211,14 +198,20 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                 </SheetHeader>
 
                 <ScrollArea className="flex-1">
-                    <form id="quotation-sheet-form" onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-4 space-y-6">
+                    <form id="credit-note-sheet-form" onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-4 space-y-6">
                         {/* Details */}
                         <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Quotation Details</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Credit Note Details</p>
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="sm:col-span-2 space-y-1.5">
+                                <div className="space-y-1.5">
                                     <Label>Customer <span className="text-destructive">*</span></Label>
-                                    <Select value={form.watch("customerId")} onValueChange={(v) => form.setValue("customerId", v, { shouldValidate: true })}>
+                                    <Select
+                                        value={form.watch("customerId")}
+                                        onValueChange={(v) => {
+                                            form.setValue("customerId", v, { shouldValidate: true });
+                                            form.setValue("invoiceId", "");
+                                        }}
+                                    >
                                         <SelectTrigger><SelectValue placeholder="Select customer..." /></SelectTrigger>
                                         <SelectContent>
                                             {customers.map((c) => (
@@ -231,15 +224,38 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                     )}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Issue Date</Label>
-                                    <DatePicker value={form.watch("issueDate")} onChange={(v) => form.setValue("issueDate", v, { shouldValidate: true })} />
+                                    <Label>Linked Invoice <span className="text-destructive">*</span></Label>
+                                    <Select
+                                        value={form.watch("invoiceId")}
+                                        onValueChange={(v) => form.setValue("invoiceId", v, { shouldValidate: true })}
+                                        disabled={!watchedCustomerId}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={watchedCustomerId ? "Select invoice..." : "Select customer first"} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {customerInvoices.length === 0
+                                                ? <SelectItem value="_none" disabled>No invoices found</SelectItem>
+                                                : customerInvoices.map((inv) => (
+                                                    <SelectItem key={inv.id} value={inv.id}>{inv.invoiceNumber}</SelectItem>
+                                                ))
+                                            }
+                                        </SelectContent>
+                                    </Select>
+                                    {form.formState.errors.invoiceId && (
+                                        <p className="text-xs text-destructive">{form.formState.errors.invoiceId.message}</p>
+                                    )}
+                                </div>
+                                <div className="sm:col-span-2 space-y-1.5">
+                                    <Label>Reason <span className="text-destructive">*</span></Label>
+                                    <Textarea placeholder="Reason for credit note..." rows={2} {...form.register("reason")} />
+                                    {form.formState.errors.reason && (
+                                        <p className="text-xs text-destructive">{form.formState.errors.reason.message}</p>
+                                    )}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Valid Until <span className="text-destructive">*</span></Label>
-                                    <DatePicker value={form.watch("validUntil")} onChange={(v) => form.setValue("validUntil", v, { shouldValidate: true })} />
-                                    {form.formState.errors.validUntil && (
-                                        <p className="text-xs text-destructive">{form.formState.errors.validUntil.message}</p>
-                                    )}
+                                    <Label>Issue Date</Label>
+                                    <DatePicker value={form.watch("issueDate")} onChange={(v) => form.setValue("issueDate", v)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Currency</Label>
@@ -253,6 +269,14 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="space-y-1.5">
+                                    <Label>Seller TRN</Label>
+                                    <Input placeholder="Your TRN..." {...form.register("sellerTrn")} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Buyer TRN</Label>
+                                    <Input placeholder="Customer TRN..." {...form.register("buyerTrn")} />
+                                </div>
                             </div>
                         </div>
 
@@ -260,14 +284,11 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
 
                         {/* Line Items */}
                         <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Line Items</p>
-                            </div>
-
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Line Items</p>
                             <div className="rounded-lg border divide-y">
                                 {fields.map((field, index) => {
                                     const item = watchedItems[index] ?? {};
-                                    const { vatAmt, lineTotal } = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD_RATED");
+                                    const { vatAmt, lineTotal } = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, item.vatTreatment ?? "STANDARD_RATED");
                                     return (
                                         <div key={field.id} className="p-3 space-y-2.5">
                                             <div className="flex items-center justify-between">
@@ -296,7 +317,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Qty</Label>
                                                     <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
@@ -306,12 +327,14 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                                     <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <Label className="text-[11px] text-muted-foreground">Disc %</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
-                                                </div>
-                                                <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">VAT</Label>
-                                                    <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
+                                                    <Select
+                                                        value={form.watch(`lineItems.${index}.vatTreatment`)}
+                                                        onValueChange={(v) => {
+                                                            form.setValue(`lineItems.${index}.vatTreatment`, v as typeof VAT_TREATMENT[number]);
+                                                            form.setValue(`lineItems.${index}.vatRate`, v === "STANDARD_RATED" || v === "REVERSE_CHARGE" ? 5 : 0);
+                                                        }}
+                                                    >
                                                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="STANDARD_RATED">Std 5%</SelectItem>
@@ -336,7 +359,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                 variant="ghost"
                                 size="sm"
                                 className="mt-2 w-full border border-dashed text-muted-foreground hover:text-foreground"
-                                onClick={() => append({ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" })}
+                                onClick={() => append({ description: "", quantity: 1, unitPrice: 0, vatTreatment: "STANDARD_RATED", vatRate: 5 })}
                             >
                                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Line Item
                             </Button>
@@ -347,13 +370,8 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                         {/* Totals */}
                         <div className="rounded-lg bg-muted/40 p-4 space-y-2 text-sm">
                             <div className="flex justify-between text-muted-foreground">
-                                <span>Subtotal</span><span>{currency} {totals.subtotal.toFixed(2)}</span>
+                                <span>Taxable Amount</span><span>{currency} {totals.taxable.toFixed(2)}</span>
                             </div>
-                            {totals.discount > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                    <span>Discount</span><span className="text-green-600">− {currency} {totals.discount.toFixed(2)}</span>
-                                </div>
-                            )}
                             <div className="flex justify-between text-muted-foreground">
                                 <span>VAT</span><span>{currency} {totals.vat.toFixed(2)}</span>
                             </div>
@@ -365,24 +383,18 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
 
                         <Separator />
 
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-1.5">
-                                <Label className="text-xs">Notes</Label>
-                                <Textarea placeholder="Notes to customer..." rows={3} {...form.register("notes")} />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-xs">Terms & Conditions</Label>
-                                <Textarea placeholder="Payment terms..." rows={3} {...form.register("termsAndConditions")} />
-                            </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Notes</Label>
+                            <Textarea placeholder="Internal notes..." rows={3} {...form.register("notes")} />
                         </div>
                     </form>
                 </ScrollArea>
 
                 <SheetFooter className="px-6 py-4 border-t gap-2 shrink-0">
                     <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-                    <Button type="submit" form="quotation-sheet-form" disabled={submitting || (!!editQuotationId && !form.formState.isDirty)} className="flex-1 sm:flex-none">
+                    <Button type="submit" form="credit-note-sheet-form" disabled={submitting} className="flex-1 sm:flex-none">
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {editQuotationId ? "Update Quotation" : "Create Quotation"}
+                        Create Credit Note
                     </Button>
                 </SheetFooter>
             </SheetContent>

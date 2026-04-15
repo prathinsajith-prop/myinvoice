@@ -350,7 +350,7 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
 
                 <SheetFooter className="px-6 py-4 border-t gap-2 shrink-0">
                     <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-                    <Button type="submit" form="bill-sheet-form" disabled={submitting} className="flex-1 sm:flex-none">
+                    <Button type="submit" form="bill-sheet-form" disabled={submitting || (!!editBillId && !form.formState.isDirty)} className="flex-1 sm:flex-none">
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {editBillId ? "Update Bill" : "Create Bill"}
                     </Button>

@@ -153,6 +153,9 @@ export const config = {
      *  - favicon.ico
      *  - public files  (any path with a dot extension)
      *  - portal        (public portal routes)
+     *
+     * NOTE: /api/* routes ARE intentionally included so that
+     * rate limiting and auth checks are applied to all API handlers.
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\..*|portal).*)",
   ],

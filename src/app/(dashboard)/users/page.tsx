@@ -268,6 +268,8 @@ export default function UsersPage() {
                                 placeholder="Search by name, email, or role"
                                 value={search}
                                 onChange={setSearch}
+                                onRefresh={() => mutate()}
+                                isRefreshing={loading}
                                 className="relative w-full sm:w-64"
                             />
                             <Select value={roleFilter} onValueChange={setRoleFilter}>

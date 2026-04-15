@@ -198,6 +198,8 @@ export default function QuotationsPage() {
                             placeholder="Search quotations..."
                             value={search}
                             onChange={handleSearchChange}
+                            onRefresh={fetchQuotations}
+                            isRefreshing={loading}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40">

@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
+        const customerId = searchParams.get("customerId");
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
         const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
         const skip = (page - 1) * limit;
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
             organizationId: ctx.organizationId,
             deletedAt: null,
             ...(status ? { status: status as never } : {}),
+            ...(customerId ? { customerId } : {}),
             ...(search
                 ? {
                     OR: [

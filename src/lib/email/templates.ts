@@ -203,6 +203,42 @@ export function roleUpdatedEmail({
   return { subject, html, text };
 }
 
+// ── Added to organisation email (existing user) ──────────────────────────
+
+export function addedToOrgEmail({
+  inviterName,
+  orgName,
+  role,
+  dashboardUrl,
+}: {
+  inviterName: string;
+  orgName: string;
+  role: string;
+  dashboardUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `You've been added to ${orgName} on myinvoice.ae`;
+
+  const html = wrap(`
+    <span style="${LOGO}">myinvoice.ae</span>
+    <h1 style="${H1}">You've been added</h1>
+    <p style="${P}">
+      <strong>${inviterName}</strong> has added you to
+      <strong>${orgName}</strong> as <strong>${role.toLowerCase()}</strong>.
+    </p>
+    <a href="${dashboardUrl}" style="${BTN}">Go to dashboard</a>
+    <p style="${P}">
+      If you didn't expect this, you can safely ignore this email.
+    </p>
+    <div style="${FOOTER}">
+      myinvoice.ae — UAE E-Invoicing Platform
+    </div>
+  `);
+
+  const text = `${inviterName} has added you to ${orgName} as ${role.toLowerCase()}.\n\nDashboard: ${dashboardUrl}`;
+
+  return { subject, html, text };
+}
+
 // ── Invoice delivery email ────────────────────────────────────────────────
 
 export function invoiceEmail({

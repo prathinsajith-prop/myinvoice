@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 
 import { PageHeader } from "@/components/page-header";
+import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
@@ -159,7 +160,9 @@ export default function ProductsPage() {
             header: "VAT",
             cell: ({ row }) => (
                 <span className="text-xs text-muted-foreground">
-                    {(row.getValue("vatTreatment") as string)?.replace("_", " ") ?? "—"}
+                    {(row.getValue("vatTreatment") as string)
+                        ? VAT_TREATMENT_LABELS[row.getValue("vatTreatment") as string] ?? (row.getValue("vatTreatment") as string).replace(/_/g, " ")
+                        : "—"}
                 </span>
             ),
         },
@@ -248,6 +251,8 @@ export default function ProductsPage() {
                             placeholder="Search products..."
                             value={search}
                             onChange={handleSearchChange}
+                            onRefresh={fetchProducts}
+                            isRefreshing={loading}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-36">

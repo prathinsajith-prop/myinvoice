@@ -14,7 +14,7 @@ import {
 import { hasRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { APP_URL } from "@/lib/constants/env";
-import { inviteEmail } from "@/lib/email/templates";
+import { inviteEmail, addedToOrgEmail } from "@/lib/email/templates";
 
 const inviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
           include: { user: { select: { id: true, name: true, email: true, image: true } } },
         });
 
-      // Notify the user
+      // Notify the user — they already have an account so send a "you've been added" email
       await prisma.notification.create({
         data: {
           userId: existingUser.id,
@@ -151,11 +151,12 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      const template = inviteEmail({
+      const dashboardUrl = `${appUrl}/dashboard`;
+      const template = addedToOrgEmail({
         inviterName,
         orgName,
         role,
-        acceptUrl,
+        dashboardUrl,
       });
 
       await sendEmail({

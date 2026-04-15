@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { StatCard } from "@/components/stat-card";
 import { formatAmount } from "@/lib/format";
+import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 import {
     Dialog,
     DialogContent,
@@ -70,15 +71,19 @@ interface ExpenseDetail {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-    TRAVEL: "Travel",
-    MEALS_AND_ENTERTAINMENT: "Meals & Entertainment",
-    OFFICE_SUPPLIES: "Office Supplies",
-    UTILITIES: "Utilities",
     RENT: "Rent",
+    UTILITIES: "Utilities",
+    TRAVEL: "Travel",
+    MEALS_ENTERTAINMENT: "Meals & Entertainment",
+    OFFICE_SUPPLIES: "Office Supplies",
     MARKETING: "Marketing",
-    PROFESSIONAL_SERVICES: "Professional Services",
+    SOFTWARE_SUBSCRIPTIONS: "Software Subscriptions",
+    PROFESSIONAL_FEES: "Professional Fees",
     INSURANCE: "Insurance",
-    MAINTENANCE: "Maintenance",
+    MAINTENANCE_REPAIRS: "Maintenance & Repairs",
+    SALARIES_WAGES: "Salaries & Wages",
+    TAX_PAYMENTS: "Tax Payments",
+    BANK_CHARGES: "Bank Charges",
     OTHER: "Other",
 };
 
@@ -283,6 +288,8 @@ export default function ExpensesPage() {
                             placeholder="Search expenses..."
                             value={search}
                             onChange={handleSearchChange}
+                            onRefresh={fetchExpenses}
+                            isRefreshing={loading}
                         />
                         <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
                             <SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
@@ -387,7 +394,7 @@ export default function ExpensesPage() {
                                 </div>
                                 {Number(viewDetail.vatAmount) > 0 && (
                                     <div className="flex justify-between text-muted-foreground">
-                                        <span>VAT ({viewDetail.vatTreatment.replace(/_/g, " ")})</span>
+                                        <span>VAT ({VAT_TREATMENT_LABELS[viewDetail.vatTreatment] ?? viewDetail.vatTreatment.replace(/_/g, " ")})</span>
                                         <span>{viewDetail.currency} {Number(viewDetail.vatAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
                                     </div>
                                 )}

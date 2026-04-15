@@ -40,8 +40,10 @@ export async function POST(req: NextRequest) {
                 if (invoice) {
                     const amount = Number(session.amount_total || 0) / 100;
                     if (amount > 0) {
+                        // Derive a consistent transaction ID the same way we store it
+                        const txnId = String(session.payment_intent || session.id);
                         const existingPayment = await prisma.payment.findFirst({
-                            where: { gatewayTransactionId: session.payment_intent as string },
+                            where: { gatewayTransactionId: txnId },
                             select: { id: true },
                         });
 
@@ -54,11 +56,19 @@ export async function POST(req: NextRequest) {
                                         ? "PARTIALLY_PAID"
                                         : invoice.status;
 
-                            const counter = await prisma.payment.count({ where: { organizationId: invoice.organizationId } });
-                            const paymentNumber = `PAY-${String(counter + 1).padStart(4, "0")}`;
+                            await prisma.$transaction(async (tx) => {
+                                // Generate payment number atomically inside the transaction
+                                const lastPayment = await tx.payment.findFirst({
+                                    where: { organizationId: invoice.organizationId },
+                                    orderBy: { createdAt: "desc" },
+                                    select: { paymentNumber: true },
+                                });
+                                const nextNum = lastPayment?.paymentNumber
+                                    ? String(Number(lastPayment.paymentNumber.replace(/[^0-9]/g, "")) + 1).padStart(4, "0")
+                                    : "0001";
+                                const paymentNumber = `PAY-${nextNum}`;
 
-                            await prisma.$transaction([
-                                prisma.payment.create({
+                                await tx.payment.create({
                                     data: {
                                         organizationId: invoice.organizationId,
                                         customerId: invoice.customerId,
@@ -69,7 +79,7 @@ export async function POST(req: NextRequest) {
                                         amountNet: amount,
                                         bankCharge: 0,
                                         paymentDate: new Date(),
-                                        gatewayTransactionId: String(session.payment_intent || session.id),
+                                        gatewayTransactionId: txnId,
                                         gatewayResponse: session as unknown as object,
                                         allocations: {
                                             create: {
@@ -78,8 +88,8 @@ export async function POST(req: NextRequest) {
                                             },
                                         },
                                     },
-                                }),
-                                prisma.invoice.update({
+                                });
+                                await tx.invoice.update({
                                     where: { id: invoice.id },
                                     data: {
                                         amountPaid: { increment: amount },
@@ -87,8 +97,8 @@ export async function POST(req: NextRequest) {
                                         status: newStatus,
                                         ...(newStatus === "PAID" ? { paidAt: new Date() } : {}),
                                     },
-                                }),
-                            ]);
+                                });
+                            });
                         }
                     }
                 }
