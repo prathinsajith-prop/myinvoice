@@ -446,7 +446,7 @@ export function CustomerModal({
                                     name="postalCode"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>P.O. Box</FormLabel>
+                                            <FormLabel>Postal Code</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="e.g. 12345" {...field} />
                                             </FormControl>

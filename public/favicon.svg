@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Document background -->
+  <rect x="4" y="2" width="20" height="26" rx="3" fill="#2563EB"/>
+  <!-- Folded corner -->
+  <path d="M20 2 L24 6 L20 6 Z" fill="#1D4ED8"/>
+  <rect x="20" y="2" width="4" height="4" rx="0" fill="#1D4ED8"/>
+  <!-- Lines representing invoice rows -->
+  <rect x="8" y="10" width="12" height="2" rx="1" fill="white" opacity="0.9"/>
+  <rect x="8" y="14" width="8" height="2" rx="1" fill="white" opacity="0.7"/>
+  <rect x="8" y="18" width="10" height="2" rx="1" fill="white" opacity="0.7"/>
+  <!-- Amount line accent -->
+  <rect x="8" y="22" width="12" height="2" rx="1" fill="#93C5FD" opacity="0.9"/>
+</svg>
