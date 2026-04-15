@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreHorizontal, Package, Loader2 } from "lucide-react";
+import { Plus, MoreHorizontal, Package } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { ProductModal } from "@/components/modals/product-modal";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
@@ -25,6 +25,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+
+import { PageHeader } from "@/components/page-header";
+import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { LoadingState } from "@/components/loading-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { formatAmount } from "@/lib/format";
 
 interface Product {
     id: string;
@@ -59,18 +67,14 @@ export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -85,7 +89,7 @@ export default function ProductsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (typeFilter !== "ALL") params.set("type", typeFilter);
             const res = await fetch(`/api/products?${params}`);
             if (res.ok) {
@@ -96,10 +100,19 @@ export default function ProductsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, typeFilter]);
+    }, [page, normalizedSearch, typeFilter]);
 
     useEffect(() => { fetchProducts(); }, [fetchProducts]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleTypeFilterChange = (value: string) => {
+        setPage(1);
+        setTypeFilter(value);
+    };
 
     const columns = useMemo<ColumnDef<Product>[]>(() => [
         {
@@ -147,7 +160,9 @@ export default function ProductsPage() {
             header: "VAT",
             cell: ({ row }) => (
                 <span className="text-xs text-muted-foreground">
-                    {(row.getValue("vatTreatment") as string)?.replace("_", " ") ?? "—"}
+                    {(row.getValue("vatTreatment") as string)
+                        ? VAT_TREATMENT_LABELS[row.getValue("vatTreatment") as string] ?? (row.getValue("vatTreatment") as string).replace(/_/g, " ")
+                        : "—"}
                 </span>
             ),
         },
@@ -203,32 +218,43 @@ export default function ProductsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Products & Services</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} items` : "Manage your product catalog"}
-                    </p>
-                </div>
-                <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Product
-                </Button>
-            </div>
+            <PageHeader
+                title="Products & Services"
+                description={pagination ? `${pagination.total} items` : "Manage your product catalog"}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={products}
+                            columns={[
+                                { header: "Name", accessor: "name" },
+                                { header: "SKU", accessor: "sku" },
+                                { header: "Type", accessor: "type" },
+                                { header: "Unit Price", accessor: "unitPrice", format: (v) => formatAmount(v) },
+                                { header: "VAT Treatment", accessor: "vatTreatment", format: (v) => String(v).replace(/_/g, " ") },
+                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                            ]}
+                            filename="products"
+                            title="Products & Services Report"
+                        />
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Product
+                        </Button>
+                    </>
+                }
+            />
 
             <Card>
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3">
-                        <div className="relative flex-1 max-w-sm">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Search products..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                        <SearchInput
+                            placeholder="Search products..."
+                            value={search}
+                            onChange={handleSearchChange}
+                            onRefresh={fetchProducts}
+                            isRefreshing={loading}
+                        />
+                        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-36">
                                 <SelectValue />
                             </SelectTrigger>
@@ -243,22 +269,14 @@ export default function ProductsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState />
                     ) : products.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <Package className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                            <p className="text-sm font-medium">No products found</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first product or service"}
-                            </p>
-                            {!debouncedSearch && typeFilter === "ALL" && (
-                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />Add Product
-                                </Button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon={Package}
+                            title="No products found"
+                            description={normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first product or service"}
+                            action={!normalizedSearch && typeFilter === "ALL" ? { label: "Add Product", onClick: () => setCreateOpen(true) } : undefined}
+                        />
                     ) : (
                         <DataTable
                             columns={columns}
@@ -266,17 +284,8 @@ export default function ProductsPage() {
                             onRowClick={(product) => router.push(`/products/${product.id}`)}
                         />
                     )}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between border-t px-4 py-3">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                                <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-                            </div>
-                        </div>
+                    {pagination && (
+                        <PaginationControls pagination={pagination} page={page} onPageChange={setPage} />
                     )}
                 </CardContent>
             </Card>

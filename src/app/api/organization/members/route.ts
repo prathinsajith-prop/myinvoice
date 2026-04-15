@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import {
@@ -11,6 +12,9 @@ import {
   ConflictError,
 } from "@/lib/errors";
 import { hasRole } from "@/lib/rbac";
+import { sendEmail } from "@/lib/email";
+import { APP_URL } from "@/lib/constants/env";
+import { inviteEmail, addedToOrgEmail } from "@/lib/email/templates";
 
 const inviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -61,14 +65,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, role } = result.data;
+    const normalizedEmail = result.data.email.trim().toLowerCase();
+    const { role } = result.data;
+    const appUrl = APP_URL || req.nextUrl.origin;
+
+    const [inviter, organization] = await Promise.all([
+      prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true, email: true } }),
+      prisma.organization.findUnique({ where: { id: ctx.organizationId }, select: { name: true, slug: true } }),
+    ]);
+
+    const inviterName = inviter?.name || inviter?.email || "A team member";
+    const orgName = organization?.name || "your organization";
+    const existingOrgMember = await prisma.organizationMembership.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        isActive: true,
+        user: { email: normalizedEmail },
+      },
+      select: { id: true },
+    });
+
+    if (existingOrgMember) {
+      throw new ConflictError("User is already in the user listing for this organization");
+    }
+
+    const acceptUrl = `${appUrl}/accept-invite`;
 
     // Only owners can invite admins
     if (role === "ADMIN" && !hasRole(ctx.role, "OWNER")) {
       throw new ForbiddenError("Only owners can invite admins");
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (existingUser) {
       // Check for existing active or pending membership
@@ -81,37 +109,38 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (existing?.isActive) {
-        throw new ConflictError("User is already a member of this organization");
-      }
-
       // Re-activate or create membership
       const membership = existing
         ? await prisma.organizationMembership.update({
-            where: { id: existing.id },
-            data: {
-              role,
-              isActive: true,
-              invitedBy: ctx.userId,
-              invitedAt: new Date(),
-              acceptedAt: new Date(),
-            },
-            include: { user: { select: { id: true, name: true, email: true, image: true } } },
-          })
+          where: { id: existing.id },
+          data: {
+            role,
+            isActive: true,
+            invitedEmail: normalizedEmail,
+            invitedBy: ctx.userId,
+            invitedAt: new Date(),
+            inviteStatus: "ACCEPTED",
+            inviteToken: null,
+            expiresAt: null,
+            acceptedAt: new Date(),
+          },
+          include: { user: { select: { id: true, name: true, email: true, image: true } } },
+        })
         : await prisma.organizationMembership.create({
-            data: {
-              userId: existingUser.id,
-              organizationId: ctx.organizationId,
-              role,
-              invitedEmail: email,
-              invitedAt: new Date(),
-              invitedBy: ctx.userId,
-              acceptedAt: new Date(),
-            },
-            include: { user: { select: { id: true, name: true, email: true, image: true } } },
-          });
+          data: {
+            userId: existingUser.id,
+            organizationId: ctx.organizationId,
+            role,
+            invitedEmail: normalizedEmail,
+            invitedAt: new Date(),
+            invitedBy: ctx.userId,
+            inviteStatus: "ACCEPTED",
+            acceptedAt: new Date(),
+          },
+          include: { user: { select: { id: true, name: true, email: true, image: true } } },
+        });
 
-      // Notify the user
+      // Notify the user — they already have an account so send a "you've been added" email
       await prisma.notification.create({
         data: {
           userId: existingUser.id,
@@ -122,31 +151,64 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      const dashboardUrl = `${appUrl}/dashboard`;
+      const template = addedToOrgEmail({
+        inviterName,
+        orgName,
+        role,
+        dashboardUrl,
+      });
+
+      await sendEmail({
+        to: normalizedEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+      });
+
       return NextResponse.json(membership, { status: 201 });
     }
 
     // User doesn't exist yet — create placeholder + pending invite
     const newUser = await prisma.user.create({
       data: {
-        email,
-        name: email.split("@")[0],
+        email: normalizedEmail,
+        name: normalizedEmail.split("@")[0],
       },
     });
+
+    const inviteToken = randomBytes(24).toString("hex");
+    const inviteLink = `${acceptUrl}?token=${encodeURIComponent(inviteToken)}`;
 
     const membership = await prisma.organizationMembership.create({
       data: {
         userId: newUser.id,
         organizationId: ctx.organizationId,
         role,
-        invitedEmail: email,
+        invitedEmail: normalizedEmail,
         invitedAt: new Date(),
         invitedBy: ctx.userId,
+        inviteToken,
+        inviteStatus: "PENDING",
+        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
         // acceptedAt left null — pending
       },
       include: { user: { select: { id: true, name: true, email: true, image: true } } },
     });
 
-    // TODO: dispatch invitation email via email service
+    const template = inviteEmail({
+      inviterName,
+      orgName,
+      role,
+      acceptUrl: inviteLink,
+    });
+
+    await sendEmail({
+      to: normalizedEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    });
 
     return NextResponse.json(membership, { status: 201 });
   } catch (error) {

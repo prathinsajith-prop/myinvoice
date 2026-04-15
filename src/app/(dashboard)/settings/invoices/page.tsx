@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import {
     Loader2,
     FileText,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { jsonFetcher } from "@/lib/fetcher";
 import { invalidateOrgSettingsCache } from "@/lib/hooks/use-org-settings";
 
 const CURRENCIES = [
@@ -71,8 +73,12 @@ interface InvoiceSettingsData {
     defaultTerms: string | null;
 }
 
+interface InvoiceSettingsResponse {
+    organization: Partial<InvoiceSettingsData>;
+    role: string;
+}
+
 export default function InvoiceSettingsPage() {
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [form, setForm] = useState<InvoiceSettingsData>({
@@ -91,33 +97,33 @@ export default function InvoiceSettingsPage() {
         defaultNotes: "",
         defaultTerms: "",
     });
-
-    useEffect(() => {
-        fetch("/api/organization")
-            .then((r) => r.json())
-            .then((json) => {
-                const org = json.organization;
-                setForm({
-                    defaultCurrency: org.defaultCurrency ?? "AED",
-                    fiscalYearStart: org.fiscalYearStart ?? 1,
-                    invoicePrefix: org.invoicePrefix ?? "INV",
-                    proformaPrefix: org.proformaPrefix ?? "PI",
-                    quotePrefix: org.quotePrefix ?? "QT",
-                    creditNotePrefix: org.creditNotePrefix ?? "CN",
-                    debitNotePrefix: org.debitNotePrefix ?? "DN",
-                    billPrefix: org.billPrefix ?? "BILL",
-                    paymentPrefix: org.paymentPrefix ?? "PAY",
-                    defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
-                    defaultDueDateDays: org.defaultDueDateDays ?? 30,
-                    defaultVatRate: Number(org.defaultVatRate ?? 5),
-                    defaultNotes: org.defaultNotes ?? "",
-                    defaultTerms: org.defaultTerms ?? "",
-                });
-                setIsAdmin(json.role === "OWNER" || json.role === "ADMIN");
-            })
-            .catch(() => toast.error("Failed to load invoice settings"))
-            .finally(() => setLoading(false));
-    }, []);
+    const { isLoading: loading, mutate } = useSWR<InvoiceSettingsResponse>("/api/organization", jsonFetcher, {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        onSuccess(json) {
+            const org = json.organization;
+            setForm({
+                defaultCurrency: org.defaultCurrency ?? "AED",
+                fiscalYearStart: org.fiscalYearStart ?? 1,
+                invoicePrefix: org.invoicePrefix ?? "INV",
+                proformaPrefix: org.proformaPrefix ?? "PI",
+                quotePrefix: org.quotePrefix ?? "QT",
+                creditNotePrefix: org.creditNotePrefix ?? "CN",
+                debitNotePrefix: org.debitNotePrefix ?? "DN",
+                billPrefix: org.billPrefix ?? "BILL",
+                paymentPrefix: org.paymentPrefix ?? "PAY",
+                defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
+                defaultDueDateDays: org.defaultDueDateDays ?? 30,
+                defaultVatRate: Number(org.defaultVatRate ?? 5),
+                defaultNotes: org.defaultNotes ?? "",
+                defaultTerms: org.defaultTerms ?? "",
+            });
+            setIsAdmin(json.role === "OWNER" || json.role === "ADMIN");
+        },
+        onError() {
+            toast.error("Failed to load invoice settings");
+        },
+    });
 
     const set = <K extends keyof InvoiceSettingsData>(key: K, value: InvoiceSettingsData[K]) =>
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -145,6 +151,7 @@ export default function InvoiceSettingsPage() {
 
             toast.success("Invoice settings saved");
             invalidateOrgSettingsCache();
+            await mutate();
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to save settings");
         } finally {
@@ -199,12 +206,14 @@ export default function InvoiceSettingsPage() {
                         <Label htmlFor="vatRate">Default VAT Rate (%)</Label>
                         <Input
                             id="vatRate"
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.01}
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0"
                             value={form.defaultVatRate}
-                            onChange={(e) => set("defaultVatRate", e.target.value)}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                if (/^\d*\.?\d*$/.test(v)) set("defaultVatRate", v);
+                            }}
                             disabled={!isAdmin}
                         />
                     </div>

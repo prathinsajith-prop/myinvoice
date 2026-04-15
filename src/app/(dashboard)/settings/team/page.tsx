@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
+import useSWR from "swr";
 import {
   Loader2, UserPlus, MoreHorizontal, Shield, Users, Eye,
   Calculator, Crown, Mail, Clock, Trash2, UserCog,
@@ -22,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PermissionGate } from "@/components/tenant/permission-gate";
 import { useTenant } from "@/lib/tenant/context";
+import { jsonFetcher } from "@/lib/fetcher";
 
 type MemberRole = "OWNER" | "ADMIN" | "ACCOUNTANT" | "MEMBER" | "VIEWER";
 
@@ -59,8 +61,6 @@ export default function TeamSettingsPage() {
   const { data: session } = useSession();
   const { role: currentRole, hasPermission } = useTenant();
 
-  const [loading, setLoading] = useState(true);
-  const [members, setMembers] = useState<Member[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("MEMBER");
@@ -72,22 +72,18 @@ export default function TeamSettingsPage() {
 
   const canManageMembers = hasPermission("manage_team");
   const canInviteAdmin = currentRole === "OWNER";
-
-  const fetchMembers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/organization/members");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setMembers(data.members);
-    } catch {
-      toast.error("Failed to load team members");
-    } finally {
-      setLoading(false);
+  const { data, isLoading: loading, mutate } = useSWR<{ members: Member[] }>(
+    "/api/organization/members",
+    jsonFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      onError() {
+        toast.error("Failed to load team members");
+      },
     }
-  }, []);
-
-  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  );
+  const members = data?.members ?? [];
 
   const handleInvite = async () => {
     if (!inviteEmail) return;
@@ -103,7 +99,7 @@ export default function TeamSettingsPage() {
       setInviteOpen(false);
       setInviteEmail("");
       setInviteRole("MEMBER");
-      fetchMembers();
+      await mutate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to invite member");
     } finally {
@@ -123,7 +119,7 @@ export default function TeamSettingsPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
       toast.success("Member role updated");
       setEditingMember(null);
-      fetchMembers();
+      await mutate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to update role");
     } finally {
@@ -139,7 +135,7 @@ export default function TeamSettingsPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
       toast.success("Member removed from organization");
       setRemovingMember(null);
-      fetchMembers();
+      await mutate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to remove member");
     } finally {

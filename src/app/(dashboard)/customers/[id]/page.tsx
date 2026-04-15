@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import useSWR from "swr";
 import {
     ArrowLeft,
     Mail,
@@ -24,6 +25,7 @@ import { CustomerModal } from "@/components/modals/customer-modal";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
 
 interface Customer {
     id: string;
@@ -35,9 +37,14 @@ interface Customer {
     mobile: string | null;
     type: string;
     trn: string | null;
-    addressLine1: string | null;
+    unitNumber: string | null;
+    buildingName: string | null;
+    street: string | null;
+    area: string | null;
     city: string | null;
+    emirate: string | null;
     country: string | null;
+    postalCode: string | null;
     website: string | null;
     notes: string | null;
     isActive: boolean;
@@ -69,20 +76,25 @@ export default function CustomerDetailPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
-    const [customer, setCustomer] = useState<Customer | null>(null);
-    const [loading, setLoading] = useState(true);
     const [editOpen, setEditOpen] = useState(false);
     const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false);
-
-    useEffect(() => {
-        fetch(`/api/customers/${id}`)
-            .then((r) => {
-                if (r.status === 404) { router.push("/customers"); return null; }
-                return r.json();
-            })
-            .then((data) => data && setCustomer(data))
-            .finally(() => setLoading(false));
-    }, [id, router]);
+    const { data: customer, isLoading: loading, mutate } = useSWR<Customer>(
+        id ? `/api/customers/${id}` : null,
+        async (url: string) => {
+            try {
+                return await jsonFetcher<Customer>(url);
+            } catch (error) {
+                if (error instanceof Error && error.message === "Customer not found") {
+                    router.push("/customers");
+                }
+                throw error;
+            }
+        },
+        {
+            revalidateOnFocus: false,
+            revalidateOnReconnect: false,
+        }
+    );
 
     if (loading) {
         return (
@@ -191,11 +203,11 @@ export default function CustomerDetailPage() {
                                     <span className="text-xs text-muted-foreground">(mobile)</span>
                                 </div>
                             )}
-                            {(customer.addressLine1 || customer.city) && (
+                            {(customer.unitNumber || customer.buildingName || customer.street || customer.city) && (
                                 <div className="flex items-start gap-2 text-sm">
                                     <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground flex-shrink-0" />
                                     <span>
-                                        {[customer.addressLine1, customer.city, customer.country]
+                                        {[customer.unitNumber, customer.buildingName, customer.street, customer.area, customer.city, customer.emirate, customer.country]
                                             .filter(Boolean)
                                             .join(", ")}
                                     </span>
@@ -282,7 +294,7 @@ export default function CustomerDetailPage() {
                 onClose={() => setEditOpen(false)}
                 onSuccess={() => {
                     setEditOpen(false);
-                    fetch(`/api/customers/${customer.id}`).then(r => r.json()).then(data => setCustomer(data));
+                    void mutate();
                 }}
                 initialData={{
                     name: customer.name,
@@ -292,9 +304,14 @@ export default function CustomerDetailPage() {
                     image: customer.image ?? "",
                     type: (customer.type as "BUSINESS" | "INDIVIDUAL") ?? "BUSINESS",
                     taxRegistrationNumber: customer.trn ?? "",
-                    address: customer.addressLine1 ?? "",
+                    unitNumber: customer.unitNumber ?? "",
+                    buildingName: customer.buildingName ?? "",
+                    street: customer.street ?? "",
+                    area: customer.area ?? "",
                     city: customer.city ?? "",
+                    emirate: customer.emirate ?? "",
                     country: customer.country ?? "",
+                    postalCode: customer.postalCode ?? "",
                     website: customer.website ?? "",
                     notes: customer.notes ?? "",
                 }}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Camera, User } from "lucide-react";
@@ -20,11 +21,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { jsonFetcher } from "@/lib/fetcher";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/settings";
+
+interface ProfileResponse {
+  name: string | null;
+  phone: string | null;
+  image: string | null;
+}
 
 export default function ProfileSettingsPage() {
   const { data: session, update: updateSession } = useSession();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageChanged, setImageChanged] = useState(false);
@@ -39,25 +46,20 @@ export default function ProfileSettingsPage() {
     resolver: zodResolver(updateProfileSchema),
   });
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch("/api/user/profile");
-        if (!res.ok) throw new Error("Failed to fetch profile");
-        const data = await res.json();
-        reset({
-          name: data.name ?? undefined,
-          phone: data.phone ?? undefined,
-        });
-        setImagePreview(data.image ?? null);
-      } catch {
-        toast.error("Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, [reset]);
+  const { isLoading: loading, mutate } = useSWR<ProfileResponse>("/api/user/profile", jsonFetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    onSuccess(data) {
+      reset({
+        name: data.name ?? undefined,
+        phone: data.phone ?? undefined,
+      });
+      setImagePreview(data.image ?? null);
+    },
+    onError() {
+      toast.error("Failed to load profile");
+    },
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,6 +109,7 @@ export default function ProfileSettingsPage() {
       // Update local preview to match what was saved
       setImagePreview(updatedUser.image ?? null);
       reset({ name: data.name, phone: data.phone });
+      await mutate(updatedUser, { revalidate: false });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
@@ -151,7 +154,7 @@ export default function ProfileSettingsPage() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Avatar Section */}
-            <input
+            <Input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp"

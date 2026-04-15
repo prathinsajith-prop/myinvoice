@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { useTenant } from "@/lib/tenant/context";
 import { Building2, Loader2, CheckCircle2, ArrowRightLeft, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { jsonFetcher } from "@/lib/fetcher";
 
 interface OrganizationItem {
     id: string;
@@ -57,31 +58,23 @@ interface OrganizationDetail {
 }
 
 export default function OrganizationsPage() {
-    const router = useRouter();
     const { organizationId, switchOrganization } = useTenant();
-    const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
-    const [loading, setLoading] = useState(true);
     const [switchingId, setSwitchingId] = useState<string | null>(null);
     const [selectedOrganization, setSelectedOrganization] = useState<OrganizationDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
-
-    useEffect(() => {
-        async function fetchOrganizations() {
-            setLoading(true);
-            try {
-                const res = await fetch("/api/organizations", { cache: "no-store" });
-                if (!res.ok) throw new Error("Failed to load organizations");
-                const data = await res.json();
-                setOrganizations(data.organizations ?? []);
-            } catch (error) {
+    const { data, isLoading: loading } = useSWR<{ organizations?: OrganizationItem[] }>(
+        "/api/organizations",
+        jsonFetcher,
+        {
+            revalidateOnFocus: false,
+            revalidateOnReconnect: false,
+            onError(error) {
                 toast.error(error instanceof Error ? error.message : "Failed to load organizations");
-            } finally {
-                setLoading(false);
-            }
+            },
         }
+    );
 
-        fetchOrganizations();
-    }, []);
+    const organizations = useMemo(() => data?.organizations ?? [], [data]);
 
     const stats = useMemo(() => {
         return organizations.reduce(

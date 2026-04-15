@@ -1,24 +1,37 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, MoreHorizontal, Truck, Mail, Phone, Loader2, Eye, Pencil, FileText } from "lucide-react";
+import { Plus, MoreHorizontal, Truck, Mail, Phone, Eye, Pencil, FileText } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { SupplierModal } from "@/components/modals/supplier-modal";
 import { BillSheet } from "@/components/modals/bill-sheet";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/page-header";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { LoadingState } from "@/components/loading-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { formatAmount } from "@/lib/format";
 
 interface Supplier {
     id: string;
@@ -47,7 +60,7 @@ export default function SuppliersPage() {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
@@ -55,11 +68,8 @@ export default function SuppliersPage() {
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [billOpen, setBillOpen] = useState(false);
     const [billSupplierId, setBillSupplierId] = useState<string | undefined>(undefined);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -74,7 +84,8 @@ export default function SuppliersPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
+            if (typeFilter !== "ALL") params.set("type", typeFilter);
             const res = await fetch(`/api/suppliers?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -84,10 +95,19 @@ export default function SuppliersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch]);
+    }, [page, normalizedSearch, typeFilter]);
 
     useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
-    useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleTypeFilterChange = (value: string) => {
+        setPage(1);
+        setTypeFilter(value);
+    };
 
     const columns = useMemo<ColumnDef<Supplier>[]>(() => [
         {
@@ -214,50 +234,63 @@ export default function SuppliersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
-                    </p>
-                </div>
-                <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Supplier
-                </Button>
-            </div>
+            <PageHeader
+                title="Suppliers"
+                description={pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={suppliers}
+                            columns={[
+                                { header: "Name", accessor: "name" },
+                                { header: "Email", accessor: "email" },
+                                { header: "Phone", accessor: "phone" },
+                                { header: "Type", accessor: "type" },
+                                { header: "Total Billed", accessor: "totalBilled", format: (v) => formatAmount(v) },
+                                { header: "Outstanding", accessor: "totalOutstanding", format: (v) => formatAmount(v) },
+                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                            ]}
+                            filename="suppliers"
+                            title="Suppliers Report"
+                        />
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Supplier
+                        </Button>
+                    </>
+                }
+            />
 
             <Card>
                 <CardHeader className="pb-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <SearchInput
                             placeholder="Search suppliers..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9"
+                            onChange={handleSearchChange}
+                            onRefresh={fetchSuppliers}
+                            isRefreshing={loading}
                         />
+                        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
+                            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">All Types</SelectItem>
+                                <SelectItem value="BUSINESS">Business</SelectItem>
+                                <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState />
                     ) : suppliers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <Truck className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                            <p className="text-sm font-medium">No suppliers found</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch ? "Try a different search term" : "Add your first supplier"}
-                            </p>
-                            {!debouncedSearch && (
-                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Supplier
-                                </Button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon={Truck}
+                            title="No suppliers found"
+                            description={normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first supplier"}
+                            action={!normalizedSearch && typeFilter === "ALL" ? { label: "Add Supplier", onClick: () => setCreateOpen(true) } : undefined}
+                        />
                     ) : (
                         <DataTable
                             columns={columns}
@@ -265,17 +298,8 @@ export default function SuppliersPage() {
                             onRowClick={(supplier) => router.push(`/suppliers/${supplier.id}`)}
                         />
                     )}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between border-t px-4 py-3">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                                <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-                            </div>
-                        </div>
+                    {pagination && (
+                        <PaginationControls pagination={pagination} page={page} onPageChange={setPage} />
                     )}
                 </CardContent>
             </Card>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { LineItemModal, type LineItemData } from "@/components/modals/line-item-modal";
 
 interface LineItem {
     id: string;
@@ -56,6 +59,7 @@ interface Invoice {
     totalVat: number;
     total: number;
     outstanding: number;
+    publicToken?: string | null;
     notes: string;
     terms: string;
     customer: { id: string; name: string; email: string; phone: string; trn: string };
@@ -71,9 +75,15 @@ export default function InvoiceDetailPage() {
     const [voidOpen, setVoidOpen] = useState(false);
     const [payOpen, setPayOpen] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState("");
-    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+    const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split("T")[0]);
     const [paymentRef, setPaymentRef] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
     const [acting, setActing] = useState(false);
+    const [sendingEmail, setSendingEmail] = useState(false);
+    const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
+    const [lineItemModalOpen, setLineItemModalOpen] = useState(false);
+    const [editingLineItem, setEditingLineItem] = useState<LineItemData | null>(null);
+    const [deletingLineItem, setDeletingLineItem] = useState<LineItemData | null>(null);
 
     const fetchInvoice = useCallback(async () => {
         setLoading(true);
@@ -111,9 +121,9 @@ export default function InvoiceDetailPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     amount: Number(paymentAmount),
-                    paymentDate,
+                    paymentDate: `${paymentDate}T00:00:00.000Z`,
                     reference: paymentRef,
-                    paymentMethod: "BANK_TRANSFER",
+                    method: paymentMethod,
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -128,20 +138,77 @@ export default function InvoiceDetailPage() {
     }
 
     async function markSent() {
-        setActing(true);
+        setSendingEmail(true);
         try {
-            const res = await fetch(`/api/invoices/${params.id}`, {
-                method: "PATCH",
+            const res = await fetch(`/api/invoices/${params.id}/send`, {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "SENT" }),
+                body: JSON.stringify({ email: invoice?.customer?.email }),
             });
             if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
-            toast.success("Invoice marked as sent");
+            toast.success("Invoice sent successfully");
             fetchInvoice();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed");
+            toast.error(err instanceof Error ? err.message : "Failed to send invoice");
+        } finally {
+            setSendingEmail(false);
+        }
+    }
+
+    async function createStripeLink() {
+        setCreatingPaymentLink(true);
+        try {
+            const res = await fetch(`/api/invoices/${params.id}/payment-link`, {
+                method: "POST",
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to create payment link");
+            if (!data.url) throw new Error("No payment URL returned");
+
+            window.open(data.url, "_blank", "noopener,noreferrer");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to create payment link");
+        } finally {
+            setCreatingPaymentLink(false);
+        }
+    }
+
+    async function saveLineItem(data: { id?: string; description: string; quantity: number; unitPrice: number; discount: number; vatTreatment: string; productId?: string }) {
+        const url = `/api/invoices/${params.id}/line-items`;
+        const isEdit = Boolean(data.id);
+        const res = await fetch(url, {
+            method: isEdit ? "PATCH" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error ?? "Failed to save line item");
+        }
+        const updated = await res.json();
+        setInvoice(updated);
+        toast.success(isEdit ? "Line item updated" : "Line item added");
+    }
+
+    async function deleteLineItem() {
+        if (!deletingLineItem) return;
+        setActing(true);
+        try {
+            const res = await fetch(`/api/invoices/${params.id}/line-items?lineItemId=${deletingLineItem.id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error ?? "Failed to delete line item");
+            }
+            const updated = await res.json();
+            setInvoice(updated);
+            toast.success("Line item deleted");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to delete line item");
         } finally {
             setActing(false);
+            setDeletingLineItem(null);
         }
     }
 
@@ -157,7 +224,12 @@ export default function InvoiceDetailPage() {
 
     const canVoid = !["VOID", "CREDITED"].includes(invoice.status);
     const canPay = !["PAID", "VOID", "CREDITED"].includes(invoice.status);
-    const canSend = invoice.status === "DRAFT";
+    const canSend = !["VOID", "CREDITED"].includes(invoice.status);
+    const canEditLines = !["VOID", "CREDITED"].includes(invoice.status);
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const shareText = encodeURIComponent(
+        `Invoice ${invoice.invoiceNumber}\nAmount: ${invoice.currency} ${Number(invoice.total).toFixed(2)}\nView: ${appUrl}/portal/${invoice.publicToken || ""}`
+    );
 
     return (
         <div className="space-y-6">
@@ -176,9 +248,9 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     {canSend && (
-                        <Button variant="outline" size="sm" onClick={markSent} disabled={acting}>
-                            <Send className="mr-2 h-4 w-4" />
-                            Mark Sent
+                        <Button variant="outline" size="sm" onClick={markSent} disabled={sendingEmail || acting}>
+                            {sendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                            Send Invoice
                         </Button>
                     )}
                     {canPay && (
@@ -194,6 +266,12 @@ export default function InvoiceDetailPage() {
                             Record Payment
                         </Button>
                     )}
+                    {canPay && (
+                        <Button variant="outline" size="sm" onClick={createStripeLink} disabled={creatingPaymentLink}>
+                            {creatingPaymentLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                            Pay Online
+                        </Button>
+                    )}
                     {canVoid && (
                         <Button variant="destructive" size="sm" onClick={() => setVoidOpen(true)} disabled={acting}>
                             <XCircle className="mr-2 h-4 w-4" />
@@ -203,6 +281,18 @@ export default function InvoiceDetailPage() {
                     <Button variant="ghost" size="icon" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
                     </Button>
+                    <Button variant="ghost" size="icon" asChild>
+                        <a href={`/api/invoices/${invoice.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
+                    {invoice.publicToken && (
+                        <Button variant="ghost" size="icon" asChild>
+                            <a href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noreferrer">
+                                <MessageCircle className="h-4 w-4" />
+                            </a>
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -274,7 +364,19 @@ export default function InvoiceDetailPage() {
                 {/* Right main content */}
                 <div className="lg:col-span-2 space-y-4">
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                            <CardTitle className="text-base">Line Items</CardTitle>
+                            {canEditLines && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => { setEditingLineItem(null); setLineItemModalOpen(true); }}
+                                >
+                                    <Plus className="mr-1.5 h-4 w-4" />
+                                    Add Item
+                                </Button>
+                            )}
+                        </CardHeader>
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
                                 <Table>
@@ -286,6 +388,7 @@ export default function InvoiceDetailPage() {
                                             <TableHead className="text-right">Disc%</TableHead>
                                             <TableHead className="text-right">VAT</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
+                                            {canEditLines && <TableHead className="w-[80px]" />}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -297,6 +400,28 @@ export default function InvoiceDetailPage() {
                                                 <TableCell className="text-right tabular-nums">{Number(item.discount).toFixed(0)}%</TableCell>
                                                 <TableCell className="text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</TableCell>
                                                 <TableCell className="text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</TableCell>
+                                                {canEditLines && (
+                                                    <TableCell>
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7"
+                                                                onClick={() => { setEditingLineItem(item); setLineItemModalOpen(true); }}
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                                                onClick={() => setDeletingLineItem(item)}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                )}
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -333,7 +458,7 @@ export default function InvoiceDetailPage() {
                         </Card>
                     )}
 
-                    {(invoice.notes || invoice.termsAndConditions) && (
+                    {(invoice.notes || invoice.terms) && (
                         <Card>
                             <CardHeader><CardTitle className="text-base">Notes & Terms</CardTitle></CardHeader>
                             <CardContent className="space-y-3 text-sm">
@@ -377,19 +502,39 @@ export default function InvoiceDetailPage() {
                         <div className="space-y-1.5">
                             <Label>Amount</Label>
                             <Input
-                                type="number"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (/^\d*\.?\d*$/.test(v)) setPaymentAmount(v);
+                                }}
                             />
                         </div>
                         <div className="space-y-1.5">
                             <Label>Payment Date</Label>
-                            <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+                            <DatePicker value={paymentDate} onChange={setPaymentDate} />
                         </div>
                         <div className="space-y-1.5">
                             <Label>Reference (optional)</Label>
                             <Input placeholder="Transaction reference" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Payment Method</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                                    <SelectItem value="CASH">Cash</SelectItem>
+                                    <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    <SelectItem value="CARD">Card</SelectItem>
+                                    <SelectItem value="STRIPE">Stripe</SelectItem>
+                                    <SelectItem value="PAYBY">PayBy</SelectItem>
+                                    <SelectItem value="TABBY">Tabby</SelectItem>
+                                    <SelectItem value="TAMARA">Tamara</SelectItem>
+                                    <SelectItem value="OTHER">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <AlertDialogFooter>
@@ -397,6 +542,34 @@ export default function InvoiceDetailPage() {
                         <AlertDialogAction onClick={doMarkPaid} disabled={!paymentAmount || acting}>
                             {acting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                             Record Payment
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Line item edit/add modal */}
+            <LineItemModal
+                open={lineItemModalOpen}
+                onClose={() => { setLineItemModalOpen(false); setEditingLineItem(null); }}
+                onSave={saveLineItem}
+                lineItem={editingLineItem}
+                currency={invoice.currency}
+            />
+
+            {/* Delete line item confirmation */}
+            <AlertDialog open={!!deletingLineItem} onOpenChange={(o) => !o && setDeletingLineItem(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete line item?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will remove &quot;{deletingLineItem?.description}&quot; from the invoice. The invoice totals will be recalculated.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={deleteLineItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            {acting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Delete
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

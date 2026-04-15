@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -142,8 +143,7 @@ export default function NotificationsPage() {
         const currentOffset = reset ? 0 : offset;
         const unreadOnly = filter === "unread";
         const res = await fetch(
-          `/api/notifications?limit=${limit}&offset=${currentOffset}${
-            unreadOnly ? "&unreadOnly=true" : ""
+          `/api/notifications?limit=${limit}&offset=${currentOffset}${unreadOnly ? "&unreadOnly=true" : ""
           }`
         );
 
@@ -180,7 +180,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications(true);
-  }, [filter]);
+  }, [filter, fetchNotifications]);
 
   const handleLoadMore = () => {
     setOffset((prev) => prev + limit);
@@ -428,12 +428,12 @@ export default function NotificationsPage() {
                 checked={selectAll}
                 onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
               />
-              <label
+              <Label
                 htmlFor="select-all"
-                className="text-sm text-muted-foreground"
+                className="text-sm text-muted-foreground font-normal"
               >
                 Select all
-              </label>
+              </Label>
             </div>
           )}
 
@@ -464,7 +464,7 @@ export default function NotificationsPage() {
                         ? "bg-background"
                         : "bg-muted/50 border-primary/20",
                       notification.actionUrl &&
-                        "cursor-pointer hover:bg-accent/50"
+                      "cursor-pointer hover:bg-accent/50"
                     )}
                     onClick={() =>
                       notification.actionUrl &&

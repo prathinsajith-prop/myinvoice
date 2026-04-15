@@ -27,7 +27,7 @@ export async function registerAction(data: RegisterInput): Promise<ActionResult>
       };
     }
 
-    const { name, email, password } = parsed.data;
+    const { name, email, password, organizationName, businessType, country } = parsed.data;
     const normalizedEmail = email.toLowerCase();
 
     // Check if user already exists
@@ -54,11 +54,15 @@ export async function registerAction(data: RegisterInput): Promise<ActionResult>
       },
     });
 
-    // Create default organization
+    // Create organization with provided details
     const org = await prisma.organization.create({
       data: {
-        name: `${name}'s Business`,
+        name: organizationName,
         slug: `org-${user.id.slice(0, 8)}`,
+        businessType: businessType || undefined,
+        country: country || "AE",
+        defaultCurrency: country === "AE" ? "AED" : "USD",
+        defaultVatRate: country === "AE" ? 5 : 0,
       },
     });
 

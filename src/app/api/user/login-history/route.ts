@@ -3,15 +3,21 @@ import prisma from "@/lib/db/prisma";
 import { resolveUserContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
-/** GET /api/user/login-history — return last 50 login events for the current user */
+/** GET /api/user/login-history — paginated login events (cursor-based, 5 per page) */
 export async function GET(req: NextRequest) {
     try {
         const ctx = await resolveUserContext(req);
 
+        const cursor = req.nextUrl.searchParams.get("cursor");
+        const limit = 5;
+
         const records = await prisma.loginHistory.findMany({
             where: { userId: ctx.userId },
             orderBy: { createdAt: "desc" },
-            take: 50,
+            take: limit + 1,
+            ...(cursor
+                ? { cursor: { id: cursor }, skip: 1 }
+                : {}),
             select: {
                 id: true,
                 ipAddress: true,
@@ -26,7 +32,11 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        return NextResponse.json({ data: records });
+        const hasMore = records.length > limit;
+        const data = hasMore ? records.slice(0, limit) : records;
+        const nextCursor = hasMore ? data[data.length - 1].id : null;
+
+        return NextResponse.json({ data, nextCursor });
     } catch (error) {
         return toErrorResponse(error);
     }

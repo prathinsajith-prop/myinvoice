@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import useSWR from "swr";
 import { Loader2, CheckCircle2, XCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { jsonFetcher } from "@/lib/fetcher";
 
 interface InviteData {
   email: string;
@@ -23,28 +26,29 @@ function AcceptInviteContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
-  const [state, setState] = useState<"loading" | "valid" | "invalid" | "success">("loading");
-  const [invite, setInvite] = useState<InviteData | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
-
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+
+  const invitePath = token ? `/api/invite?token=${encodeURIComponent(token)}` : null;
+  const {
+    data: invite,
+    error,
+    isLoading,
+  } = useSWR<InviteData>(invitePath, jsonFetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
   useEffect(() => {
-    if (!token) { setState("invalid"); setErrorMsg("No invite token found."); return; }
+    if (!invite) {
+      return;
+    }
 
-    fetch(`/api/invite?token=${encodeURIComponent(token)}`)
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) { setState("invalid"); setErrorMsg(data.error ?? "Invalid invitation"); return; }
-        setInvite(data);
-        setName(data.email.split("@")[0]);
-        setState("valid");
-      })
-      .catch(() => { setState("invalid"); setErrorMsg("Failed to load invitation."); });
-  }, [token]);
+    setName((currentName) => currentName || invite.email.split("@")[0]);
+  }, [invite]);
 
   async function handleAccept() {
     if (!name.trim()) return toast.error("Name is required");
@@ -62,7 +66,7 @@ function AcceptInviteContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to accept invitation");
 
-      setState("success");
+      setAccepted(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -70,7 +74,7 @@ function AcceptInviteContent() {
     }
   }
 
-  if (state === "loading") {
+  if (!token || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -78,14 +82,16 @@ function AcceptInviteContent() {
     );
   }
 
-  if (state === "invalid") {
+  if (!token || error || !invite) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-2" />
             <CardTitle>Invalid Invitation</CardTitle>
-            <CardDescription>{errorMsg}</CardDescription>
+            <CardDescription>
+              {!token ? "No invite token found." : error instanceof Error ? error.message : "Failed to load invitation."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" variant="outline" onClick={() => router.push("/login")}>
@@ -97,7 +103,7 @@ function AcceptInviteContent() {
     );
   }
 
-  if (state === "success") {
+  if (accepted) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="max-w-md w-full">
@@ -105,7 +111,7 @@ function AcceptInviteContent() {
             <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-2" />
             <CardTitle>You&apos;re in!</CardTitle>
             <CardDescription>
-              Your account has been created. Sign in to access {invite?.organization.name}.
+              Your account has been created. Sign in to access {invite.organization.name}.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -181,7 +187,7 @@ function AcceptInviteContent() {
           </Button>
           <p className="text-xs text-center text-muted-foreground">
             Already have an account?{" "}
-            <a href="/login" className="underline">Sign in instead</a>
+            <Link href="/login" className="underline">Sign in instead</Link>
           </p>
         </CardContent>
       </Card>

@@ -6,7 +6,10 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 import { enforceInvoiceLimit } from "@/lib/plans.server";
+import { generateFtaQrPayload } from "@/lib/services/fta-qr";
+import { generatePublicToken } from "@/lib/crypto/token";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -43,6 +46,7 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
+        const customerId = searchParams.get("customerId");
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
         const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
         const skip = (page - 1) * limit;
@@ -51,6 +55,7 @@ export async function GET(req: NextRequest) {
             organizationId: ctx.organizationId,
             deletedAt: null,
             ...(status ? { status: status as never } : {}),
+            ...(customerId ? { customerId } : {}),
             ...(search
                 ? {
                     OR: [
@@ -131,13 +136,33 @@ export async function POST(req: NextRequest) {
 
         const invoiceNumber = await getNextDocumentNumber(ctx.organizationId, documentType);
 
+        const organization = await prisma.organization.findUnique({
+            where: { id: ctx.organizationId },
+            select: { name: true, legalName: true, trn: true },
+        });
+
+        const issueDateValue = issueDate ? new Date(issueDate) : new Date();
+
+        const qrCodeData = organization?.trn
+            ? generateFtaQrPayload({
+                sellerName: organization.legalName || organization.name,
+                trn: organization.trn,
+                timestampIso: issueDateValue.toISOString(),
+                invoiceTotal: totals.total,
+                vatTotal: totals.totalVat,
+            })
+            : null;
+
         const invoice = await prisma.invoice.create({
             data: {
                 ...invoiceData,
                 organizationId: ctx.organizationId,
                 invoiceNumber,
-                issueDate: issueDate ? new Date(issueDate) : new Date(),
+                issueDate: issueDateValue,
                 dueDate: new Date(dueDate),
+                publicToken: generatePublicToken(),
+                qrCodeData,
+                ftaCompliant: Boolean(organization?.trn && qrCodeData),
                 subtotal: totals.subtotal,
                 totalVat: totals.totalVat,
                 discount: totals.discount,
@@ -166,6 +191,17 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // Update customer denormalized stats
+        prisma.customer.update({
+            where: { id: invoice.customerId },
+            data: {
+                invoiceCount: { increment: 1 },
+                totalInvoiced: { increment: totals.total },
+                totalOutstanding: { increment: totals.total },
+                lastInvoiceDate: issueDateValue,
+            },
+        }).catch(() => { }); // fire-and-forget, non-critical
+
         // Audit log — feeds enforceInvoiceLimit counter
         prisma.auditLog.create({
             data: {
@@ -177,6 +213,18 @@ export async function POST(req: NextRequest) {
                 newData: { invoiceNumber: invoice.invoiceNumber },
             },
         }).catch(() => { }); // fire-and-forget, non-critical
+
+        // Notify org members about new invoice
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Invoice Created",
+            message: `Invoice ${invoice.invoiceNumber} has been created`,
+            type: "INVOICE_CREATED",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            actionUrl: `/invoices/${invoice.id}`,
+        }).catch(() => { }); // fire-and-forget
 
         return NextResponse.json(invoice, { status: 201 });
     } catch (error) {

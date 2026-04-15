@@ -95,15 +95,16 @@ export async function POST(req: NextRequest) {
 
         const data = result.data;
 
-        const last = await prisma.payment.findFirst({
-            where: { organizationId: ctx.organizationId },
-            orderBy: { createdAt: "desc" },
-            select: { paymentNumber: true },
-        });
-        const paymentNumber = genPaymentNumber(last?.paymentNumber ?? null);
         const amountNet = data.amount - data.bankCharge;
 
         const payment = await prisma.$transaction(async (tx) => {
+            // Generate payment number atomically inside the transaction
+            const last = await tx.payment.findFirst({
+                where: { organizationId: ctx.organizationId },
+                orderBy: { createdAt: "desc" },
+                select: { paymentNumber: true },
+            });
+            const paymentNumber = genPaymentNumber(last?.paymentNumber ?? null);
             const pay = await tx.payment.create({
                 data: {
                     organizationId: ctx.organizationId,

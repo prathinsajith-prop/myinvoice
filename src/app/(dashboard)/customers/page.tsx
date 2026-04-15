@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     Plus,
-    Search,
     MoreHorizontal,
     Building2,
     Mail,
     Phone,
-    Loader2,
     Eye,
     Pencil,
     FileText,
@@ -17,9 +15,16 @@ import {
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -31,6 +36,13 @@ import { DataTable } from "@/components/ui/data-table";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { LoadingState } from "@/components/loading-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { formatAmount } from "@/lib/format";
 
 interface Customer {
     id: string;
@@ -61,7 +73,7 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
@@ -69,12 +81,8 @@ export default function CustomersPage() {
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [invoiceOpen, setInvoiceOpen] = useState(false);
     const [invoiceCustomerId, setInvoiceCustomerId] = useState<string | undefined>(undefined);
-
-    // Debounce search
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -89,7 +97,8 @@ export default function CustomersPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
+            if (typeFilter !== "ALL") params.set("type", typeFilter);
             const res = await fetch(`/api/customers?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -99,15 +108,21 @@ export default function CustomersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch]);
+    }, [page, normalizedSearch, typeFilter]);
 
     useEffect(() => {
         fetchCustomers();
     }, [fetchCustomers]);
 
-    useEffect(() => {
+    const handleSearchChange = (value: string) => {
         setPage(1);
-    }, [debouncedSearch]);
+        setSearch(value);
+    };
+
+    const handleTypeFilterChange = (value: string) => {
+        setPage(1);
+        setTypeFilter(value);
+    };
 
     const columns = useMemo<ColumnDef<Customer>[]>(() => [
         {
@@ -230,9 +245,14 @@ export default function CustomersPage() {
             image: data.image ?? "",
             type: data.type ?? "BUSINESS",
             taxRegistrationNumber: data.trn ?? "",
-            address: data.addressLine1 ?? "",
+            unitNumber: data.unitNumber ?? "",
+            buildingName: data.buildingName ?? "",
+            street: data.street ?? "",
+            area: data.area ?? "",
             city: data.city ?? "",
+            emirate: data.emirate ?? "",
             country: data.country ?? "AE",
+            postalCode: data.postalCode ?? "",
             website: data.website ?? "",
             notes: data.notes ?? "",
         });
@@ -241,98 +261,87 @@ export default function CustomersPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total customers` : "Manage your customer directory"}
-                    </p>
-                </div>
-                <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Customer
-                </Button>
-            </div>
+            <PageHeader
+                title="Customers"
+                description={pagination ? `${pagination.total} total customers` : "Manage your customer directory"}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={customers}
+                            columns={[
+                                { header: "Name", accessor: "name" },
+                                { header: "Email", accessor: "email" },
+                                { header: "Phone", accessor: "phone" },
+                                { header: "Type", accessor: "type" },
+                                { header: "Total Invoiced", accessor: "totalInvoiced", format: (v) => formatAmount(v) },
+                                { header: "Outstanding", accessor: "totalOutstanding", format: (v) => formatAmount(v) },
+                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                            ]}
+                            filename="customers"
+                            title="Customers Report"
+                        />
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Customer
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Stats */}
-            <div className="grid gap-4 sm:grid-cols-3">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Total Customers
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{pagination?.total ?? "-"}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Total Invoiced
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {currency}{" "}
-                            {customers
-                                .reduce((s, c) => s + Number(c.totalInvoiced), 0)
-                                .toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-amber-600">
-                            {currency}{" "}
-                            {customers
-                                .reduce((s, c) => s + Number(c.totalOutstanding), 0)
-                                .toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <StatCard label="Total Customers">{pagination?.total ?? "-"}</StatCard>
+                <StatCard label="Total Invoiced">
+                    {currency}{" "}
+                    {formatAmount(customers.reduce((s, c) => s + Number(c.totalInvoiced), 0))}
+                </StatCard>
+                <StatCard label="Outstanding">
+                    <span className="text-amber-600">
+                        {currency}{" "}
+                        {formatAmount(customers.reduce((s, c) => s + Number(c.totalOutstanding), 0))}
+                    </span>
+                </StatCard>
             </div>
 
             {/* Table */}
             <Card>
                 <CardHeader className="pb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="relative flex-1 max-w-sm">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Search customers..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <SearchInput
+                            placeholder="Search customers..."
+                            value={search}
+                            onChange={handleSearchChange}
+                            onRefresh={fetchCustomers}
+                            isRefreshing={loading}
+                        />
+                        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
+                            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">All Types</SelectItem>
+                                <SelectItem value="BUSINESS">Business</SelectItem>
+                                <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState />
                     ) : customers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <Building2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                            <p className="text-sm font-medium">No customers found</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch
-                                    ? "Try a different search term"
-                                    : "Add your first customer to get started"}
-                            </p>
-                            {!debouncedSearch && (
-                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Customer
-                                </Button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon={Building2}
+                            title="No customers found"
+                            description={
+                                normalizedSearch || typeFilter !== "ALL"
+                                    ? "Try adjusting your filters"
+                                    : "Add your first customer to get started"
+                            }
+                            action={
+                                !normalizedSearch && typeFilter === "ALL"
+                                    ? { label: "Add Customer", onClick: () => setCreateOpen(true) }
+                                    : undefined
+                            }
+                        />
                     ) : (
                         <DataTable
                             columns={columns}
@@ -341,33 +350,12 @@ export default function CustomersPage() {
                         />
                     )}
 
-                    {/* Pagination */}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between border-t px-4 py-3">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                                {pagination.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={page === 1}
-                                    onClick={() => setPage((p) => p - 1)}
-                                >
-                                    Previous
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={page === pagination.pages}
-                                    onClick={() => setPage((p) => p + 1)}
-                                >
-                                    Next
-                                </Button>
-                            </div>
-                        </div>
+                    {pagination && (
+                        <PaginationControls
+                            pagination={pagination}
+                            page={page}
+                            onPageChange={setPage}
+                        />
                     )}
                 </CardContent>
             </Card>

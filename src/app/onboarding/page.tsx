@@ -116,10 +116,11 @@ function CountrySearch({
 
     return (
         <div className="relative">
-            <button
+            <Button
                 type="button"
+                variant="outline"
                 onClick={() => setOpen((o) => !o)}
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="flex h-10 w-full items-center justify-between px-3 py-2 text-sm"
             >
                 {selected ? (
                     <span className="flex items-center gap-2">
@@ -133,19 +134,18 @@ function CountrySearch({
                     <span className="text-muted-foreground">Select country…</span>
                 )}
                 <ChevronRight className="h-4 w-4 opacity-50 rotate-90" />
-            </button>
+            </Button>
 
             {open && (
                 <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
                     {/* Search */}
                     <div className="flex items-center border-b px-3">
                         <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
-                        <input
-                            autoFocus
-                            className="flex h-10 w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                        <Input
                             placeholder="Search country or currency…"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
+                            className="h-10 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                         />
                     </div>
                     <ul className="max-h-60 overflow-y-auto p-1">
@@ -156,9 +156,10 @@ function CountrySearch({
                         )}
                         {filtered.map((c) => (
                             <li key={c.value}>
-                                <button
+                                <Button
                                     type="button"
-                                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                    variant="ghost"
+                                    className="flex h-auto w-full items-center gap-2 justify-start rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
                                     onClick={() => {
                                         onChange(c.value, c.currency);
                                         setOpen(false);
@@ -171,7 +172,7 @@ function CountrySearch({
                                         {c.currency}
                                     </Badge>
                                     {value === c.value && <Check className="h-4 w-4 text-primary" />}
-                                </button>
+                                </Button>
                             </li>
                         ))}
                     </ul>
@@ -309,10 +310,10 @@ export default function OnboardingPage() {
                                 <div className="flex flex-col items-center gap-1">
                                     <div
                                         className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${isDone
-                                                ? "border-primary bg-primary text-primary-foreground"
-                                                : isActive
-                                                    ? "border-primary text-primary"
-                                                    : "border-muted-foreground/30 text-muted-foreground"
+                                            ? "border-primary bg-primary text-primary-foreground"
+                                            : isActive
+                                                ? "border-primary text-primary"
+                                                : "border-muted-foreground/30 text-muted-foreground"
                                             }`}
                                     >
                                         {isDone ? <Check className="h-5 w-5" /> : <Icon className="h-4 w-4" />}

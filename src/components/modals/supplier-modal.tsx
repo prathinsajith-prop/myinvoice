@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -378,7 +378,7 @@ export function SupplierModal({
                     <Button variant="outline" onClick={onClose} disabled={saving}>
                         Cancel
                     </Button>
-                    <Button type="submit" form="supplier-form" disabled={saving}>
+                    <Button type="submit" form="supplier-form" disabled={saving || (isEdit && !form.formState.isDirty)}>
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isEdit ? "Save Changes" : "Create Supplier"}
                     </Button>

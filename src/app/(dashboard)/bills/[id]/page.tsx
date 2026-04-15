@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ interface Bill {
     discount: number;
     totalVat: number;
     total: number;
+    amountPaid: number;
     outstanding: number;
     supplier: { id: string; name: string; email: string | null; phone: string | null; trn: string | null };
     lineItems: LineItem[];
@@ -150,10 +151,14 @@ export default function BillDetailPage() {
 
     if (!bill) return null;
 
-    const canVoid = !["VOID"].includes(bill.status);
-    const canPay = !["PAID", "VOID"].includes(bill.status);
+    const canVoid = !["VOID", "PAID", "PARTIALLY_PAID"].includes(bill.status) && Number(bill.amountPaid) <= 0.01;
+    const canPay = !["PAID", "VOID"].includes(bill.status) && Number(bill.outstanding) > 0;
     const canReceive = bill.status === "DRAFT";
     const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const shareText = encodeURIComponent(
+        `Bill ${bill.billNumber}\nAmount: ${bill.currency} ${Number(bill.total).toFixed(2)}\nOutstanding: ${bill.currency} ${Number(bill.outstanding).toFixed(2)}`
+    );
 
     return (
         <div className="space-y-6">
@@ -191,6 +196,11 @@ export default function BillDetailPage() {
                     )}
                     <Button variant="ghost" size="icon" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild>
+                        <a href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noopener noreferrer">
+                            <MessageCircle className="h-4 w-4" />
+                        </a>
                     </Button>
                 </div>
             </div>
@@ -246,17 +256,21 @@ export default function BillDetailPage() {
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span>{Number(bill.subtotal).toFixed(2)}</span>
+                                <span>{bill.currency} {Number(bill.subtotal).toFixed(2)}</span>
                             </div>
                             {Number(bill.discount) > 0 && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Discount</span>
-                                    <span className="text-green-600">− {Number(bill.discount).toFixed(2)}</span>
+                                    <span className="text-green-600">− {bill.currency} {Number(bill.discount).toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">VAT</span>
-                                <span>{Number(bill.totalVat).toFixed(2)}</span>
+                                <span>{bill.currency} {Number(bill.totalVat).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Paid</span>
+                                <span>{bill.currency} {Number(bill.amountPaid).toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold">
@@ -293,10 +307,10 @@ export default function BillDetailPage() {
                                             <TableRow key={item.id}>
                                                 <TableCell>{item.description}</TableCell>
                                                 <TableCell className="text-right tabular-nums">{Number(item.quantity)}</TableCell>
-                                                <TableCell className="text-right tabular-nums">{Number(item.unitPrice).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{bill.currency} {Number(item.unitPrice).toFixed(2)}</TableCell>
                                                 <TableCell className="text-right tabular-nums">{Number(item.discount).toFixed(0)}%</TableCell>
-                                                <TableCell className="text-right tabular-nums">{Number(item.vatAmount).toFixed(2)}</TableCell>
-                                                <TableCell className="text-right tabular-nums font-medium">{Number(item.total).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums">{bill.currency} {Number(item.vatAmount).toFixed(2)}</TableCell>
+                                                <TableCell className="text-right tabular-nums font-medium">{bill.currency} {Number(item.total).toFixed(2)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

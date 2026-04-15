@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Plus, Search, CreditCard, Loader2, Eye, Pencil } from "lucide-react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Plus, CreditCard, Eye, Pencil, CheckCircle2, Clock } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { ExpenseModal } from "@/components/modals/expense-modal";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
+import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { LoadingState } from "@/components/loading-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { StatCard } from "@/components/stat-card";
+import { formatAmount } from "@/lib/format";
+import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 import {
     Dialog,
     DialogContent,
@@ -31,7 +38,7 @@ import {
 interface Expense {
     id: string;
     expenseNumber: string;
-    status: string;
+    isPaid: boolean;
     total: number;
     expenseDate: string;
     category: string;
@@ -61,19 +68,22 @@ interface ExpenseDetail {
     merchantName: string | null;
     reference: string | null;
     notes: string | null;
-    status: string;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-    TRAVEL: "Travel",
-    MEALS_AND_ENTERTAINMENT: "Meals & Entertainment",
-    OFFICE_SUPPLIES: "Office Supplies",
-    UTILITIES: "Utilities",
     RENT: "Rent",
+    UTILITIES: "Utilities",
+    TRAVEL: "Travel",
+    MEALS_ENTERTAINMENT: "Meals & Entertainment",
+    OFFICE_SUPPLIES: "Office Supplies",
     MARKETING: "Marketing",
-    PROFESSIONAL_SERVICES: "Professional Services",
+    SOFTWARE_SUBSCRIPTIONS: "Software Subscriptions",
+    PROFESSIONAL_FEES: "Professional Fees",
     INSURANCE: "Insurance",
-    MAINTENANCE: "Maintenance",
+    MAINTENANCE_REPAIRS: "Maintenance & Repairs",
+    SALARIES_WAGES: "Salaries & Wages",
+    TAX_PAYMENTS: "Tax Payments",
+    BANK_CHARGES: "Bank Charges",
     OTHER: "Other",
 };
 
@@ -84,19 +94,15 @@ export default function ExpensesPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL");
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [viewDetail, setViewDetail] = useState<ExpenseDetail | null>(null);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -111,8 +117,8 @@ export default function ExpensesPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
-            if (statusFilter !== "ALL") params.set("status", statusFilter);
+            if (normalizedSearch) params.set("search", normalizedSearch);
+            if (categoryFilter !== "ALL") params.set("category", categoryFilter);
             const res = await fetch(`/api/expenses?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -122,10 +128,19 @@ export default function ExpensesPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, normalizedSearch, categoryFilter]);
 
     useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleCategoryFilterChange = (value: string) => {
+        setPage(1);
+        setCategoryFilter(value);
+    };
 
     const totalAmount = expenses.reduce((s, e) => s + Number(e.total), 0);
 
@@ -202,9 +217,16 @@ export default function ExpensesPage() {
             ),
         },
         {
-            accessorKey: "status",
-            header: "Status",
-            cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+            accessorKey: "isPaid",
+            header: "Payment",
+            cell: ({ row }) => {
+                const isPaid = row.getValue("isPaid") as boolean;
+                return (
+                    <Badge variant={isPaid ? "default" : "secondary"} className={isPaid ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-amber-100 text-amber-700 hover:bg-amber-100"}>
+                        {isPaid ? <><CheckCircle2 className="mr-1 h-3 w-3" /> Paid</> : <><Clock className="mr-1 h-3 w-3" /> Unpaid</>}
+                    </Badge>
+                );
+            },
         },
         {
             id: "actions",
@@ -226,85 +248,81 @@ export default function ExpensesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Expenses</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total expenses` : "Track business expenses"}
-                    </p>
-                </div>
-                <Button onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Expense
-                </Button>
-            </div>
+            <PageHeader
+                title="Expenses"
+                description={pagination ? `${pagination.total} total expenses` : "Track business expenses"}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={expenses}
+                            columns={[
+                                { header: "Expense #", accessor: "expenseNumber" },
+                                { header: "Description", accessor: "description" },
+                                { header: "Category", accessor: "category", format: (v) => CATEGORY_LABELS[v as string] ?? String(v) },
+                                { header: "Date", accessor: "expenseDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Method", accessor: "paymentMethod", format: (v) => String(v).toLowerCase().replace(/_/g, " ") },
+                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: "Paid", accessor: "isPaid", format: (v) => v ? "Yes" : "No" },
+                            ]}
+                            filename="expenses"
+                            title="Expenses Report"
+                        />
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Expense
+                        </Button>
+                    </>
+                }
+            />
 
-            <div className="grid gap-4 sm:grid-cols-3">
-                <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Expenses</CardTitle></CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{pagination?.total ?? "—"}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Amount (shown)</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {currency} {totalAmount.toLocaleString("en-AE", { minimumFractionDigits: 2 })}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Approval</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-amber-600">
-                            {expenses.filter((e) => e.status === "PENDING_APPROVAL").length}
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <StatCard label="Total Expenses">{pagination?.total ?? "—"}</StatCard>
+                <StatCard label="Amount (shown)">{currency} {formatAmount(totalAmount)}</StatCard>
+                <StatCard label="Unpaid"><span className="text-amber-600">{expenses.filter((e) => !e.isPaid).length}</span></StatCard>
             </div>
 
             <Card>
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
-                        <div className="relative flex-1 min-w-[200px] max-w-sm">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Search expenses..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                        <SearchInput
+                            placeholder="Search expenses..."
+                            value={search}
+                            onChange={handleSearchChange}
+                            onRefresh={fetchExpenses}
+                            isRefreshing={loading}
+                        />
+                        <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
+                            <SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
-                                <SelectItem value="PENDING_APPROVAL"><StatusOption status="PENDING_APPROVAL" /></SelectItem>
-                                <SelectItem value="APPROVED"><StatusOption status="APPROVED" /></SelectItem>
-                                <SelectItem value="REJECTED"><StatusOption status="REJECTED" /></SelectItem>
-                                <SelectItem value="REIMBURSED"><StatusOption status="REIMBURSED" /></SelectItem>
+                                <SelectItem value="ALL">All Categories</SelectItem>
+                                <SelectItem value="TRAVEL">Travel</SelectItem>
+                                <SelectItem value="MEALS_ENTERTAINMENT">Meals & Entertainment</SelectItem>
+                                <SelectItem value="OFFICE_SUPPLIES">Office Supplies</SelectItem>
+                                <SelectItem value="UTILITIES">Utilities</SelectItem>
+                                <SelectItem value="RENT">Rent</SelectItem>
+                                <SelectItem value="MARKETING">Marketing</SelectItem>
+                                <SelectItem value="PROFESSIONAL_FEES">Professional Fees</SelectItem>
+                                <SelectItem value="INSURANCE">Insurance</SelectItem>
+                                <SelectItem value="MAINTENANCE_REPAIRS">Maintenance & Repairs</SelectItem>
+                                <SelectItem value="SOFTWARE_SUBSCRIPTIONS">Software Subscriptions</SelectItem>
+                                <SelectItem value="SALARIES_WAGES">Salaries & Wages</SelectItem>
+                                <SelectItem value="TAX_PAYMENTS">Tax Payments</SelectItem>
+                                <SelectItem value="BANK_CHARGES">Bank Charges</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState />
                     ) : expenses.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                            <p className="text-sm font-medium">No expenses found</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Track your first business expense"}
-                            </p>
-                            {!debouncedSearch && statusFilter === "ALL" && (
-                                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />New Expense
-                                </Button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon={CreditCard}
+                            title="No expenses found"
+                            description={normalizedSearch || categoryFilter !== "ALL" ? "Try adjusting your filters" : "Track your first business expense"}
+                            action={!normalizedSearch && categoryFilter === "ALL" ? { label: "New Expense", onClick: () => setCreateOpen(true) } : undefined}
+                        />
                     ) : (
                         <DataTable
                             columns={columns}
@@ -312,18 +330,7 @@ export default function ExpensesPage() {
                             onRowClick={(expense) => openView(expense.id)}
                         />
                     )}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between border-t px-4 py-3">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                                <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-                            </div>
-                        </div>
-                    )}
+                    {pagination && <PaginationControls pagination={pagination} page={page} onPageChange={setPage} />}
                 </CardContent>
             </Card>
             <ExpenseModal
@@ -340,7 +347,11 @@ export default function ExpensesPage() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center justify-between">
                             <span>{viewDetail?.expenseNumber}</span>
-                            {viewDetail && <StatusBadge status={viewDetail.status} />}
+                            {viewDetail && (
+                                <Badge variant={viewDetail.isPaid ? "default" : "secondary"} className={viewDetail.isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>
+                                    {viewDetail.isPaid ? "Paid" : "Unpaid"}
+                                </Badge>
+                            )}
                         </DialogTitle>
                     </DialogHeader>
                     {viewDetail && (
@@ -383,7 +394,7 @@ export default function ExpensesPage() {
                                 </div>
                                 {Number(viewDetail.vatAmount) > 0 && (
                                     <div className="flex justify-between text-muted-foreground">
-                                        <span>VAT ({viewDetail.vatTreatment.replace(/_/g, " ")})</span>
+                                        <span>VAT ({VAT_TREATMENT_LABELS[viewDetail.vatTreatment] ?? viewDetail.vatTreatment.replace(/_/g, " ")})</span>
                                         <span>{viewDetail.currency} {Number(viewDetail.vatAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
                                     </div>
                                 )}

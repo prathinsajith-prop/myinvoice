@@ -6,6 +6,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -165,6 +166,18 @@ export async function POST(req: NextRequest) {
                 supplier: { select: { id: true, name: true, email: true } },
             },
         });
+
+        // Notify org members about new bill
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Bill Received",
+            message: `Bill ${bill.billNumber} has been recorded`,
+            type: "BILL_DUE",
+            entityType: "Bill",
+            entityId: bill.id,
+            actionUrl: `/bills/${bill.id}`,
+        }).catch(() => { });
 
         return NextResponse.json(bill, { status: 201 });
     } catch (error) {

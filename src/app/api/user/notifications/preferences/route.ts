@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import prisma from "@/lib/db/prisma";
 import { updateNotificationPreferencesSchema } from "@/lib/validations/settings";
+import { NEXTAUTH_SECRET } from "@/lib/constants/env";
 
 // GET /api/user/notifications/preferences - Get notification preferences
 export async function GET(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
+    let token;
+    try {
+      token = await getToken({ req, secret: NEXTAUTH_SECRET });
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (!token?.sub) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -41,8 +47,13 @@ export async function GET(req: NextRequest) {
 // PATCH /api/user/notifications/preferences - Update notification preferences
 export async function PATCH(req: NextRequest) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
+    let token;
+    try {
+      token = await getToken({ req, secret: NEXTAUTH_SECRET });
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (!token?.sub) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

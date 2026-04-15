@@ -3,17 +3,38 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
-import { getNextDocumentNumber } from "@/lib/services/numbering";
+import { normalizeDocumentBody } from "@/lib/api/normalize";
+import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 
 type Params = { params: Promise<{ id: string }> };
 
+const lineItemSchema = z.object({
+    productId: z.string().optional().nullable(),
+    description: z.string().min(1),
+    quantity: z.coerce.number().positive(),
+    unitPrice: z.coerce.number().min(0),
+    unitOfMeasure: z.string().default("unit"),
+    discount: z.coerce.number().min(0).max(100).default(0),
+    vatTreatment: z
+        .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE", "REVERSE_CHARGE"])
+        .default("STANDARD_RATED"),
+    vatRate: z.coerce.number().min(0).max(100).default(5),
+    sortOrder: z.coerce.number().int().default(0),
+});
+
 const updateQuotationSchema = z.object({
+    customerId: z.string().min(1).optional(),
     reference: z.string().optional().nullable(),
-    validUntil: z.string().datetime().optional(),
+    issueDate: z.string().optional(),
+    validUntil: z.string().optional(),
+    currency: z.string().optional(),
+    exchangeRate: z.coerce.number().positive().optional(),
     notes: z.string().optional().nullable(),
     terms: z.string().optional().nullable(),
+    termsAndConditions: z.string().optional().nullable(),
     internalNotes: z.string().optional().nullable(),
     status: z.enum(["DRAFT", "SENT", "VIEWED", "ACCEPTED", "REJECTED", "EXPIRED", "CONVERTED"]).optional(),
+    lineItems: z.array(lineItemSchema).optional(),
 });
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -43,10 +64,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     try {
         const ctx = await resolveApiContext(req);
         const { id } = await params;
-        const body = await req.json();
+        const raw = await req.json();
+        const body = normalizeDocumentBody(raw);
 
         const quotation = await prisma.quotation.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
+            include: { lineItems: true },
         });
         if (!quotation) throw new NotFoundError("Quotation");
         if (quotation.status === "CONVERTED") {
@@ -61,12 +84,68 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             );
         }
 
+        const { lineItems, ...data } = result.data;
+
+        let updateData: any = {
+            ...(data.customerId ? { customerId: data.customerId } : {}),
+            ...(data.reference !== undefined ? { reference: data.reference ?? null } : {}),
+            ...(data.issueDate ? { issueDate: new Date(data.issueDate) } : {}),
+            ...(data.validUntil ? { validUntil: new Date(data.validUntil) } : {}),
+            ...(data.currency ? { currency: data.currency } : {}),
+            ...(data.exchangeRate ? { exchangeRate: data.exchangeRate } : {}),
+            ...(data.notes !== undefined ? { notes: data.notes ?? null } : {}),
+            ...(data.terms !== undefined ? { terms: data.terms ?? null } : {}),
+            ...(data.termsAndConditions ? { terms: data.termsAndConditions } : {}),
+            ...(data.internalNotes !== undefined ? { internalNotes: data.internalNotes ?? null } : {}),
+            ...(data.status ? { status: data.status } : {}),
+        };
+
+        // Handle line items update
+        if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {
+            const calculatedItems = lineItems.map((item) => {
+                const calc = calculateLineItem({
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount,
+                    vatTreatment: item.vatTreatment,
+                    vatRate: item.vatRate,
+                });
+                return { ...item, ...calc };
+            });
+
+            const totals = calculateDocumentTotals(calculatedItems);
+            updateData = {
+                ...updateData,
+                subtotal: totals.subtotal,
+                totalVat: totals.totalVat,
+                discount: totals.discount,
+                total: totals.total,
+            };
+
+            // Delete old line items and create new ones
+            await prisma.quotationLineItem.deleteMany({ where: { quotationId: id } });
+
+            updateData.lineItems = {
+                create: calculatedItems.map((item, index) => ({
+                    productId: item.productId ?? null,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    unitOfMeasure: item.unitOfMeasure,
+                    discount: item.discount,
+                    vatTreatment: item.vatTreatment,
+                    vatRate: item.vatRate,
+                    subtotal: item.subtotal,
+                    vatAmount: item.vatAmount,
+                    total: item.total,
+                    sortOrder: item.sortOrder ?? index,
+                })),
+            };
+        }
+
         const updated = await prisma.quotation.update({
             where: { id },
-            data: {
-                ...result.data,
-                ...(result.data.validUntil ? { validUntil: new Date(result.data.validUntil) } : {}),
-            },
+            data: updateData,
             include: {
                 lineItems: { orderBy: { sortOrder: "asc" } },
                 customer: { select: { id: true, name: true, email: true } },

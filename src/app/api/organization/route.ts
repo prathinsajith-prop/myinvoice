@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import crypto from "node:crypto";
 import prisma from "@/lib/db/prisma";
 import { updateOrganizationSchema } from "@/lib/validations/settings";
 import {
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
       .replace(/^-|-$/g, "")
       .slice(0, 40);
 
-    const suffix = Math.random().toString(36).slice(2, 7);
+    const suffix = crypto.randomBytes(3).toString("hex").slice(0, 5);
     const slug = `${baseSlug}-${suffix}`;
 
     const DOCUMENT_SEQUENCES = [

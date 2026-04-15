@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
             monthlyInvoices,
             monthlyExpenses,
             recentInvoices,
+            receivableAgingInvoices,
         ] = await Promise.all([
             prisma.invoice.aggregate({
                 where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: from, lte: to } },
@@ -155,6 +156,16 @@ export async function GET(req: NextRequest) {
                     customer: { select: { id: true, name: true } },
                 },
             }),
+
+            prisma.invoice.findMany({
+                where: {
+                    organizationId: orgId,
+                    deletedAt: null,
+                    status: { notIn: ["VOID", "PAID", "CREDITED"] },
+                    outstanding: { gt: 0 },
+                },
+                select: { dueDate: true, outstanding: true },
+            }),
         ]);
 
         const totalRevenue = Number(invoiceSummary._sum.total ?? 0);
@@ -197,6 +208,26 @@ export async function GET(req: NextRequest) {
             return { month: d.toLocaleString("en", { month: "short", year: "numeric" }), ...vals };
         });
 
+        const aging = {
+            current: 0,
+            days1to30: 0,
+            days31to60: 0,
+            days61to90: 0,
+            days90plus: 0,
+        };
+
+        for (const inv of receivableAgingInvoices) {
+            const outstanding = Number(inv.outstanding || 0);
+            const diffMs = now.getTime() - new Date(inv.dueDate).getTime();
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (days <= 0) aging.current += outstanding;
+            else if (days <= 30) aging.days1to30 += outstanding;
+            else if (days <= 60) aging.days31to60 += outstanding;
+            else if (days <= 90) aging.days61to90 += outstanding;
+            else aging.days90plus += outstanding;
+        }
+
         return NextResponse.json({
             period: { start: from.toISOString(), end: to.toISOString() },
             kpis: {
@@ -235,6 +266,7 @@ export async function GET(req: NextRequest) {
                 total: Number(c._sum.total ?? 0),
             })),
             vatSummary: { outputVat, inputVat, netVatPayable },
+            receivableAging: aging,
             monthlyTrend,
             recentInvoices: recentInvoices.map((inv) => ({
                 id: inv.id,

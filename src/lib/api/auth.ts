@@ -9,6 +9,7 @@ import { UnauthorizedError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { hasRole, type MemberRole, hasPermission, type Permission } from "@/lib/rbac";
 import prisma from "@/lib/db/prisma";
 import { getTenantPrisma, type TenantPrismaClient } from "@/lib/db/tenant";
+import { NEXTAUTH_SECRET } from "@/lib/constants/env";
 
 export interface ApiContext {
   userId: string;
@@ -25,7 +26,12 @@ export interface ApiUserContext {
  * Use this for profile, password, and other user-scoped endpoints.
  */
 export async function resolveUserContext(req: NextRequest): Promise<ApiUserContext> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  let token;
+  try {
+    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+  } catch {
+    throw new UnauthorizedError();
+  }
 
   if (!token?.sub) {
     throw new UnauthorizedError();
@@ -39,7 +45,12 @@ export async function resolveUserContext(req: NextRequest): Promise<ApiUserConte
  * Throws typed errors rather than returning null.
  */
 export async function resolveApiContext(req: NextRequest): Promise<ApiContext> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  let token;
+  try {
+    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+  } catch {
+    throw new UnauthorizedError();
+  }
 
   if (!token?.sub) {
     throw new UnauthorizedError();

@@ -65,6 +65,13 @@ interface ReportData {
         inputVat: number;
         netVatPayable: number;
     };
+    receivableAging?: {
+        current: number;
+        days1to30: number;
+        days31to60: number;
+        days61to90: number;
+        days90plus: number;
+    };
     monthlyTrend?: Array<{ month: string; revenue: number; expenses: number }>;
 }
 
@@ -309,8 +316,22 @@ export default function ReportsPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Expenses by Category */}
                         <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Invoice Aging (Outstanding)</CardTitle>
+                                <CardDescription>Receivables by age bucket</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Current</span><span className="font-medium">{fmt(report.receivableAging?.current ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">1-30 days</span><span className="font-medium">{fmt(report.receivableAging?.days1to30 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">31-60 days</span><span className="font-medium">{fmt(report.receivableAging?.days31to60 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">61-90 days</span><span className="font-medium">{fmt(report.receivableAging?.days61to90 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">90+ days</span><span className="font-medium text-destructive">{fmt(report.receivableAging?.days90plus ?? 0, currency)}</span></div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Expenses by Category */}
+                        <Card className="lg:col-span-2">
                             <CardHeader><CardTitle className="text-base">Expenses by Category</CardTitle></CardHeader>
                             <CardContent>
                                 {report.expensesByCategory && report.expensesByCategory.length > 0 ? (

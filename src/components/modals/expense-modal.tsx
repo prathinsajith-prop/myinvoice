@@ -26,6 +26,7 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
@@ -234,7 +235,7 @@ export function ExpenseModal({
                                                 Date <span className="text-destructive">*</span>
                                             </FormLabel>
                                             <FormControl>
-                                                <Input type="date" {...field} />
+                                                <DatePicker value={field.value} onChange={field.onChange} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -250,11 +251,11 @@ export function ExpenseModal({
                                             </FormLabel>
                                             <FormControl>
                                                 <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     placeholder="0.00"
                                                     {...field}
+                                                    onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -269,11 +270,11 @@ export function ExpenseModal({
                                             <FormLabel>VAT Amount</FormLabel>
                                             <FormControl>
                                                 <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     placeholder="0.00"
                                                     {...field}
+                                                    onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -371,7 +372,7 @@ export function ExpenseModal({
                     <Button variant="outline" onClick={onClose} disabled={saving}>
                         Cancel
                     </Button>
-                    <Button type="submit" form="expense-form" disabled={saving}>
+                    <Button type="submit" form="expense-form" disabled={saving || (isEdit && !form.formState.isDirty)}>
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isEdit ? "Save Changes" : "Record Expense"}
                     </Button>

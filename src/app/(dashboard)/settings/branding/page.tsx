@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useRef, useState } from "react";
+import useSWR from "swr";
 import {
     Loader2,
     Palette,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { jsonFetcher } from "@/lib/fetcher";
 
 interface BrandingData {
     logo: string | null;
@@ -29,34 +31,39 @@ interface BrandingData {
     name: string;
 }
 
+interface BrandingResponse {
+    organization: BrandingData;
+    role: string;
+}
+
 const DEFAULT_PRIMARY = "#3B82F6";
 const DEFAULT_SECONDARY = "#10B981";
 
 export default function BrandingSettingsPage() {
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
-    const [logoBase64, setLogoBase64] = useState<string | null>(null);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
     const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY);
     const [secondaryColor, setSecondaryColor] = useState(DEFAULT_SECONDARY);
     const [orgName, setOrgName] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        fetch("/api/organization")
-            .then((r) => r.json())
-            .then((json) => {
-                const org: BrandingData = json.organization;
-                setOrgName(org.name ?? "");
-                setPrimaryColor(org.primaryColor ?? DEFAULT_PRIMARY);
-                setSecondaryColor(org.secondaryColor ?? DEFAULT_SECONDARY);
-                if (org.logo) setLogoPreview(org.logo);
-                setIsAdmin(json.role === "OWNER" || json.role === "ADMIN");
-            })
-            .catch(() => toast.error("Failed to load branding settings"))
-            .finally(() => setLoading(false));
-    }, []);
+    const { isLoading: loading, mutate } = useSWR<BrandingResponse>("/api/organization", jsonFetcher, {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        onSuccess(json) {
+            const org = json.organization;
+            setOrgName(org.name ?? "");
+            setPrimaryColor(org.primaryColor ?? DEFAULT_PRIMARY);
+            setSecondaryColor(org.secondaryColor ?? DEFAULT_SECONDARY);
+            setLogoPreview(org.logo ?? null);
+            setIsAdmin(json.role === "OWNER" || json.role === "ADMIN");
+        },
+        onError() {
+            toast.error("Failed to load branding settings");
+        },
+    });
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -69,7 +76,7 @@ export default function BrandingSettingsPage() {
         reader.onload = (ev) => {
             const result = ev.target?.result as string;
             setLogoPreview(result);
-            setLogoBase64(result);
+            setLogoFile(file);
         };
         reader.readAsDataURL(file);
     };
@@ -81,7 +88,21 @@ export default function BrandingSettingsPage() {
                 primaryColor,
                 secondaryColor,
             };
-            if (logoBase64) payload.logo = logoBase64;
+
+            if (logoFile) {
+                const formData = new FormData();
+                formData.append("file", logoFile);
+
+                const uploadRes = await fetch("/api/uploads/logo", {
+                    method: "POST",
+                    body: formData,
+                });
+                const uploadData = await uploadRes.json();
+                if (!uploadRes.ok) {
+                    throw new Error(uploadData.error ?? "Failed to upload logo");
+                }
+                payload.logo = uploadData.url;
+            }
 
             const res = await fetch("/api/organization", {
                 method: "PATCH",
@@ -95,7 +116,8 @@ export default function BrandingSettingsPage() {
             }
 
             toast.success("Branding saved successfully");
-            setLogoBase64(null);
+            setLogoFile(null);
+            await mutate();
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to save branding");
         } finally {
@@ -172,7 +194,7 @@ export default function BrandingSettingsPage() {
                             )}
                         </div>
                     </div>
-                    <input
+                    <Input
                         ref={fileInputRef}
                         type="file"
                         accept="image/png,image/jpeg,image/svg+xml"
@@ -200,7 +222,7 @@ export default function BrandingSettingsPage() {
                         <div className="space-y-2">
                             <Label htmlFor="primaryColor">Primary Color</Label>
                             <div className="flex items-center gap-3">
-                                <input
+                                <Input
                                     id="primaryColor"
                                     type="color"
                                     value={primaryColor}
@@ -232,7 +254,7 @@ export default function BrandingSettingsPage() {
                         <div className="space-y-2">
                             <Label htmlFor="secondaryColor">Secondary Color</Label>
                             <div className="flex items-center gap-3">
-                                <input
+                                <Input
                                     id="secondaryColor"
                                     type="color"
                                     value={secondaryColor}

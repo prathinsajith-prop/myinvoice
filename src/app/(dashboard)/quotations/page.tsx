@@ -1,18 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Eye, FileCheck, Loader2 } from "lucide-react";
+import { Plus, Eye, FileCheck, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { QuotationSheet } from "@/components/modals/quotation-sheet";
+import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExportDropdown } from "@/components/export-dropdown";
 import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
+import { LoadingState } from "@/components/loading-state";
+import { PaginationControls } from "@/components/pagination-controls";
 import {
     Select,
     SelectContent,
@@ -43,16 +49,13 @@ export default function QuotationsPage() {
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const [editQuotationId, setEditQuotationId] = useState<string | null>(null);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -67,7 +70,7 @@ export default function QuotationsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (statusFilter !== "ALL") params.set("status", statusFilter);
             const res = await fetch(`/api/quotations?${params}`);
             if (res.ok) {
@@ -78,10 +81,19 @@ export default function QuotationsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, normalizedSearch, statusFilter]);
 
     useEffect(() => { fetchQuotations(); }, [fetchQuotations]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleStatusFilterChange = (value: string) => {
+        setPage(1);
+        setStatusFilter(value);
+    };
 
     const columns = useMemo<ColumnDef<Quotation>[]>(() => [
         {
@@ -134,10 +146,18 @@ export default function QuotationsPage() {
             header: "",
             cell: ({ row }) => (
                 <div onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
-                        onClick={() => router.push(`/quotations/${row.original.id}`)}>
-                        <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                            onClick={() => router.push(`/quotations/${row.original.id}`)}>
+                            <Eye className="h-4 w-4" />
+                        </Button>
+                        {canEdit('quotation', row.original.status) && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                                onClick={() => setEditQuotationId(row.original.id)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                 </div>
             ),
         },
@@ -145,33 +165,44 @@ export default function QuotationsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Quotations</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total quotations` : "Manage your sales quotations"}
-                    </p>
-                </div>
-                <Button onClick={() => setSheetOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Quotation
-                </Button>
-            </div>
+            <PageHeader
+                title="Quotations"
+                description={pagination ? `${pagination.total} total quotations` : "Manage your sales quotations"}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={quotations}
+                            columns={[
+                                { header: "Quote #", accessor: "quoteNumber" },
+                                { header: "Customer", accessor: "customer.name" },
+                                { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Valid Until", accessor: "validUntil", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: "Status", accessor: "status" },
+                            ]}
+                            filename="quotations"
+                            title="Quotations Report"
+                        />
+                        <Button onClick={() => setSheetOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Quotation
+                        </Button>
+                    </>
+                }
+            />
 
             <Card>
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
-                        <div className="relative flex-1 min-w-[200px] max-w-sm">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                placeholder="Search quotations..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-40">
+                        <SearchInput
+                            placeholder="Search quotations..."
+                            value={search}
+                            onChange={handleSearchChange}
+                            onRefresh={fetchQuotations}
+                            isRefreshing={loading}
+                        />
+                        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+                            <SelectTrigger className="w-full sm:w-40">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -188,22 +219,14 @@ export default function QuotationsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <LoadingState />
                     ) : quotations.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <FileCheck className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                            <p className="text-sm font-medium">No quotations found</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first quotation"}
-                            </p>
-                            {!debouncedSearch && statusFilter === "ALL" && (
-                                <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />New Quotation
-                                </Button>
-                            )}
-                        </div>
+                        <EmptyState
+                            icon={FileCheck}
+                            title="No quotations found"
+                            description={normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first quotation"}
+                            action={!normalizedSearch && statusFilter === "ALL" ? { label: "New Quotation", onClick: () => setSheetOpen(true) } : undefined}
+                        />
                     ) : (
                         <DataTable
                             columns={columns}
@@ -211,24 +234,14 @@ export default function QuotationsPage() {
                             onRowClick={(q) => router.push(`/quotations/${q.id}`)}
                         />
                     )}
-                    {pagination && pagination.pages > 1 && (
-                        <div className="flex items-center justify-between border-t px-4 py-3">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-                            </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                                <Button variant="outline" size="sm" disabled={page === pagination.pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-                            </div>
-                        </div>
-                    )}
+                    {pagination && <PaginationControls pagination={pagination} page={page} onPageChange={setPage} />}
                 </CardContent>
             </Card>
             <QuotationSheet
-                open={sheetOpen}
-                onClose={() => setSheetOpen(false)}
-                onSuccess={() => { fetchQuotations(); setSheetOpen(false); }}
+                open={sheetOpen || !!editQuotationId}
+                onClose={() => { setSheetOpen(false); setEditQuotationId(null); }}
+                onSuccess={() => { fetchQuotations(); setSheetOpen(false); setEditQuotationId(null); }}
+                editQuotationId={editQuotationId}
             />
         </div>
     );

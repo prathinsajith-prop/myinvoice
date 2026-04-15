@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import {
     AlertCircle,
@@ -8,6 +9,7 @@ import {
     ArrowUpRight,
     FileText,
     Loader2,
+    Receipt,
     TrendingUp,
     Users,
 } from "lucide-react";
@@ -35,6 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
 
 type ReportResponse = {
     revenue?: {
@@ -89,8 +92,11 @@ type ReportResponse = {
     kpis?: {
         totalRevenue: number;
         outstandingReceivables: number;
+        outstandingPayables: number;
         invoiceCount: number;
         overdueInvoices: number;
+        overdueBills: number;
+        billCount: number;
         quotationCount: number;
         totalExpenses: number;
         expenseCount: number;
@@ -162,49 +168,25 @@ const STATUS_COLORS: Record<string, string> = {
 export default function DashboardPage() {
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
-    const [report, setReport] = useState<ReportResponse | null>(null);
-    const [customerTotal, setCustomerTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const { data, isLoading: loading } = useSWR(
+        "dashboard-overview",
+        async () => {
+            const reportData = await jsonFetcher<ReportResponse>("/api/reports");
+            const customerData = await jsonFetcher<CustomerListResponse>("/api/customers?page=1&limit=1").catch(() => null);
 
-    useEffect(() => {
-        let mounted = true;
-
-        async function fetchDashboardData() {
-            setLoading(true);
-            try {
-                const [reportRes, customerRes] = await Promise.all([
-                    fetch("/api/reports", { cache: "no-store" }),
-                    fetch("/api/customers?page=1&limit=1", { cache: "no-store" }),
-                ]);
-
-                if (!reportRes.ok) {
-                    throw new Error("Failed to load dashboard data");
-                }
-
-                const reportData = (await reportRes.json()) as ReportResponse;
-                const customerData = customerRes.ok
-                    ? ((await customerRes.json()) as CustomerListResponse)
-                    : null;
-
-                if (!mounted) return;
-
-                setReport(reportData);
-                setCustomerTotal(customerData?.pagination?.total ?? 0);
-            } catch {
-                if (!mounted) return;
-                setReport(null);
-                setCustomerTotal(0);
-            } finally {
-                if (mounted) setLoading(false);
-            }
+            return {
+                report: reportData,
+                customerTotal: customerData?.pagination?.total ?? 0,
+            };
+        },
+        {
+            revalidateOnFocus: false,
+            revalidateOnReconnect: false,
         }
+    );
 
-        fetchDashboardData();
-
-        return () => {
-            mounted = false;
-        };
-    }, []);
+    const report = data?.report ?? null;
+    const customerTotal = data?.customerTotal ?? 0;
 
     const stats = useMemo(() => {
         if (!report) return [];
@@ -227,6 +209,14 @@ export default function DashboardPage() {
                 trend: normalized.revenue.overdueCount > 0 ? "down" : "up",
                 delta: normalized.revenue.overdueCount > 0 ? "Needs follow-up" : "Under control",
                 icon: AlertCircle,
+            },
+            {
+                name: "Payables",
+                value: formatCurrency(report.kpis?.outstandingPayables ?? 0, currency),
+                description: `${report.kpis?.overdueBills ?? 0} overdue bills`,
+                trend: (report.kpis?.overdueBills ?? 0) > 0 ? "down" : "up",
+                delta: `${report.kpis?.billCount ?? 0} bills`,
+                icon: Receipt,
             },
             {
                 name: "Total Invoices",
@@ -301,7 +291,7 @@ export default function DashboardPage() {
                 </Card>
             ) : (
                 <>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                         {stats.map((stat) => (
                             <Card key={stat.name}>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -447,7 +437,7 @@ export default function DashboardPage() {
                                     <CardDescription>Go directly to the most-used flows</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <Button variant="outline" className="h-auto py-3" asChild>
                                             <Link href="/invoices?create=1">Create Invoice</Link>
                                         </Button>

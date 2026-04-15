@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { notifyOrgMembers } from "@/lib/notifications/create";
 
 const createCustomerSchema = z.object({
     name: z.string().min(1).max(255),
@@ -16,8 +17,10 @@ const createCustomerSchema = z.object({
     image: z.string().optional().nullable(),
     trn: z.string().optional().nullable(),
     isVatRegistered: z.boolean().default(false),
-    addressLine1: z.string().optional().nullable(),
-    addressLine2: z.string().optional().nullable(),
+    unitNumber: z.string().optional().nullable(),
+    buildingName: z.string().optional().nullable(),
+    street: z.string().optional().nullable(),
+    area: z.string().optional().nullable(),
     city: z.string().optional().nullable(),
     emirate: z.string().optional().nullable(),
     country: z.string().default("AE"),
@@ -37,14 +40,17 @@ export async function GET(req: NextRequest) {
         const ctx = await resolveApiContext(req);
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
+        const type = searchParams.get("type") ?? "";
+        const status = searchParams.get("status") ?? "";
         const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
         const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
         const skip = (page - 1) * limit;
 
         const where = {
             organizationId: ctx.organizationId,
-            isActive: true,
+            ...(status === "INACTIVE" ? { isActive: false } : status === "ACTIVE" ? { isActive: true } : {}),
             deletedAt: null,
+            ...(type && type !== "ALL" ? { type } : {}),
             ...(search
                 ? {
                     OR: [
@@ -57,7 +63,7 @@ export async function GET(req: NextRequest) {
                 : {}),
         };
 
-        const [customers, total] = await Promise.all([
+        const [rawCustomers, total] = await Promise.all([
             prisma.customer.findMany({
                 where,
                 orderBy: { name: "asc" },
@@ -78,7 +84,7 @@ export async function GET(req: NextRequest) {
                     currency: true,
                     totalInvoiced: true,
                     totalOutstanding: true,
-                    invoiceCount: true,
+                    _count: { select: { invoices: { where: { deletedAt: null, status: { not: "VOID" as const } } } } },
                     lastInvoiceDate: true,
                     isActive: true,
                     createdAt: true,
@@ -86,6 +92,8 @@ export async function GET(req: NextRequest) {
             }),
             prisma.customer.count({ where }),
         ]);
+
+        const customers = rawCustomers.map(({ _count, ...c }) => ({ ...c, invoiceCount: _count.invoices }));
 
         return NextResponse.json({ data: customers, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
     } catch (error) {
@@ -113,6 +121,18 @@ export async function POST(req: NextRequest) {
                 organizationId: ctx.organizationId,
             },
         });
+
+        // Notify org members about new customer
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Customer Added",
+            message: `Customer ${customer.name} has been added`,
+            type: "CUSTOMER_ADDED",
+            entityType: "Customer",
+            entityId: customer.id,
+            actionUrl: `/customers/${customer.id}`,
+        }).catch(() => { });
 
         return NextResponse.json(customer, { status: 201 });
     } catch (error) {

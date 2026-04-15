@@ -43,6 +43,16 @@ export async function POST(req: NextRequest, { params }: Params) {
             },
         });
 
+        // Decrement customer denormalized stats
+        prisma.customer.update({
+            where: { id: invoice.customerId },
+            data: {
+                invoiceCount: { decrement: 1 },
+                totalInvoiced: { decrement: Number(invoice.total) },
+                totalOutstanding: { decrement: Number(invoice.outstanding) },
+            },
+        }).catch(() => { });
+
         return NextResponse.json(updated);
     } catch (error) {
         return toErrorResponse(error);
