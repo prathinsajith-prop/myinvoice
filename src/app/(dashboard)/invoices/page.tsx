@@ -7,6 +7,7 @@ import { Plus, MoreHorizontal, FileText, AlertCircle } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
+import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -182,9 +183,11 @@ export default function InvoicesPage() {
                             <DropdownMenuItem asChild>
                                 <Link href={`/invoices/${row.original.id}`}>View</Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href={`/invoices/${row.original.id}/edit`}>Edit</Link>
-                            </DropdownMenuItem>
+                            {canEdit('invoice', row.original.status) && (
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/invoices/${row.original.id}/edit`}>Edit</Link>
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

@@ -2,10 +2,11 @@
 
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Eye, FileCheck } from "lucide-react";
+import { Plus, Eye, FileCheck, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { QuotationSheet } from "@/components/modals/quotation-sheet";
+import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export default function QuotationsPage() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [editQuotationId, setEditQuotationId] = useState<string | null>(null);
     const deferredSearch = useDeferredValue(search);
     const normalizedSearch = deferredSearch.trim();
 
@@ -144,10 +146,18 @@ export default function QuotationsPage() {
             header: "",
             cell: ({ row }) => (
                 <div onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
-                        onClick={() => router.push(`/quotations/${row.original.id}`)}>
-                        <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                            onClick={() => router.push(`/quotations/${row.original.id}`)}>
+                            <Eye className="h-4 w-4" />
+                        </Button>
+                        {canEdit('quotation', row.original.status) && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                                onClick={() => setEditQuotationId(row.original.id)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                 </div>
             ),
         },
@@ -226,9 +236,10 @@ export default function QuotationsPage() {
                 </CardContent>
             </Card>
             <QuotationSheet
-                open={sheetOpen}
-                onClose={() => setSheetOpen(false)}
-                onSuccess={() => { fetchQuotations(); setSheetOpen(false); }}
+                open={sheetOpen || !!editQuotationId}
+                onClose={() => { setSheetOpen(false); setEditQuotationId(null); }}
+                onSuccess={() => { fetchQuotations(); setSheetOpen(false); setEditQuotationId(null); }}
+                editQuotationId={editQuotationId}
             />
         </div>
     );

@@ -243,11 +243,11 @@ export function ProductModal({
                                             </FormLabel>
                                             <FormControl>
                                                 <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     placeholder="0.00"
                                                     {...field}
+                                                    onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -301,11 +301,10 @@ export function ProductModal({
                                                 <FormLabel>VAT Rate (%)</FormLabel>
                                                 <FormControl>
                                                     <Input
-                                                        type="number"
-                                                        min="0"
-                                                        max="100"
-                                                        step="0.1"
+                                                        type="text"
+                                                        inputMode="decimal"
                                                         {...field}
+                                                        onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -155,6 +155,10 @@ export default function BillDetailPage() {
     const canPay = !["PAID", "VOID"].includes(bill.status) && Number(bill.outstanding) > 0;
     const canReceive = bill.status === "DRAFT";
     const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const shareText = encodeURIComponent(
+        `Bill ${bill.billNumber}\nAmount: ${bill.currency} ${Number(bill.total).toFixed(2)}\nOutstanding: ${bill.currency} ${Number(bill.outstanding).toFixed(2)}`
+    );
 
     return (
         <div className="space-y-6">
@@ -192,6 +196,11 @@ export default function BillDetailPage() {
                     )}
                     <Button variant="ghost" size="icon" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild>
+                        <a href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noopener noreferrer">
+                            <MessageCircle className="h-4 w-4" />
+                        </a>
                     </Button>
                 </div>
             </div>

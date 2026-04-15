@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Users, Loader2, UserPlus, Clock } from "lucide-react";
+import { Users, Loader2, UserPlus, Clock, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -212,8 +212,8 @@ export default function UsersPage() {
             header: () => <div className="text-right">Actions</div>,
             cell: ({ row }) => (
                 <div className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedMember(row.original)}>
-                        View
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => setSelectedMember(row.original)}>
+                        <Eye className="h-4 w-4" />
                     </Button>
                 </div>
             ),
@@ -337,8 +337,8 @@ export default function UsersPage() {
                                                         </span>
                                                     </div>
                                                     <div className="mt-3 flex gap-2">
-                                                        <Button variant="outline" size="sm" onClick={() => setSelectedMember(member)}>
-                                                            View
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" title="View" onClick={() => setSelectedMember(member)}>
+                                                            <Eye className="h-4 w-4" />
                                                         </Button>
                                                         <Button variant="ghost" size="sm" asChild>
                                                             <Link href={isCurrentUser ? "/settings/profile" : "/settings/team"}>

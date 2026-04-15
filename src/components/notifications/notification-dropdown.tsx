@@ -220,10 +220,10 @@ export function NotificationDropdown() {
                         ? "bg-red-100 text-red-600"
                         : notification.type.includes("PAID") ||
                           notification.type.includes("RECEIVED")
-                        ? "bg-green-100 text-green-600"
-                        : notification.type.includes("OVERDUE")
-                        ? "bg-orange-100 text-orange-600"
-                        : "bg-primary/10 text-primary"
+                          ? "bg-green-100 text-green-600"
+                          : notification.type.includes("OVERDUE")
+                            ? "bg-orange-100 text-orange-600"
+                            : "bg-primary/10 text-primary"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -263,7 +263,7 @@ export function NotificationDropdown() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="justify-center text-sm text-primary"
-          onClick={() => router.push("/settings/notifications")}
+          onClick={() => router.push("/notifications")}
         >
           View all notifications
         </DropdownMenuItem>

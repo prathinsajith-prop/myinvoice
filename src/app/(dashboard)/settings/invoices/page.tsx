@@ -206,12 +206,14 @@ export default function InvoiceSettingsPage() {
                         <Label htmlFor="vatRate">Default VAT Rate (%)</Label>
                         <Input
                             id="vatRate"
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.01}
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0"
                             value={form.defaultVatRate}
-                            onChange={(e) => set("defaultVatRate", e.target.value)}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                if (/^\d*\.?\d*$/.test(v)) set("defaultVatRate", v);
+                            }}
                             disabled={!isAdmin}
                         />
                     </div>

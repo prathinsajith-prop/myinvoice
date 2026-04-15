@@ -189,6 +189,17 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // Update customer denormalized stats
+        prisma.customer.update({
+            where: { id: invoice.customerId },
+            data: {
+                invoiceCount: { increment: 1 },
+                totalInvoiced: { increment: totals.total },
+                totalOutstanding: { increment: totals.total },
+                lastInvoiceDate: issueDateValue,
+            },
+        }).catch(() => { }); // fire-and-forget, non-critical
+
         // Audit log — feeds enforceInvoiceLimit counter
         prisma.auditLog.create({
             data: {

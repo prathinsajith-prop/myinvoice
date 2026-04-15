@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import QRCode from "qrcode";
 
 interface InvoicePdfLineItem {
     description: string;
@@ -23,6 +24,7 @@ interface InvoicePdfData {
     organizationTrn?: string | null;
     notes?: string | null;
     lineItems: InvoicePdfLineItem[];
+    qrCodeData?: string | null;
 }
 
 function money(v: number, currency: string) {
@@ -95,6 +97,23 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
         page.drawText("Notes", { x: margin, y, size: 10, font: bold });
         y -= 12;
         page.drawText(data.notes.slice(0, 300), { x: margin, y, size: 9, font, color: rgb(0.35, 0.35, 0.35) });
+    }
+
+    // Add FTA QR code if available
+    if (data.qrCodeData) {
+        try {
+            const qrImage = await QRCode.toDataURL(data.qrCodeData, {
+                width: 150,
+                margin: 1,
+                color: { dark: "#000000", light: "#FFFFFF" },
+            });
+            const qrBase64 = qrImage.split(",")[1];
+            const qrImageData = await pdf.embedPng(Buffer.from(qrBase64, "base64"));
+            page.drawImage(qrImageData, { x: 48, y: 60, width: 60, height: 60 });
+            page.drawText("FTA Compliant", { x: 48, y: 55, size: 8, font, color: rgb(0.35, 0.35, 0.35) });
+        } catch (error) {
+            console.error("Failed to embed QR code:", error);
+        }
     }
 
     return pdf.save();

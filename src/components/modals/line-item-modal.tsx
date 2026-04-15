@@ -199,18 +199,18 @@ export function LineItemModal({ open, onClose, onSave, lineItem, currency }: Lin
                     <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-1.5">
                             <Label>Quantity *</Label>
-                            <Input type="number" step="any" min="0.001" {...form.register("quantity")} />
+                            <Input type="text" {...form.register("quantity")} />
                             {form.formState.errors.quantity && (
                                 <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>
                             )}
                         </div>
                         <div className="space-y-1.5">
                             <Label>Unit Price *</Label>
-                            <Input type="number" step="0.01" min="0" {...form.register("unitPrice")} />
+                            <Input type="text" {...form.register("unitPrice")} />
                         </div>
                         <div className="space-y-1.5">
                             <Label>Discount %</Label>
-                            <Input type="number" step="0.01" min="0" max="100" {...form.register("discount")} />
+                            <Input type="text" {...form.register("discount")} />
                         </div>
                     </div>
 

@@ -11,6 +11,13 @@ export async function POST(req: NextRequest, { params }: Params) {
         const ctx = await resolveApiContext(req);
         const { id } = await params;
 
+        if (!process.env.STRIPE_SECRET_KEY) {
+            return NextResponse.json(
+                { error: "Online payments are not configured for this account." },
+                { status: 400 }
+            );
+        }
+
         const invoice = await prisma.invoice.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
             include: { customer: { select: { id: true, name: true, email: true } } },

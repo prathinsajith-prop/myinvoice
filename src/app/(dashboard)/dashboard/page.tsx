@@ -9,6 +9,7 @@ import {
     ArrowUpRight,
     FileText,
     Loader2,
+    Receipt,
     TrendingUp,
     Users,
 } from "lucide-react";
@@ -91,8 +92,11 @@ type ReportResponse = {
     kpis?: {
         totalRevenue: number;
         outstandingReceivables: number;
+        outstandingPayables: number;
         invoiceCount: number;
         overdueInvoices: number;
+        overdueBills: number;
+        billCount: number;
         quotationCount: number;
         totalExpenses: number;
         expenseCount: number;
@@ -205,6 +209,14 @@ export default function DashboardPage() {
                 trend: normalized.revenue.overdueCount > 0 ? "down" : "up",
                 delta: normalized.revenue.overdueCount > 0 ? "Needs follow-up" : "Under control",
                 icon: AlertCircle,
+            },
+            {
+                name: "Payables",
+                value: formatCurrency(report.kpis?.outstandingPayables ?? 0, currency),
+                description: `${report.kpis?.overdueBills ?? 0} overdue bills`,
+                trend: (report.kpis?.overdueBills ?? 0) > 0 ? "down" : "up",
+                delta: `${report.kpis?.billCount ?? 0} bills`,
+                icon: Receipt,
             },
             {
                 name: "Total Invoices",

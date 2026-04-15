@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { LineItemModal, type LineItemData } from "@/components/modals/line-item-modal";
 
@@ -76,6 +77,7 @@ export default function InvoiceDetailPage() {
     const [paymentAmount, setPaymentAmount] = useState("");
     const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split("T")[0]);
     const [paymentRef, setPaymentRef] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
     const [acting, setActing] = useState(false);
     const [sendingEmail, setSendingEmail] = useState(false);
     const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
@@ -121,7 +123,7 @@ export default function InvoiceDetailPage() {
                     amount: Number(paymentAmount),
                     paymentDate: `${paymentDate}T00:00:00.000Z`,
                     reference: paymentRef,
-                    method: "BANK_TRANSFER",
+                    method: paymentMethod,
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -500,10 +502,13 @@ export default function InvoiceDetailPage() {
                         <div className="space-y-1.5">
                             <Label>Amount</Label>
                             <Input
-                                type="number"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (/^\d*\.?\d*$/.test(v)) setPaymentAmount(v);
+                                }}
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -513,6 +518,23 @@ export default function InvoiceDetailPage() {
                         <div className="space-y-1.5">
                             <Label>Reference (optional)</Label>
                             <Input placeholder="Transaction reference" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Payment Method</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                                    <SelectItem value="CASH">Cash</SelectItem>
+                                    <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    <SelectItem value="CARD">Card</SelectItem>
+                                    <SelectItem value="STRIPE">Stripe</SelectItem>
+                                    <SelectItem value="PAYBY">PayBy</SelectItem>
+                                    <SelectItem value="TABBY">Tabby</SelectItem>
+                                    <SelectItem value="TAMARA">Tamara</SelectItem>
+                                    <SelectItem value="OTHER">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <AlertDialogFooter>

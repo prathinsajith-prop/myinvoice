@@ -83,6 +83,7 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema) as Resolver<FormValues>,
+        mode: "onChange",
         defaultValues: {
             customerId: defaultCustomerId ?? "",
             issueDate: today,
@@ -308,9 +309,9 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                                             <p className="text-[10px] text-destructive mt-0.5">{form.formState.errors.lineItems[index]?.description?.message}</p>
                                                         )}
                                                     </div>
-                                                    <Input className="h-8 text-sm text-right" type="number" min="0" step="0.001" {...form.register(`lineItems.${index}.quantity`)} />
-                                                    <Input className="h-8 text-sm text-right" type="number" min="0" step="0.01" {...form.register(`lineItems.${index}.unitPrice`)} />
-                                                    <Input className="h-8 text-sm text-right" type="number" min="0" max="100" step="0.01" {...form.register(`lineItems.${index}.discountPercent`)} />
+                                                    <Input className="h-8 text-sm text-right" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm text-right" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm text-right" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
                                                     <Select value={form.watch(`lineItems.${index}.vatTreatment`)} onValueChange={(v) => form.setValue(`lineItems.${index}.vatTreatment`, v)}>
                                                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                                         <SelectContent>
@@ -361,15 +362,15 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <div className="space-y-1">
                                                             <Label className="text-[11px] text-muted-foreground">Qty</Label>
-                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.001" {...form.register(`lineItems.${index}.quantity`)} />
+                                                            <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
                                                         </div>
                                                         <div className="space-y-1">
                                                             <Label className="text-[11px] text-muted-foreground">Price ({currency})</Label>
-                                                            <Input className="h-8 text-sm" type="number" min="0" step="0.01" {...form.register(`lineItems.${index}.unitPrice`)} />
+                                                            <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
                                                         </div>
                                                         <div className="space-y-1">
                                                             <Label className="text-[11px] text-muted-foreground">Disc %</Label>
-                                                            <Input className="h-8 text-sm" type="number" min="0" max="100" step="0.01" {...form.register(`lineItems.${index}.discountPercent`)} />
+                                                            <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
                                                         </div>
                                                         <div className="space-y-1">
                                                             <Label className="text-[11px] text-muted-foreground">VAT</Label>

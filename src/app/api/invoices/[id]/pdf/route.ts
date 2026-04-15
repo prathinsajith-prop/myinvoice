@@ -36,6 +36,7 @@ export async function GET(req: NextRequest, { params }: Params) {
             organizationName: invoice.organization.legalName || invoice.organization.name,
             organizationTrn: invoice.organization.trn,
             notes: invoice.notes,
+            qrCodeData: invoice.qrCodeData,
             lineItems: invoice.lineItems.map((item) => ({
                 description: item.description,
                 quantity: Number(item.quantity),

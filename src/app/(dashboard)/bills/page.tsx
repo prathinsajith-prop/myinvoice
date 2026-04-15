@@ -2,10 +2,11 @@
 
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Receipt, AlertCircle, Eye } from "lucide-react";
+import { Plus, Receipt, AlertCircle, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { BillSheet } from "@/components/modals/bill-sheet";
+import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export default function BillsPage() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [editBillId, setEditBillId] = useState<string | null>(null);
     const deferredSearch = useDeferredValue(search);
     const normalizedSearch = deferredSearch.trim();
 
@@ -167,11 +169,17 @@ export default function BillsPage() {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
                         onClick={() => router.push(`/bills/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
                     </Button>
+                    {canEdit('bill', row.original.status) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                            onClick={() => setEditBillId(row.original.id)}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -277,9 +285,10 @@ export default function BillsPage() {
                 </CardContent>
             </Card>
             <BillSheet
-                open={sheetOpen}
-                onClose={() => setSheetOpen(false)}
-                onSuccess={() => { fetchBills(); setSheetOpen(false); }}
+                open={sheetOpen || !!editBillId}
+                onClose={() => { setSheetOpen(false); setEditBillId(null); }}
+                onSuccess={() => { fetchBills(); setSheetOpen(false); setEditBillId(null); }}
+                editBillId={editBillId}
             />
         </div>
     );
