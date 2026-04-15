@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import useSWR, { mutate } from "swr";
+
+import { jsonFetcher } from "@/lib/fetcher";
 
 export interface OrgSettings {
     defaultCurrency: string;
@@ -20,47 +22,46 @@ const DEFAULTS: OrgSettings = {
     defaultTerms: "",
 };
 
-// Module-level cache — survives across modal open/close cycles
-let _cache: OrgSettings | null = null;
-let _promise: Promise<OrgSettings> | null = null;
+const ORG_SETTINGS_KEY = "/api/organization";
 
-function loadOrgSettings(): Promise<OrgSettings> {
-    if (_cache) return Promise.resolve(_cache);
-    if (!_promise) {
-        _promise = fetch("/api/organization")
-            .then((r) => r.json())
-            .then((json) => {
-                const org = json.organization ?? {};
-                _cache = {
-                    defaultCurrency: org.defaultCurrency ?? "AED",
-                    defaultDueDateDays: org.defaultDueDateDays ?? 30,
-                    defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
-                    defaultVatRate: Number(org.defaultVatRate ?? 5),
-                    defaultNotes: org.defaultNotes ?? "",
-                    defaultTerms: org.defaultTerms ?? "",
-                };
-                return _cache;
-            })
-            .catch(() => DEFAULTS)
-            .finally(() => { _promise = null; });
+async function fetchOrgSettings(): Promise<OrgSettings> {
+    try {
+        const json = await jsonFetcher<{ organization?: Partial<OrgSettings> }>(ORG_SETTINGS_KEY);
+        const org = json.organization ?? {};
+
+        return {
+            defaultCurrency: org.defaultCurrency ?? "AED",
+            defaultDueDateDays: org.defaultDueDateDays ?? 30,
+            defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
+            defaultVatRate: Number(org.defaultVatRate ?? 5),
+            defaultNotes: org.defaultNotes ?? "",
+            defaultTerms: org.defaultTerms ?? "",
+        };
+    } catch {
+        return DEFAULTS;
     }
-    return _promise;
 }
 
 /** Call this after org settings are saved to force a refresh on next open */
 export function invalidateOrgSettingsCache() {
-    _cache = null;
+    void mutate(ORG_SETTINGS_KEY);
 }
 
 /** Returns a promise that resolves to org settings (uses cache if warm) */
-export { loadOrgSettings };
+export async function loadOrgSettings(): Promise<OrgSettings> {
+    const settings = await mutate(ORG_SETTINGS_KEY, fetchOrgSettings(), {
+        populateCache: true,
+        revalidate: false,
+    });
+
+    return settings ?? DEFAULTS;
+}
 
 export function useOrgSettings(): OrgSettings {
-    const [settings, setSettings] = useState<OrgSettings>(_cache ?? DEFAULTS);
+    const { data } = useSWR(ORG_SETTINGS_KEY, fetchOrgSettings, {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+    });
 
-    useEffect(() => {
-        loadOrgSettings().then(setSettings);
-    }, []);
-
-    return settings;
+    return data ?? DEFAULTS;
 }

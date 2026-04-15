@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { Loader2, Bell, Mail, Smartphone, FileText, CreditCard, Clock, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +16,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { jsonFetcher } from "@/lib/fetcher";
 
 interface NotificationPreferences {
   emailNotifications: boolean;
@@ -26,46 +28,45 @@ interface NotificationPreferences {
 }
 
 export default function NotificationSettingsPage() {
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
+  const defaultPreferences: NotificationPreferences = {
     emailNotifications: true,
     pushNotifications: true,
     invoiceNotifications: true,
     paymentNotifications: true,
     reminderNotifications: true,
     marketingNotifications: false,
-  });
+  };
+  const { data: preferences = defaultPreferences, isLoading: loading, mutate } = useSWR<NotificationPreferences>(
+    "/api/user/notifications/preferences",
+    async (url: string) => {
+      const data = await jsonFetcher<Partial<NotificationPreferences>>(url);
 
-  useEffect(() => {
-    const fetchPreferences = async () => {
-      try {
-        const res = await fetch("/api/user/notifications/preferences");
-        if (!res.ok) throw new Error("Failed to fetch preferences");
-        const data = await res.json();
-        setPreferences({
-          emailNotifications: data.emailNotifications ?? true,
-          pushNotifications: data.pushNotifications ?? true,
-          invoiceNotifications: data.invoiceNotifications ?? true,
-          paymentNotifications: data.paymentNotifications ?? true,
-          reminderNotifications: data.reminderNotifications ?? true,
-          marketingNotifications: data.marketingNotifications ?? false,
-        });
-      } catch {
+      return {
+        emailNotifications: data.emailNotifications ?? true,
+        pushNotifications: data.pushNotifications ?? true,
+        invoiceNotifications: data.invoiceNotifications ?? true,
+        paymentNotifications: data.paymentNotifications ?? true,
+        reminderNotifications: data.reminderNotifications ?? true,
+        marketingNotifications: data.marketingNotifications ?? false,
+      };
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      onError() {
         toast.error("Failed to load notification preferences");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPreferences();
-  }, []);
+      },
+    }
+  );
 
   const handleToggle = async (
     key: keyof NotificationPreferences,
     value: boolean
   ) => {
     // Optimistic update
-    setPreferences((prev) => ({ ...prev, [key]: value }));
+    const nextPreferences = { ...preferences, [key]: value };
+    await mutate(nextPreferences, { revalidate: false });
     setSaving(true);
 
     try {
@@ -77,7 +78,7 @@ export default function NotificationSettingsPage() {
 
       if (!res.ok) {
         // Revert on error
-        setPreferences((prev) => ({ ...prev, [key]: !value }));
+        await mutate(preferences, { revalidate: false });
         throw new Error("Failed to update preference");
       }
 

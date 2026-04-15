@@ -7,6 +7,8 @@ import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 import { enforceInvoiceLimit } from "@/lib/plans.server";
+import { generateFtaQrPayload } from "@/lib/services/fta-qr";
+import { generatePublicToken } from "@/lib/crypto/token";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -131,13 +133,33 @@ export async function POST(req: NextRequest) {
 
         const invoiceNumber = await getNextDocumentNumber(ctx.organizationId, documentType);
 
+        const organization = await prisma.organization.findUnique({
+            where: { id: ctx.organizationId },
+            select: { name: true, legalName: true, trn: true },
+        });
+
+        const issueDateValue = issueDate ? new Date(issueDate) : new Date();
+
+        const qrCodeData = organization?.trn
+            ? generateFtaQrPayload({
+                sellerName: organization.legalName || organization.name,
+                trn: organization.trn,
+                timestampIso: issueDateValue.toISOString(),
+                invoiceTotal: totals.total,
+                vatTotal: totals.totalVat,
+            })
+            : null;
+
         const invoice = await prisma.invoice.create({
             data: {
                 ...invoiceData,
                 organizationId: ctx.organizationId,
                 invoiceNumber,
-                issueDate: issueDate ? new Date(issueDate) : new Date(),
+                issueDate: issueDateValue,
                 dueDate: new Date(dueDate),
+                publicToken: generatePublicToken(),
+                qrCodeData,
+                ftaCompliant: Boolean(organization?.trn && qrCodeData),
                 subtotal: totals.subtotal,
                 totalVat: totals.totalVat,
                 discount: totals.discount,

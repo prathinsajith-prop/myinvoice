@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, Package, Loader2 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -59,18 +59,14 @@ export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -85,7 +81,7 @@ export default function ProductsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (typeFilter !== "ALL") params.set("type", typeFilter);
             const res = await fetch(`/api/products?${params}`);
             if (res.ok) {
@@ -96,10 +92,19 @@ export default function ProductsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, typeFilter]);
+    }, [page, normalizedSearch, typeFilter]);
 
     useEffect(() => { fetchProducts(); }, [fetchProducts]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleTypeFilterChange = (value: string) => {
+        setPage(1);
+        setTypeFilter(value);
+    };
 
     const columns = useMemo<ColumnDef<Product>[]>(() => [
         {
@@ -224,11 +229,11 @@ export default function ProductsPage() {
                             <Input
                                 placeholder="Search products..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
-                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-36">
                                 <SelectValue />
                             </SelectTrigger>
@@ -251,9 +256,9 @@ export default function ProductsPage() {
                             <Package className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No products found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first product or service"}
+                                {normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first product or service"}
                             </p>
-                            {!debouncedSearch && typeFilter === "ALL" && (
+                            {!normalizedSearch && typeFilter === "ALL" && (
                                 <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />Add Product
                                 </Button>

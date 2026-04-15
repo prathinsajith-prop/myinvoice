@@ -24,17 +24,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 400 });
     }
 
-    const invite = await prisma.inviteToken.findUnique({
-      where: { token: parsed.data.token },
+    const invite = await prisma.organizationMembership.findUnique({
+      where: { inviteToken: parsed.data.token },
     });
 
     if (!invite) {
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
     }
-    if (invite.usedAt) {
+    if (invite.inviteStatus === "ACCEPTED" || invite.acceptedAt) {
       return NextResponse.json({ error: "Invitation already used" }, { status: 410 });
     }
-    if (invite.expiresAt < new Date()) {
+    if (invite.expiresAt && invite.expiresAt < new Date()) {
       return NextResponse.json({ error: "Invitation has expired" }, { status: 410 });
     }
 
@@ -43,13 +43,15 @@ export async function GET(req: NextRequest) {
       select: { name: true, slug: true },
     });
 
-    const inviter = await prisma.user.findUnique({
-      where: { id: invite.invitedBy },
-      select: { name: true, email: true },
-    });
+    const inviter = invite.invitedBy
+      ? await prisma.user.findUnique({
+        where: { id: invite.invitedBy },
+        select: { name: true, email: true },
+      })
+      : null;
 
     return NextResponse.json({
-      email: invite.email,
+      email: invite.invitedEmail,
       role: invite.role,
       organization: org,
       inviterName: inviter?.name ?? inviter?.email,
@@ -74,29 +76,25 @@ export async function POST(req: NextRequest) {
 
     const { token, name, password } = parsed.data;
 
-    const invite = await prisma.inviteToken.findUnique({
-      where: { token },
+    const invite = await prisma.organizationMembership.findUnique({
+      where: { inviteToken: token },
     });
 
     if (!invite) throw new AppError("Invitation not found", "NOT_FOUND", 404);
-    if (invite.usedAt) throw new AppError("Invitation already used", "ALREADY_USED", 410);
-    if (invite.expiresAt < new Date()) throw new AppError("Invitation has expired", "EXPIRED", 410);
+    if (invite.inviteStatus === "ACCEPTED" || invite.acceptedAt) {
+      throw new AppError("Invitation already used", "ALREADY_USED", 410);
+    }
+    if (invite.expiresAt && invite.expiresAt < new Date()) {
+      throw new AppError("Invitation has expired", "EXPIRED", 410);
+    }
 
     const { hash } = await import("bcryptjs");
     const hashedPassword = await hash(password, 12);
 
-    // Update the placeholder user
-    const membership = await prisma.organizationMembership.findUnique({
-      where: { id: invite.membershipId },
-      include: { user: true },
-    });
-
-    if (!membership) throw new AppError("Membership not found", "NOT_FOUND", 404);
-
     await prisma.$transaction([
       // Activate user account
       prisma.user.update({
-        where: { id: membership.userId },
+        where: { id: invite.userId },
         data: {
           name,
           password: hashedPassword,
@@ -105,17 +103,17 @@ export async function POST(req: NextRequest) {
       }),
       // Accept membership
       prisma.organizationMembership.update({
-        where: { id: invite.membershipId },
-        data: { acceptedAt: new Date(), isActive: true },
-      }),
-      // Mark token as used
-      prisma.inviteToken.update({
         where: { id: invite.id },
-        data: { usedAt: new Date() },
+        data: {
+          acceptedAt: new Date(),
+          isActive: true,
+          inviteStatus: "ACCEPTED",
+          inviteToken: null,
+        },
       }),
     ]);
 
-    return NextResponse.json({ success: true, email: invite.email });
+    return NextResponse.json({ success: true, email: invite.invitedEmail });
   } catch (error) {
     return toErrorResponse(error);
   }

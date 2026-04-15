@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, Truck, Mail, Phone, Loader2, Eye, Pencil, FileText } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -47,7 +47,6 @@ export default function SuppliersPage() {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
@@ -55,11 +54,8 @@ export default function SuppliersPage() {
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [billOpen, setBillOpen] = useState(false);
     const [billSupplierId, setBillSupplierId] = useState<string | undefined>(undefined);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -74,7 +70,7 @@ export default function SuppliersPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             const res = await fetch(`/api/suppliers?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -84,10 +80,14 @@ export default function SuppliersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch]);
+    }, [page, normalizedSearch]);
 
     useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
-    useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
 
     const columns = useMemo<ColumnDef<Supplier>[]>(() => [
         {
@@ -234,7 +234,7 @@ export default function SuppliersPage() {
                         <Input
                             placeholder="Search suppliers..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             className="pl-9"
                         />
                     </div>
@@ -249,9 +249,9 @@ export default function SuppliersPage() {
                             <Truck className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No suppliers found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch ? "Try a different search term" : "Add your first supplier"}
+                                {normalizedSearch ? "Try a different search term" : "Add your first supplier"}
                             </p>
-                            {!debouncedSearch && (
+                            {!normalizedSearch && (
                                 <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Supplier

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import {
     CreditCard,
     CheckCircle2,
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { jsonFetcher } from "@/lib/fetcher";
 
 type SubscriptionPlan = "FREE" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
 type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "PAUSED";
@@ -43,6 +45,12 @@ interface SubscriptionData {
     hasAdvancedReports: boolean;
     hasMultiCurrency: boolean;
     hasWhiteLabel: boolean;
+}
+
+interface BillingResponse {
+    organization?: {
+        subscription?: SubscriptionData | null;
+    };
 }
 
 const PLAN_LABELS: Record<SubscriptionPlan, string> = {
@@ -111,18 +119,15 @@ const UPGRADE_PLANS: { plan: SubscriptionPlan; price: string; highlights: string
 ];
 
 export default function BillingSettingsPage() {
-    const [loading, setLoading] = useState(true);
-    const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
-
-    useEffect(() => {
-        fetch("/api/organization")
-            .then((r) => r.json())
-            .then((json) => {
-                setSubscription(json.organization?.subscription ?? null);
-            })
-            .catch(() => toast.error("Failed to load billing information"))
-            .finally(() => setLoading(false));
-    }, []);
+    const [upgradingPlan, setUpgradingPlan] = useState<SubscriptionPlan | null>(null);
+    const { data, isLoading: loading } = useSWR<BillingResponse>("/api/organization", jsonFetcher, {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        onError() {
+            toast.error("Failed to load billing information");
+        },
+    });
+    const subscription = data?.organization?.subscription ?? null;
 
     if (loading) {
         return (
@@ -149,6 +154,25 @@ export default function BillingSettingsPage() {
     const trialEnd = subscription.trialEndsAt ? new Date(subscription.trialEndsAt) : null;
     const periodEnd = subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
     const isFree = subscription.plan === "FREE";
+
+    async function handleUpgrade(plan: SubscriptionPlan) {
+        setUpgradingPlan(plan);
+        try {
+            const res = await fetch("/api/billing/checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ plan }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Unable to start checkout");
+            if (!data.url) throw new Error("No checkout URL returned");
+
+            window.location.href = data.url;
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to start upgrade flow");
+            setUpgradingPlan(null);
+        }
+    }
 
     const daysUntilTrialEnd = trialEnd
         ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -190,8 +214,10 @@ export default function BillingSettingsPage() {
                             )}
                         </div>
                         {!isFree && (
-                            <Button variant="outline" disabled>
-                                Manage Billing
+                            <Button variant="outline" asChild>
+                                <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer">
+                                    Manage Billing
+                                </a>
                             </Button>
                         )}
                     </div>
@@ -254,8 +280,8 @@ export default function BillingSettingsPage() {
                                 <div
                                     key={p.plan}
                                     className={`rounded-lg border p-4 space-y-3 ${p.plan === "PROFESSIONAL"
-                                            ? "border-primary bg-primary/5"
-                                            : ""
+                                        ? "border-primary bg-primary/5"
+                                        : ""
                                         }`}
                                 >
                                     <div>
@@ -279,20 +305,15 @@ export default function BillingSettingsPage() {
                                         size="sm"
                                         variant={p.plan === "PROFESSIONAL" ? "default" : "outline"}
                                         className="w-full"
-                                        disabled
+                                        onClick={() => handleUpgrade(p.plan)}
+                                        disabled={upgradingPlan !== null}
                                     >
-                                        {p.plan === "ENTERPRISE" ? "Contact Sales" : "Upgrade"}
+                                        {upgradingPlan === p.plan ? "Redirecting..." : p.plan === "ENTERPRISE" ? "Contact Sales" : "Upgrade"}
                                     </Button>
                                 </div>
                             ))}
                         </div>
-                        <p className="mt-4 text-center text-xs text-muted-foreground">
-                            Payment processing coming soon. Contact us at{" "}
-                            <a href="mailto:billing@myinvoice.ae" className="underline underline-offset-2">
-                                billing@myinvoice.ae
-                            </a>{" "}
-                            to upgrade.
-                        </p>
+                        <p className="mt-4 text-center text-xs text-muted-foreground">Secure checkout is powered by Stripe.</p>
                     </CardContent>
                 </Card>
             )}

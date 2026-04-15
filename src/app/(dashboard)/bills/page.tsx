@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Receipt, Loader2, AlertCircle, Eye } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -43,16 +43,12 @@ export default function BillsPage() {
     const [bills, setBills] = useState<Bill[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -67,7 +63,7 @@ export default function BillsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (statusFilter !== "ALL") params.set("status", statusFilter);
             const res = await fetch(`/api/bills?${params}`);
             if (res.ok) {
@@ -78,10 +74,19 @@ export default function BillsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, normalizedSearch, statusFilter]);
 
     useEffect(() => { fetchBills(); }, [fetchBills]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleStatusFilterChange = (value: string) => {
+        setPage(1);
+        setStatusFilter(value);
+    };
 
     const totalOutstanding = bills.reduce((s, b) => s + Number(b.outstanding), 0);
     const currenciesShown = Array.from(new Set(bills.map((bill) => bill.currency).filter(Boolean)));
@@ -213,11 +218,11 @@ export default function BillsPage() {
                             <Input
                                 placeholder="Search bills..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
@@ -241,9 +246,9 @@ export default function BillsPage() {
                             <Receipt className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No bills found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Record your first supplier bill"}
+                                {normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Record your first supplier bill"}
                             </p>
-                            {!debouncedSearch && statusFilter === "ALL" && (
+                            {!normalizedSearch && statusFilter === "ALL" && (
                                 <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />New Bill
                                 </Button>

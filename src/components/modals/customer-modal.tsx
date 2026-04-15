@@ -174,7 +174,7 @@ export function CustomerModal({
                             onSubmit={form.handleSubmit(onSubmit)}
                             className="space-y-4 py-4 pb-8"
                         >
-                            <input
+                            <Input
                                 ref={fileInputRef}
                                 type="file"
                                 accept="image/jpeg,image/png,image/gif,image/webp"

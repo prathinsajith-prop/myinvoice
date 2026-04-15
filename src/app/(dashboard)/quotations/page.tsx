@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Eye, FileCheck, Loader2 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -43,16 +43,12 @@ export default function QuotationsPage() {
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -67,7 +63,7 @@ export default function QuotationsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (statusFilter !== "ALL") params.set("status", statusFilter);
             const res = await fetch(`/api/quotations?${params}`);
             if (res.ok) {
@@ -78,10 +74,19 @@ export default function QuotationsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, normalizedSearch, statusFilter]);
 
     useEffect(() => { fetchQuotations(); }, [fetchQuotations]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleStatusFilterChange = (value: string) => {
+        setPage(1);
+        setStatusFilter(value);
+    };
 
     const columns = useMemo<ColumnDef<Quotation>[]>(() => [
         {
@@ -166,11 +171,11 @@ export default function QuotationsPage() {
                             <Input
                                 placeholder="Search quotations..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-40">
                                 <SelectValue />
                             </SelectTrigger>
@@ -196,9 +201,9 @@ export default function QuotationsPage() {
                             <FileCheck className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No quotations found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first quotation"}
+                                {normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first quotation"}
                             </p>
-                            {!debouncedSearch && statusFilter === "ALL" && (
+                            {!normalizedSearch && statusFilter === "ALL" && (
                                 <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />New Quotation
                                 </Button>

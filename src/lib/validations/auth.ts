@@ -9,6 +9,11 @@ export const loginSchema = z.object({
     .string()
     .min(1, "Password is required")
     .min(8, "Password must be at least 8 characters"),
+  otp: z
+    .string()
+    .regex(/^\d{6}$/, "Code must be exactly 6 digits")
+    .optional()
+    .or(z.literal("")),
 });
 
 export const registerSchema = z
@@ -30,6 +35,13 @@ export const registerSchema = z
         "Password must contain at least one uppercase letter, one lowercase letter, and one number"
       ),
     confirmPassword: z.string().min(1, "Please confirm your password"),
+    organizationName: z
+      .string()
+      .min(1, "Organization name is required")
+      .min(2, "Organization name must be at least 2 characters")
+      .max(200),
+    businessType: z.string().optional().or(z.literal("")),
+    country: z.string().min(2, "Please select a country"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",

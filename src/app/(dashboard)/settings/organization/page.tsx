@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
+import useSWR from "swr";
 import {
   Loader2,
   Building2,
@@ -40,7 +41,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { jsonFetcher } from "@/lib/fetcher";
 import { updateOrganizationSchema, type UpdateOrganizationInput } from "@/lib/validations/settings";
+
+interface OrganizationResponse {
+  organization: UpdateOrganizationInput & { logo?: string | null };
+  role: string;
+}
 
 const UAE_EMIRATES = [
   "Abu Dhabi",
@@ -54,12 +61,12 @@ const UAE_EMIRATES = [
 
 export default function OrganizationSettingsPage() {
   const { update: updateSession } = useSession();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [organization, setOrganization] = useState<UpdateOrganizationInput | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoChanged, setLogoChanged] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -78,38 +85,29 @@ export default function OrganizationSettingsPage() {
 
   const watchedEmirate = watch("emirate");
 
-  useEffect(() => {
-    const fetchOrganization = async () => {
-      try {
-        const res = await fetch("/api/organization");
-        if (!res.ok) throw new Error("Failed to fetch organization");
-        const data = await res.json();
-
-        setOrganization(data.organization);
-        setIsAdmin(data.role === "OWNER" || data.role === "ADMIN");
-
-        if (data.organization) {
-          reset({
-            name: data.organization.name ?? undefined,
-            email: data.organization.email ?? undefined,
-            phone: data.organization.phone ?? undefined,
-            website: data.organization.website ?? undefined,
-            trn: data.organization.trn ?? undefined,
-            tradeLicense: data.organization.tradeLicense ?? undefined,
-            emirate: data.organization.emirate ?? undefined,
-            addressLine1: data.organization.addressLine1 ?? undefined,
-            country: data.organization.country || "AE",
-          });
-          setLogoPreview(data.organization.logo ?? null);
-        }
-      } catch {
-        toast.error("Failed to load organization details");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrganization();
-  }, [reset]);
+  const { isLoading: loading, mutate } = useSWR<OrganizationResponse>("/api/organization", jsonFetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    onSuccess(data) {
+      setOrganization(data.organization);
+      setIsAdmin(data.role === "OWNER" || data.role === "ADMIN");
+      reset({
+        name: data.organization.name ?? undefined,
+        email: data.organization.email ?? undefined,
+        phone: data.organization.phone ?? undefined,
+        website: data.organization.website ?? undefined,
+        trn: data.organization.trn ?? undefined,
+        tradeLicense: data.organization.tradeLicense ?? undefined,
+        emirate: data.organization.emirate ?? undefined,
+        addressLine1: data.organization.addressLine1 ?? undefined,
+        country: data.organization.country || "AE",
+      });
+      setLogoPreview(data.organization.logo ?? null);
+    },
+    onError() {
+      toast.error("Failed to load organization details");
+    },
+  });
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,6 +124,7 @@ export default function OrganizationSettingsPage() {
     reader.onload = () => {
       setLogoPreview(reader.result as string);
       setLogoChanged(true);
+      setLogoFile(file);
     };
     reader.readAsDataURL(file);
   };
@@ -133,12 +132,31 @@ export default function OrganizationSettingsPage() {
   const onSubmit = async (data: UpdateOrganizationInput) => {
     setSaving(true);
     try {
+      let logoUrl: string | null | undefined;
+
+      if (logoChanged && logoFile) {
+        const formData = new FormData();
+        formData.append("file", logoFile);
+
+        const uploadRes = await fetch("/api/uploads/logo", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error || "Failed to upload logo");
+        }
+
+        logoUrl = uploadData.url;
+      }
+
       const res = await fetch("/api/organization", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          ...(logoChanged ? { logo: logoPreview } : {}),
+          ...(logoChanged ? { logo: logoUrl ?? logoPreview } : {}),
         }),
       });
 
@@ -151,9 +169,11 @@ export default function OrganizationSettingsPage() {
       setOrganization(updated);
       toast.success("Organization updated successfully");
       setLogoChanged(false);
+      setLogoFile(null);
       reset(data); // Reset form state
       // Refresh session so org name/logo update across the UI immediately
       await updateSession({});
+      await mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update organization");
     } finally {
@@ -218,7 +238,7 @@ export default function OrganizationSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <input
+          <Input
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"

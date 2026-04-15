@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import {
     AlertCircle,
@@ -35,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
 
 type ReportResponse = {
     revenue?: {
@@ -162,49 +164,25 @@ const STATUS_COLORS: Record<string, string> = {
 export default function DashboardPage() {
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
-    const [report, setReport] = useState<ReportResponse | null>(null);
-    const [customerTotal, setCustomerTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const { data, isLoading: loading } = useSWR(
+        "dashboard-overview",
+        async () => {
+            const reportData = await jsonFetcher<ReportResponse>("/api/reports");
+            const customerData = await jsonFetcher<CustomerListResponse>("/api/customers?page=1&limit=1").catch(() => null);
 
-    useEffect(() => {
-        let mounted = true;
-
-        async function fetchDashboardData() {
-            setLoading(true);
-            try {
-                const [reportRes, customerRes] = await Promise.all([
-                    fetch("/api/reports", { cache: "no-store" }),
-                    fetch("/api/customers?page=1&limit=1", { cache: "no-store" }),
-                ]);
-
-                if (!reportRes.ok) {
-                    throw new Error("Failed to load dashboard data");
-                }
-
-                const reportData = (await reportRes.json()) as ReportResponse;
-                const customerData = customerRes.ok
-                    ? ((await customerRes.json()) as CustomerListResponse)
-                    : null;
-
-                if (!mounted) return;
-
-                setReport(reportData);
-                setCustomerTotal(customerData?.pagination?.total ?? 0);
-            } catch {
-                if (!mounted) return;
-                setReport(null);
-                setCustomerTotal(0);
-            } finally {
-                if (mounted) setLoading(false);
-            }
+            return {
+                report: reportData,
+                customerTotal: customerData?.pagination?.total ?? 0,
+            };
+        },
+        {
+            revalidateOnFocus: false,
+            revalidateOnReconnect: false,
         }
+    );
 
-        fetchDashboardData();
-
-        return () => {
-            mounted = false;
-        };
-    }, []);
+    const report = data?.report ?? null;
+    const customerTotal = data?.customerTotal ?? 0;
 
     const stats = useMemo(() => {
         if (!report) return [];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     Plus,
@@ -61,7 +61,6 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
@@ -69,12 +68,8 @@ export default function CustomersPage() {
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [invoiceOpen, setInvoiceOpen] = useState(false);
     const [invoiceCustomerId, setInvoiceCustomerId] = useState<string | undefined>(undefined);
-
-    // Debounce search
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -89,7 +84,7 @@ export default function CustomersPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             const res = await fetch(`/api/customers?${params}`);
             if (res.ok) {
                 const data = await res.json();
@@ -99,15 +94,16 @@ export default function CustomersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch]);
+    }, [page, normalizedSearch]);
 
     useEffect(() => {
         fetchCustomers();
     }, [fetchCustomers]);
 
-    useEffect(() => {
+    const handleSearchChange = (value: string) => {
         setPage(1);
-    }, [debouncedSearch]);
+        setSearch(value);
+    };
 
     const columns = useMemo<ColumnDef<Customer>[]>(() => [
         {
@@ -306,7 +302,7 @@ export default function CustomersPage() {
                             <Input
                                 placeholder="Search customers..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
@@ -322,11 +318,11 @@ export default function CustomersPage() {
                             <Building2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No customers found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch
+                                {normalizedSearch
                                     ? "Try a different search term"
                                     : "Add your first customer to get started"}
                             </p>
-                            {!debouncedSearch && (
+                            {!normalizedSearch && (
                                 <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Customer

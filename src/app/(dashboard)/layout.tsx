@@ -37,6 +37,7 @@ import { Separator } from "@/components/ui/separator";
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 import { UserProfileDropdown } from "@/components/user/user-profile-dropdown";
 import { OrgSwitcher } from "@/components/tenant/org-switcher";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -63,6 +64,7 @@ const navigation = [
   { name: "Bills", href: "/bills", icon: Receipt },
   { name: "Expenses", href: "/expenses", icon: CreditCard },
   { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "VAT Returns", href: "/vat-returns", icon: Receipt },
 ];
 
 const bottomNavigation = [
@@ -244,6 +246,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <ThemeToggle />
             <NotificationDropdown />
             <UserProfileDropdown />

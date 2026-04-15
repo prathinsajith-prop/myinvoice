@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { getCountryOptions, type CountryOption } from "@/lib/utils/countries";
 
@@ -51,13 +53,13 @@ export function CountrySelect({
 
     return (
         <div className={cn("relative", className)}>
-            <button
+            <Button
                 type="button"
                 disabled={disabled}
+                variant="outline"
                 onClick={() => !disabled && setOpen((o) => !o)}
                 className={cn(
-                    "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm",
-                    "ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                    "flex h-10 w-full items-center justify-between px-3 py-2 text-sm",
                     "disabled:cursor-not-allowed disabled:opacity-50"
                 )}
             >
@@ -75,7 +77,7 @@ export function CountrySelect({
                     <span className="text-muted-foreground">{placeholder}</span>
                 )}
                 <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
-            </button>
+            </Button>
 
             {open && (
                 <>
@@ -88,12 +90,11 @@ export function CountrySelect({
                         {/* Search input */}
                         <div className="flex items-center gap-2 border-b px-3">
                             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <input
-                                autoFocus
-                                className="flex h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                            <Input
                                 placeholder="Search country, code or currency…"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
+                                className="h-10 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                             />
                         </div>
 
@@ -106,10 +107,11 @@ export function CountrySelect({
                             ) : (
                                 filtered.map((c) => (
                                     <li key={c.value}>
-                                        <button
+                                        <Button
                                             type="button"
+                                            variant="ghost"
                                             className={cn(
-                                                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                                                "flex h-auto w-full items-center gap-2 justify-start rounded-sm px-2 py-1.5 text-sm",
                                                 "hover:bg-accent hover:text-accent-foreground",
                                                 value === c.value && "bg-accent/50"
                                             )}
@@ -130,7 +132,7 @@ export function CountrySelect({
                                             {value === c.value && (
                                                 <Check className="h-4 w-4 text-primary shrink-0" />
                                             )}
-                                        </button>
+                                        </Button>
                                     </li>
                                 ))
                             )}

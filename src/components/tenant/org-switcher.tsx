@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,6 +17,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { jsonFetcher } from "@/lib/fetcher";
+
+interface OrganizationsResponse {
+  organizations?: Array<{ id: string; name: string; logo?: string | null; role: string }>;
+}
 
 export function OrgSwitcher() {
   const router = useRouter();
@@ -29,41 +35,26 @@ export function OrgSwitcher() {
   } = useTenant();
 
   const [switching, setSwitching] = useState(false);
-  const [fallbackOrganizations, setFallbackOrganizations] = useState<
-    Array<{ id: string; name: string; logo?: string | null; role: string }>
-  >([]);
-
-  useEffect(() => {
-    async function loadOrganizations() {
-      if (organizations.length > 0) {
-        setFallbackOrganizations([]);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/organizations", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        const mapped = (data.organizations ?? []).map(
-          (org: { id: string; name: string; logo?: string | null; role: string }) => ({
-            id: org.id,
-            name: org.name,
-            logo: org.logo ?? null,
-            role: org.role,
-          })
-        );
-        setFallbackOrganizations(mapped);
-      } catch {
-        // Best-effort fallback for stale session payloads.
-      }
+  const { data: fallbackData } = useSWR<OrganizationsResponse>(
+    organizations.length === 0 ? "/api/organizations" : null,
+    jsonFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
     }
-
-    loadOrganizations();
-  }, [organizations]);
+  );
 
   const visibleOrganizations = useMemo(
-    () => (organizations.length > 0 ? organizations : fallbackOrganizations),
-    [organizations, fallbackOrganizations]
+    () =>
+      organizations.length > 0
+        ? organizations
+        : (fallbackData?.organizations ?? []).map((org) => ({
+          id: org.id,
+          name: org.name,
+          logo: org.logo ?? null,
+          role: org.role,
+        })),
+    [organizations, fallbackData]
   );
 
   async function handleSwitch(orgId: string) {

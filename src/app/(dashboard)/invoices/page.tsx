@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, MoreHorizontal, FileText, Loader2, AlertCircle } from "lucide-react";
@@ -56,16 +56,12 @@ export default function InvoicesPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -80,7 +76,7 @@ export default function InvoicesPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (statusFilter !== "ALL") params.set("status", statusFilter);
             const res = await fetch(`/api/invoices?${params}`);
             if (res.ok) {
@@ -91,10 +87,19 @@ export default function InvoicesPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, normalizedSearch, statusFilter]);
 
     useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleStatusFilterChange = (value: string) => {
+        setPage(1);
+        setStatusFilter(value);
+    };
 
     const totalOutstanding = invoices.reduce((s, i) => s + Number(i.outstanding), 0);
 
@@ -228,11 +233,11 @@ export default function InvoicesPage() {
                             <Input
                                 placeholder="Search invoices..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-40">
                                 <SelectValue />
                             </SelectTrigger>
@@ -258,9 +263,9 @@ export default function InvoicesPage() {
                             <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No invoices found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first invoice"}
+                                {normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first invoice"}
                             </p>
-                            {!debouncedSearch && statusFilter === "ALL" && (
+                            {!normalizedSearch && statusFilter === "ALL" && (
                                 <Button className="mt-4" size="sm" onClick={() => setSheetOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />New Invoice
                                 </Button>

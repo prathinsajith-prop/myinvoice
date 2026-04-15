@@ -1,14 +1,22 @@
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { compare } from "bcryptjs";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { seedNewOrganization } from "@/lib/db/seed-org";
+import { verifyTotpCode } from "@/lib/security/totp";
+import {
+  finalizeSuccessfulLoginWithMetadata,
+  recordSecondFactorFailure,
+  validatePrimaryCredentials,
+  verifyLoginChallenge,
+} from "@/lib/auth/login-challenge";
+import { getRequestMetadataFromHeaders } from "@/lib/security/request-metadata";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  otp: z.string().regex(/^\d{6}$/).optional(),
 });
 
 export const authConfig: NextAuthConfig = {
@@ -19,33 +27,35 @@ export const authConfig: NextAuthConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { email, password, otp } = parsed.data;
+        const requestMetadata = getRequestMetadataFromHeaders(request?.headers);
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
+        const primaryResult = await validatePrimaryCredentials(email, password, requestMetadata);
+        if (!primaryResult.ok) return null;
 
-        if (!user?.password) return null;
+        if (!otp) {
+          await recordSecondFactorFailure(primaryResult.user.id, "Authentication code missing", requestMetadata);
+          return null;
+        }
 
-        const valid = await compare(password, user.password);
-        if (!valid) return null;
+        const user = primaryResult.user;
+        const challengeValid = await verifyLoginChallenge(user.id, otp);
+        const authenticatorValid = Boolean(
+          user.twoFactorEnabled &&
+          user.twoFactorSecret &&
+          verifyTotpCode(user.twoFactorSecret, otp),
+        );
 
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
+        if (!challengeValid && !authenticatorValid) {
+          await recordSecondFactorFailure(primaryResult.user.id, "Invalid or expired authentication code", requestMetadata);
+          return null;
+        }
 
-        // Record login history — fire-and-forget
-        prisma.loginHistory.create({
-          data: {
-            userId: user.id,
-            success: true,
-          },
-        }).catch(() => { });
+        await finalizeSuccessfulLoginWithMetadata(user.id, requestMetadata);
 
         return {
           id: user.id,

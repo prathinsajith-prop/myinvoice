@@ -139,6 +139,37 @@ export function welcomeEmail({
   return { subject, html, text };
 }
 
+export function loginCodeEmail({
+  name,
+  code,
+  expiresMinutes,
+  loginUrl,
+}: {
+  name: string;
+  code: string;
+  expiresMinutes: number;
+  loginUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "Your myinvoice.ae sign-in code";
+
+  const html = wrap(`
+    <span style="${LOGO}">myinvoice.ae</span>
+    <h1 style="${H1}">Authentication code</h1>
+    <p style="${P}">Hi ${name}, use the code below to complete your sign-in.</p>
+    <div style="font-size: 32px; letter-spacing: 6px; font-weight: 700; color: #1a1a18; margin: 16px 0 24px;">${code}</div>
+    <p style="${P}">This code expires in ${expiresMinutes} minutes.</p>
+    <a href="${loginUrl}" style="${BTN}">Back to login</a>
+    <div style="${FOOTER}">
+      myinvoice.ae — UAE E-Invoicing Platform<br>
+      If you did not request this code, you can ignore this email.
+    </div>
+  `);
+
+  const text = `Your myinvoice.ae sign-in code is ${code}. It expires in ${expiresMinutes} minutes.\n\nLogin: ${loginUrl}`;
+
+  return { subject, html, text };
+}
+
 // ── Role updated notification email ────────────────────────────────────────
 
 export function roleUpdatedEmail({
@@ -168,6 +199,52 @@ export function roleUpdatedEmail({
   `);
 
   const text = `Hi ${name}, your role in ${orgName} is now ${newRole.toLowerCase()}.\n\n${dashboardUrl}`;
+
+  return { subject, html, text };
+}
+
+// ── Invoice delivery email ────────────────────────────────────────────────
+
+export function invoiceEmail({
+  customerName,
+  organizationName,
+  invoiceNumber,
+  amount,
+  currency,
+  dueDate,
+  portalUrl,
+  pdfUrl,
+}: {
+  customerName: string;
+  organizationName: string;
+  invoiceNumber: string;
+  amount: number;
+  currency: string;
+  dueDate: string;
+  portalUrl: string;
+  pdfUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `${organizationName} sent you invoice ${invoiceNumber}`;
+
+  const html = wrap(`
+    <span style="${LOGO}">myinvoice.ae</span>
+    <h1 style="${H1}">Invoice ${invoiceNumber}</h1>
+    <p style="${P}">Hello ${customerName},</p>
+    <p style="${P}">
+      ${organizationName} has sent you an invoice for <strong>${currency} ${amount.toFixed(2)}</strong>.
+      Due date: <strong>${dueDate}</strong>.
+    </p>
+    <a href="${portalUrl}" style="${BTN}">View invoice</a>
+    <p style="${P}">
+      Need a direct copy? Download PDF: <a href="${pdfUrl}">${pdfUrl}</a>
+    </p>
+    <div style="${FOOTER}">
+      myinvoice.ae — UAE E-Invoicing Platform<br>
+      View online: ${portalUrl}
+    </div>
+  `);
+
+  const text = `Invoice ${invoiceNumber}\n\n${organizationName} sent an invoice for ${currency} ${amount.toFixed(2)} due on ${dueDate}.\n\nView: ${portalUrl}\nPDF: ${pdfUrl}`;
 
   return { subject, html, text };
 }

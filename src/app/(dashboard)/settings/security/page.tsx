@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
+import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -30,7 +31,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { jsonFetcher } from "@/lib/fetcher";
 import { updatePasswordSchema, type UpdatePasswordInput } from "@/lib/validations/settings";
+
+interface LoginHistoryResponse {
+  data?: LoginHistoryRecord[];
+  nextCursor?: string | null;
+}
+
+interface ProfileSecurityResponse {
+  twoFactorEnabled?: boolean;
+}
 
 interface LoginHistoryRecord {
   id: string;
@@ -50,16 +61,50 @@ export default function SecuritySettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [totpQr, setTotpQr] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [twoFactorSaving, setTwoFactorSaving] = useState(false);
   const [loginHistory, setLoginHistory] = useState<LoginHistoryRecord[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/user/login-history")
-      .then((r) => r.json())
-      .then((json) => setLoginHistory(json.data ?? []))
-      .catch(() => {/* non-critical */ })
-      .finally(() => setHistoryLoading(false));
-  }, []);
+  const { isLoading: historyLoading } = useSWR<LoginHistoryResponse>(
+    "/api/user/login-history",
+    jsonFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      onSuccess(data) {
+        setLoginHistory(data.data ?? []);
+        setNextCursor(data.nextCursor ?? null);
+      },
+    }
+  );
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/user/login-history?cursor=${encodeURIComponent(nextCursor)}`);
+      const json: LoginHistoryResponse = await res.json();
+      setLoginHistory((prev) => [...prev, ...(json.data ?? [])]);
+      setNextCursor(json.nextCursor ?? null);
+    } catch {
+      toast.error("Failed to load more history");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextCursor, loadingMore]);
+  const { data: profileData, isLoading: twoFactorLoading, mutate: mutateProfile } = useSWR<ProfileSecurityResponse>(
+    "/api/user/profile",
+    jsonFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+  const twoFactorEnabled = Boolean(profileData?.twoFactorEnabled);
 
   const {
     register,
@@ -114,6 +159,69 @@ export default function SecuritySettingsPage() {
       toast.error(error instanceof Error ? error.message : "Failed to update password");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleStartTwoFactor = async () => {
+    setTwoFactorSaving(true);
+    try {
+      const res = await fetch("/api/user/2fa/setup", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to initialize 2FA");
+
+      setTotpSecret(json.secret);
+      setTotpQr(json.qrCodeDataUrl);
+      toast.success("Scan the QR and verify with your 6-digit code");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to initialize 2FA");
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  };
+
+  const handleVerifyTwoFactor = async () => {
+    setTwoFactorSaving(true);
+    try {
+      const res = await fetch("/api/user/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: totpCode }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Invalid code");
+
+      setTotpCode("");
+      setTotpSecret(null);
+      setTotpQr(null);
+      await mutateProfile();
+      toast.success("Two-factor authentication enabled");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to enable 2FA");
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  };
+
+  const handleDisableTwoFactor = async () => {
+    setTwoFactorSaving(true);
+    try {
+      const res = await fetch("/api/user/2fa/disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: totpCode }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Invalid code");
+
+      setTotpCode("");
+      setTotpSecret(null);
+      setTotpQr(null);
+      await mutateProfile();
+      toast.success("Two-factor authentication disabled");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to disable 2FA");
+    } finally {
+      setTwoFactorSaving(false);
     }
   };
 
@@ -265,28 +373,81 @@ export default function SecuritySettingsPage() {
               <Smartphone className="h-5 w-5 text-primary" />
               <CardTitle>Two-Factor Authentication</CardTitle>
             </div>
-            <Badge variant="secondary">Coming Soon</Badge>
+            {twoFactorLoading ? (
+              <Badge variant="secondary">Loading</Badge>
+            ) : twoFactorEnabled ? (
+              <Badge variant="default">Enabled</Badge>
+            ) : (
+              <Badge variant="outline">Disabled</Badge>
+            )}
           </div>
           <CardDescription>
             Add an extra layer of security to your account
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-muted p-3">
-                <Shield className="h-6 w-6 text-muted-foreground" />
+          <div className="space-y-4 rounded-lg border p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-muted p-3">
+                  <Shield className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Authenticator App</p>
+                  <p className="text-sm text-muted-foreground">
+                    Use Google Authenticator, Microsoft Authenticator, or Authy
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">Authenticator App</p>
-                <p className="text-sm text-muted-foreground">
-                  Use an authenticator app like Google Authenticator or Authy
-                </p>
-              </div>
+              {!twoFactorEnabled ? (
+                <Button variant="outline" onClick={handleStartTwoFactor} disabled={twoFactorSaving}>
+                  {twoFactorSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Enable
+                </Button>
+              ) : (
+                <Button variant="destructive" onClick={handleDisableTwoFactor} disabled={twoFactorSaving || totpCode.length !== 6}>
+                  {twoFactorSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Disable
+                </Button>
+              )}
             </div>
-            <Button variant="outline" disabled>
-              Enable
-            </Button>
+
+            {totpQr && !twoFactorEnabled && (
+              <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+                <p className="text-sm font-medium">1) Scan QR code in your authenticator app</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={totpQr} alt="2FA QR code" className="h-48 w-48 rounded border bg-white p-2" />
+                {totpSecret && (
+                  <p className="text-xs text-muted-foreground break-all">Manual key: {totpSecret}</p>
+                )}
+                <p className="text-sm font-medium">2) Enter the 6-digit code to confirm</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    inputMode="numeric"
+                  />
+                  <Button onClick={handleVerifyTwoFactor} disabled={twoFactorSaving || totpCode.length !== 6}>
+                    Verify
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {twoFactorEnabled && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Enter your current authenticator code to disable 2FA.
+                </p>
+                <Input
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="123456"
+                  inputMode="numeric"
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -299,7 +460,7 @@ export default function SecuritySettingsPage() {
             <CardTitle>Login History</CardTitle>
           </div>
           <CardDescription>
-            Recent sign-in activity for your account (last 50 events)
+            Recent sign-in activity for your account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -373,6 +534,20 @@ export default function SecuritySettingsPage() {
                   </div>
                 );
               })}
+              {nextCursor && (
+                <div className="flex justify-center pt-2">
+                  <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading…
+                      </>
+                    ) : (
+                      "Load More"
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

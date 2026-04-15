@@ -77,4 +77,82 @@ export async function seedNewOrganization(organizationId: string): Promise<void>
             update: {},
         });
     }
+
+    // Optional sample data for first-time onboarding experience.
+    const existingCustomers = await prisma.customer.count({ where: { organizationId, deletedAt: null } });
+    if (existingCustomers > 0) return;
+
+    const customer = await prisma.customer.create({
+        data: {
+            organizationId,
+            name: "Sample Customer LLC",
+            email: `sample-customer-${organizationId.slice(0, 6)}@example.com`,
+            city: "Dubai",
+            country: "AE",
+            currency: "AED",
+            defaultPaymentTerms: 30,
+            isVatRegistered: true,
+            trn: "300000000000999",
+        },
+    });
+
+    const product = await prisma.product.create({
+        data: {
+            organizationId,
+            sku: `SAMPLE-${organizationId.slice(0, 4).toUpperCase()}`,
+            name: "Consulting Services",
+            description: "Sample service line item",
+            type: "SERVICE",
+            unitPrice: 1000,
+            currency: "AED",
+            isActive: true,
+        },
+    });
+
+    const subtotal = 1000;
+    const vat = 50;
+    const total = 1050;
+
+    await prisma.invoice.create({
+        data: {
+            organizationId,
+            customerId: customer.id,
+            invoiceNumber: "INV-0001",
+            invoiceType: "TAX_INVOICE",
+            issueDate: new Date(),
+            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            status: "SENT",
+            currency: "AED",
+            subtotal,
+            totalVat: vat,
+            discount: 0,
+            total,
+            amountPaid: 0,
+            outstanding: total,
+            ftaCompliant: false,
+            lineItems: {
+                create: [
+                    {
+                        productId: product.id,
+                        description: "Consulting Services",
+                        quantity: 1,
+                        unitPrice: subtotal,
+                        unitOfMeasure: "unit",
+                        discount: 0,
+                        vatTreatment: "STANDARD_RATED",
+                        vatRate: 5,
+                        subtotal,
+                        vatAmount: vat,
+                        total,
+                        sortOrder: 0,
+                    },
+                ],
+            },
+        },
+    });
+
+    await prisma.documentSequence.updateMany({
+        where: { organizationId, documentType: "INVOICE", nextSequence: { lte: 1 } },
+        data: { nextSequence: 2 },
+    });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Plus, Search, CreditCard, Loader2, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
@@ -84,7 +84,6 @@ export default function ExpensesPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
@@ -92,11 +91,8 @@ export default function ExpensesPage() {
     const [editId, setEditId] = useState<string | null>(null);
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [viewDetail, setViewDetail] = useState<ExpenseDetail | null>(null);
-
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 350);
-        return () => clearTimeout(t);
-    }, [search]);
+    const deferredSearch = useDeferredValue(search);
+    const normalizedSearch = deferredSearch.trim();
 
     useEffect(() => {
         if (createParamHandled.current) return;
@@ -111,7 +107,7 @@ export default function ExpensesPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (debouncedSearch) params.set("search", debouncedSearch);
+            if (normalizedSearch) params.set("search", normalizedSearch);
             if (statusFilter !== "ALL") params.set("status", statusFilter);
             const res = await fetch(`/api/expenses?${params}`);
             if (res.ok) {
@@ -122,10 +118,19 @@ export default function ExpensesPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, statusFilter]);
+    }, [page, normalizedSearch, statusFilter]);
 
     useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
-    useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearch(value);
+    };
+
+    const handleStatusFilterChange = (value: string) => {
+        setPage(1);
+        setStatusFilter(value);
+    };
 
     const totalAmount = expenses.reduce((s, e) => s + Number(e.total), 0);
 
@@ -270,11 +275,11 @@ export default function ExpensesPage() {
                             <Input
                                 placeholder="Search expenses..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
@@ -297,9 +302,9 @@ export default function ExpensesPage() {
                             <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
                             <p className="text-sm font-medium">No expenses found</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {debouncedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Track your first business expense"}
+                                {normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Track your first business expense"}
                             </p>
-                            {!debouncedSearch && statusFilter === "ALL" && (
+                            {!normalizedSearch && statusFilter === "ALL" && (
                                 <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />New Expense
                                 </Button>

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const lineItemSchema = z.object({
     description: z.string().min(1, "Description required"),
@@ -219,11 +220,11 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Issue Date <span className="text-destructive">*</span></Label>
-                                    <Input type="date" {...form.register("issueDate")} />
+                                    <DatePicker value={form.watch("issueDate")} onChange={(v) => form.setValue("issueDate", v, { shouldValidate: true })} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Due Date <span className="text-destructive">*</span></Label>
-                                    <Input type="date" {...form.register("dueDate")} />
+                                    <DatePicker value={form.watch("dueDate")} onChange={(v) => form.setValue("dueDate", v, { shouldValidate: true })} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Currency</Label>
