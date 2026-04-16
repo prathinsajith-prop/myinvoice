@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -70,9 +72,13 @@ interface BillSheetProps {
 }
 
 export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBillId }: BillSheetProps) {
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const { data: suppliersData } = useSWR(
+        open ? "/api/suppliers?limit=200" : null,
+        jsonFetcher<{ data: Supplier[] }>
+    );
+    const suppliers = suppliersData?.data ?? [];
     const [submitting, setSubmitting] = useState(false);
-    const [loadingBill, setLoadingBill] = useState(false);
+    const [_loadingBill, setLoadingBill] = useState(false);
     const orgSettings = useOrgSettings();
 
     const today = new Date().toISOString().split("T")[0];
@@ -96,14 +102,8 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
     const watchedItems = form.watch("lineItems");
     const currency = form.watch("currency");
 
-    const fetchSuppliers = useCallback(async () => {
-        const res = await fetch("/api/suppliers?limit=200");
-        if (res.ok) setSuppliers((await res.json()).data ?? []);
-    }, []);
-
     useEffect(() => {
         if (open) {
-            fetchSuppliers();
             if (editBillId) {
                 setLoadingBill(true);
                 fetch(`/api/bills/${editBillId}`)
@@ -117,7 +117,7 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                                 supplierReference: bill.reference || "",
                                 currency: bill.currency,
                                 notes: bill.notes || "",
-                                lineItems: bill.lineItems.map((item: any) => ({
+                                lineItems: bill.lineItems.map((item: Record<string, unknown>) => ({
                                     description: item.description,
                                     quantity: item.quantity,
                                     unitPrice: item.unitPrice,

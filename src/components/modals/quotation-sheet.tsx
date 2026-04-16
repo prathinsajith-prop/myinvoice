@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -72,10 +74,18 @@ interface QuotationSheetProps {
 }
 
 export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, editQuotationId }: QuotationSheetProps) {
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const { data: customersData } = useSWR(
+        open ? "/api/customers?limit=200" : null,
+        jsonFetcher<{ data: Customer[] }>
+    );
+    const { data: productsData } = useSWR(
+        open ? "/api/products?limit=200" : null,
+        jsonFetcher<{ data: Product[] }>
+    );
+    const customers = customersData?.data ?? [];
+    const products = productsData?.data ?? [];
     const [submitting, setSubmitting] = useState(false);
-    const [loadingQuotation, setLoadingQuotation] = useState(false);
+    const [_loadingQuotation, setLoadingQuotation] = useState(false);
     const orgSettings = useOrgSettings();
 
     const today = new Date().toISOString().split("T")[0];
@@ -99,18 +109,8 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
     const watchedItems = form.watch("lineItems");
     const currency = form.watch("currency");
 
-    const fetchData = useCallback(async () => {
-        const [c, p] = await Promise.all([
-            fetch("/api/customers?limit=200"),
-            fetch("/api/products?limit=200"),
-        ]);
-        if (c.ok) setCustomers((await c.json()).data ?? []);
-        if (p.ok) setProducts((await p.json()).data ?? []);
-    }, []);
-
     useEffect(() => {
         if (open) {
-            fetchData();
             if (editQuotationId) {
                 setLoadingQuotation(true);
                 fetch(`/api/quotations/${editQuotationId}`)
@@ -124,7 +124,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                 currency: quotation.currency,
                                 notes: quotation.notes || "",
                                 termsAndConditions: quotation.terms || "",
-                                lineItems: quotation.lineItems.map((item: any) => ({
+                                lineItems: quotation.lineItems.map((item: Record<string, unknown>) => ({
                                     description: item.description,
                                     quantity: item.quantity,
                                     unitPrice: item.unitPrice,

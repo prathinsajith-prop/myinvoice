@@ -11,6 +11,7 @@ export interface OrgSettings {
     defaultVatRate: number;
     defaultNotes: string;
     defaultTerms: string;
+    primaryColor: string;
 }
 
 const DEFAULTS: OrgSettings = {
@@ -20,6 +21,7 @@ const DEFAULTS: OrgSettings = {
     defaultVatRate: 5,
     defaultNotes: "",
     defaultTerms: "",
+    primaryColor: "#1e3a8a",
 };
 
 const ORG_SETTINGS_KEY = "/api/organization";
@@ -36,6 +38,7 @@ async function fetchOrgSettings(): Promise<OrgSettings> {
             defaultVatRate: Number(org.defaultVatRate ?? 5),
             defaultNotes: org.defaultNotes ?? "",
             defaultTerms: org.defaultTerms ?? "",
+            primaryColor: (org as Record<string, unknown>).primaryColor as string ?? "#1e3a8a",
         };
     } catch {
         return DEFAULTS;

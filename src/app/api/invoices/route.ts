@@ -141,6 +141,12 @@ export async function POST(req: NextRequest) {
             select: { name: true, legalName: true, trn: true },
         });
 
+        // Resolve customer TRN for FTA compliance (buyerTrn required on B2B invoices > AED 10,000)
+        const customerRecord = await prisma.customer.findUnique({
+            where: { id: invoiceData.customerId },
+            select: { trn: true },
+        });
+
         const issueDateValue = issueDate ? new Date(issueDate) : new Date();
 
         const qrCodeData = organization?.trn
@@ -163,6 +169,8 @@ export async function POST(req: NextRequest) {
                 publicToken: generatePublicToken(),
                 qrCodeData,
                 ftaCompliant: Boolean(organization?.trn && qrCodeData),
+                sellerTrn: organization?.trn ?? null,
+                buyerTrn: customerRecord?.trn ?? null,
                 subtotal: totals.subtotal,
                 totalVat: totals.totalVat,
                 discount: totals.discount,

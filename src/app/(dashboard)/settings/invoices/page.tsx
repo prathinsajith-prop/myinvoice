@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
     Loader2,
@@ -97,33 +97,34 @@ export default function InvoiceSettingsPage() {
         defaultNotes: "",
         defaultTerms: "",
     });
-    const { isLoading: loading, mutate } = useSWR<InvoiceSettingsResponse>("/api/organization", jsonFetcher, {
+    const { data: settingsData, isLoading: loading, mutate } = useSWR<InvoiceSettingsResponse>("/api/organization", jsonFetcher, {
         revalidateOnFocus: false,
-        revalidateOnReconnect: false,
-        onSuccess(json) {
-            const org = json.organization;
-            setForm({
-                defaultCurrency: org.defaultCurrency ?? "AED",
-                fiscalYearStart: org.fiscalYearStart ?? 1,
-                invoicePrefix: org.invoicePrefix ?? "INV",
-                proformaPrefix: org.proformaPrefix ?? "PI",
-                quotePrefix: org.quotePrefix ?? "QT",
-                creditNotePrefix: org.creditNotePrefix ?? "CN",
-                debitNotePrefix: org.debitNotePrefix ?? "DN",
-                billPrefix: org.billPrefix ?? "BILL",
-                paymentPrefix: org.paymentPrefix ?? "PAY",
-                defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
-                defaultDueDateDays: org.defaultDueDateDays ?? 30,
-                defaultVatRate: Number(org.defaultVatRate ?? 5),
-                defaultNotes: org.defaultNotes ?? "",
-                defaultTerms: org.defaultTerms ?? "",
-            });
-            setIsAdmin(json.role === "OWNER" || json.role === "ADMIN");
-        },
         onError() {
             toast.error("Failed to load invoice settings");
         },
     });
+
+    useEffect(() => {
+        if (!settingsData) return;
+        const org = settingsData.organization;
+        setForm({
+            defaultCurrency: org.defaultCurrency ?? "AED",
+            fiscalYearStart: org.fiscalYearStart ?? 1,
+            invoicePrefix: org.invoicePrefix ?? "INV",
+            proformaPrefix: org.proformaPrefix ?? "PI",
+            quotePrefix: org.quotePrefix ?? "QT",
+            creditNotePrefix: org.creditNotePrefix ?? "CN",
+            debitNotePrefix: org.debitNotePrefix ?? "DN",
+            billPrefix: org.billPrefix ?? "BILL",
+            paymentPrefix: org.paymentPrefix ?? "PAY",
+            defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
+            defaultDueDateDays: org.defaultDueDateDays ?? 30,
+            defaultVatRate: Number(org.defaultVatRate ?? 5),
+            defaultNotes: org.defaultNotes ?? "",
+            defaultTerms: org.defaultTerms ?? "",
+        });
+        setIsAdmin(settingsData.role === "OWNER" || settingsData.role === "ADMIN");
+    }, [settingsData]);
 
     const set = <K extends keyof InvoiceSettingsData>(key: K, value: InvoiceSettingsData[K]) =>
         setForm((prev) => ({ ...prev, [key]: value }));

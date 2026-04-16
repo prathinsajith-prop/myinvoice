@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Package } from "lucide-react";
+import { Plus, Package, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { ProductModal } from "@/components/modals/product-modal";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
@@ -10,14 +10,9 @@ import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -170,27 +165,32 @@ export default function ProductsPage() {
             accessorKey: "isActive",
             header: "Status",
             cell: ({ row }) => (
-                <Badge variant={row.getValue("isActive") ? "default" : "secondary"} className="text-xs">
-                    {row.getValue("isActive") ? "Active" : "Inactive"}
-                </Badge>
+                <StatusBadge status={row.getValue("isActive") ? "ACTIVE" : "INACTIVE"} />
             ),
         },
         {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/products/${row.original.id}`)}>View</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(row.original.id)}>Edit</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="View"
+                        onClick={() => router.push(`/products/${row.original.id}`)}
+                    >
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Edit"
+                        onClick={() => openEdit(row.original.id)}
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
                 </div>
             ),
         },
@@ -221,6 +221,8 @@ export default function ProductsPage() {
             <PageHeader
                 title="Products & Services"
                 description={pagination ? `${pagination.total} items` : "Manage your product catalog"}
+                onRefresh={fetchProducts}
+                isRefreshing={loading}
                 actions={
                     <>
                         <ExportDropdown
@@ -251,8 +253,6 @@ export default function ProductsPage() {
                             placeholder="Search products..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchProducts}
-                            isRefreshing={loading}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-36">

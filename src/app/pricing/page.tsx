@@ -1,4 +1,11 @@
+import { type Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+    title: "Pricing — MyInvoice AE",
+    description: "Simple, transparent pricing for MyInvoice AE. Choose the plan that fits your business.",
+};
+
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

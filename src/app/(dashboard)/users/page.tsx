@@ -211,7 +211,7 @@ export default function UsersPage() {
             id: "actions",
             header: () => <div className="text-right">Actions</div>,
             cell: ({ row }) => (
-                <div className="text-right" onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" className="text-right" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => setSelectedMember(row.original)}>
                         <Eye className="h-4 w-4" />
                     </Button>
@@ -225,6 +225,10 @@ export default function UsersPage() {
             <PageHeader
                 title="Users"
                 description="People assigned to your current organization"
+                onRefresh={() => {
+                    void mutate();
+                }}
+                isRefreshing={loading}
                 actions={
                     <>
                         <PermissionGate permission="manage_team">
@@ -268,8 +272,6 @@ export default function UsersPage() {
                                 placeholder="Search by name, email, or role"
                                 value={search}
                                 onChange={setSearch}
-                                onRefresh={() => mutate()}
-                                isRefreshing={loading}
                                 className="relative w-full sm:w-64"
                             />
                             <Select value={roleFilter} onValueChange={setRoleFilter}>

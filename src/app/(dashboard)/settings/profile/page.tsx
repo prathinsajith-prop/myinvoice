@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
@@ -46,20 +46,21 @@ export default function ProfileSettingsPage() {
     resolver: zodResolver(updateProfileSchema),
   });
 
-  const { isLoading: loading, mutate } = useSWR<ProfileResponse>("/api/user/profile", jsonFetcher, {
+  const { data: profileData, isLoading: loading, mutate } = useSWR<ProfileResponse>("/api/user/profile", jsonFetcher, {
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    onSuccess(data) {
-      reset({
-        name: data.name ?? undefined,
-        phone: data.phone ?? undefined,
-      });
-      setImagePreview(data.image ?? null);
-    },
     onError() {
       toast.error("Failed to load profile");
     },
   });
+
+  useEffect(() => {
+    if (!profileData) return;
+    reset({
+      name: profileData.name ?? undefined,
+      phone: profileData.phone ?? undefined,
+    });
+    setImagePreview(profileData.image ?? null);
+  }, [profileData, reset]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

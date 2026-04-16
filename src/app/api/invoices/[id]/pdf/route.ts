@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         const invoice = await prisma.invoice.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
             include: {
-                organization: { select: { name: true, legalName: true, trn: true } },
+                organization: { select: { name: true, legalName: true, trn: true, logo: true, primaryColor: true } },
                 customer: { select: { name: true, email: true } },
                 lineItems: { orderBy: { sortOrder: "asc" } },
             },
@@ -35,6 +35,8 @@ export async function GET(req: NextRequest, { params }: Params) {
             customerEmail: invoice.customer.email,
             organizationName: invoice.organization.legalName || invoice.organization.name,
             organizationTrn: invoice.organization.trn,
+            organizationLogo: invoice.organization.logo,
+            primaryColor: invoice.organization.primaryColor,
             notes: invoice.notes,
             qrCodeData: invoice.qrCodeData,
             lineItems: invoice.lineItems.map((item) => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Plus, CreditCard, Eye, Pencil, CheckCircle2, Clock } from "lucide-react";
+import { Plus, CreditCard, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { ExpenseModal } from "@/components/modals/expense-modal";
@@ -10,6 +10,7 @@ import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { SearchInput } from "@/components/search-input";
@@ -22,6 +23,7 @@ import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
@@ -184,9 +186,9 @@ export default function ExpensesPage() {
             accessorKey: "category",
             header: "Category",
             cell: ({ row }) => (
-                <span className="text-muted-foreground">
+                <Badge variant="outline" className="text-xs">
                     {CATEGORY_LABELS[row.getValue("category") as string] ?? row.getValue("category")}
-                </span>
+                </Badge>
             ),
         },
         {
@@ -202,9 +204,9 @@ export default function ExpensesPage() {
             accessorKey: "paymentMethod",
             header: "Method",
             cell: ({ row }) => (
-                <span className="text-muted-foreground capitalize">
+                <Badge variant="secondary" className="text-xs capitalize">
                     {(row.getValue("paymentMethod") as string)?.toLowerCase().replace(/_/g, " ")}
-                </span>
+                </Badge>
             ),
         },
         {
@@ -219,20 +221,15 @@ export default function ExpensesPage() {
         {
             accessorKey: "isPaid",
             header: "Payment",
-            cell: ({ row }) => {
-                const isPaid = row.getValue("isPaid") as boolean;
-                return (
-                    <Badge variant={isPaid ? "default" : "secondary"} className={isPaid ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-amber-100 text-amber-700 hover:bg-amber-100"}>
-                        {isPaid ? <><CheckCircle2 className="mr-1 h-3 w-3" /> Paid</> : <><Clock className="mr-1 h-3 w-3" /> Unpaid</>}
-                    </Badge>
-                );
-            },
+            cell: ({ row }) => (
+                <StatusBadge status={row.getValue("isPaid") ? "PAID" : "UNPAID"} />
+            ),
         },
         {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
                         onClick={() => openView(row.original.id)}>
                         <Eye className="h-4 w-4" />
@@ -251,6 +248,8 @@ export default function ExpensesPage() {
             <PageHeader
                 title="Expenses"
                 description={pagination ? `${pagination.total} total expenses` : "Track business expenses"}
+                onRefresh={fetchExpenses}
+                isRefreshing={loading}
                 actions={
                     <>
                         <ExportDropdown
@@ -288,8 +287,6 @@ export default function ExpensesPage() {
                             placeholder="Search expenses..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchExpenses}
-                            isRefreshing={loading}
                         />
                         <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
                             <SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
@@ -348,11 +345,12 @@ export default function ExpensesPage() {
                         <DialogTitle className="flex items-center justify-between">
                             <span>{viewDetail?.expenseNumber}</span>
                             {viewDetail && (
-                                <Badge variant={viewDetail.isPaid ? "default" : "secondary"} className={viewDetail.isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>
-                                    {viewDetail.isPaid ? "Paid" : "Unpaid"}
-                                </Badge>
+                                <StatusBadge status={viewDetail.isPaid ? "PAID" : "UNPAID"} />
                             )}
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Review expense details including category, payment method, VAT, and totals.
+                        </DialogDescription>
                     </DialogHeader>
                     {viewDetail && (
                         <div className="space-y-4 text-sm">
@@ -363,7 +361,7 @@ export default function ExpensesPage() {
                                 </div>
                                 <div>
                                     <p className="text-xs text-muted-foreground">Category</p>
-                                    <p className="font-medium mt-0.5">{CATEGORY_LABELS[viewDetail.category] ?? viewDetail.category}</p>
+                                    <Badge variant="outline" className="mt-1 text-xs">{CATEGORY_LABELS[viewDetail.category] ?? viewDetail.category}</Badge>
                                 </div>
                                 <div>
                                     <p className="text-xs text-muted-foreground">Date</p>
@@ -371,7 +369,7 @@ export default function ExpensesPage() {
                                 </div>
                                 <div>
                                     <p className="text-xs text-muted-foreground">Payment Method</p>
-                                    <p className="font-medium mt-0.5 capitalize">{viewDetail.paymentMethod?.toLowerCase().replace(/_/g, " ")}</p>
+                                    <Badge variant="secondary" className="mt-1 text-xs capitalize">{viewDetail.paymentMethod?.toLowerCase().replace(/_/g, " ")}</Badge>
                                 </div>
                                 {viewDetail.merchantName && (
                                     <div>
@@ -410,9 +408,7 @@ export default function ExpensesPage() {
                                 </div>
                             )}
                             <div className="flex justify-between items-center pt-1">
-                                <Badge variant={viewDetail.isPaid ? "default" : "secondary"}>
-                                    {viewDetail.isPaid ? "Paid" : "Unpaid"}
-                                </Badge>
+                                <StatusBadge status={viewDetail.isPaid ? "PAID" : "UNPAID"} />
                                 <Button size="sm" variant="outline" onClick={() => { setViewDetail(null); openEdit(viewDetail.id); }}>
                                     <Pencil className="mr-2 h-3.5 w-3.5" />Edit
                                 </Button>

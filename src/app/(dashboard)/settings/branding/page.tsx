@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import {
     Loader2,
@@ -49,21 +49,22 @@ export default function BrandingSettingsPage() {
     const [orgName, setOrgName] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { isLoading: loading, mutate } = useSWR<BrandingResponse>("/api/organization", jsonFetcher, {
+    const { data, isLoading: loading, mutate } = useSWR<BrandingResponse>("/api/organization", jsonFetcher, {
         revalidateOnFocus: false,
-        revalidateOnReconnect: false,
-        onSuccess(json) {
-            const org = json.organization;
-            setOrgName(org.name ?? "");
-            setPrimaryColor(org.primaryColor ?? DEFAULT_PRIMARY);
-            setSecondaryColor(org.secondaryColor ?? DEFAULT_SECONDARY);
-            setLogoPreview(org.logo ?? null);
-            setIsAdmin(json.role === "OWNER" || json.role === "ADMIN");
-        },
         onError() {
             toast.error("Failed to load branding settings");
         },
     });
+
+    useEffect(() => {
+        if (!data) return;
+        const org = data.organization;
+        setOrgName(org.name ?? "");
+        setPrimaryColor(org.primaryColor ?? DEFAULT_PRIMARY);
+        setSecondaryColor(org.secondaryColor ?? DEFAULT_SECONDARY);
+        setLogoPreview(org.logo ?? null);
+        setIsAdmin(data.role === "OWNER" || data.role === "ADMIN");
+    }, [data]);
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

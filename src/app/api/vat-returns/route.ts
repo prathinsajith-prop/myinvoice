@@ -74,7 +74,26 @@ export async function POST(req: NextRequest) {
         const inputVat = Number(billAgg._sum.inputVatAmount ?? 0) + Number(expenseAgg._sum.vatAmount ?? 0);
         const netVat = outputVat - inputVat;
 
-        const standardRatedSales = Number(invoiceAgg._sum.total ?? 0);
+        // Split sales by VAT treatment from line items for FTA-compliant VAT return
+        const lineItemTreatments = await prisma.invoiceLineItem.groupBy({
+            by: ["vatTreatment"],
+            where: {
+                invoice: {
+                    organizationId: ctx.organizationId,
+                    deletedAt: null,
+                    status: { not: "VOID" },
+                    issueDate: { gte: periodStart, lte: periodEnd },
+                },
+            },
+            _sum: { subtotal: true },
+        });
+
+        const getTreatmentSum = (treatment: string) =>
+            Number(lineItemTreatments.find((r) => r.vatTreatment === treatment)?._sum.subtotal ?? 0);
+
+        const standardRatedSales = getTreatmentSum("STANDARD_RATED") + getTreatmentSum("REVERSE_CHARGE");
+        const zeroRatedSales = getTreatmentSum("ZERO_RATED");
+        const exemptSales = getTreatmentSum("EXEMPT");
         const standardRatedPurchases = Number(billAgg._sum.total ?? 0) + Number(expenseAgg._sum.total ?? 0);
 
         const draft = {
@@ -83,8 +102,8 @@ export async function POST(req: NextRequest) {
             periodEnd,
             dueDate: new Date(periodEnd.getTime() + 28 * 24 * 60 * 60 * 1000),
             standardRatedSales,
-            zeroRatedSales: 0,
-            exemptSales: 0,
+            zeroRatedSales,
+            exemptSales,
             standardRatedPurchases,
             outputVat,
             inputVat,

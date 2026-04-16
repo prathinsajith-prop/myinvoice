@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogFooter,
@@ -163,6 +164,9 @@ export function LineItemModal({ open, onClose, onSave, lineItem, currency }: Lin
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{lineItem ? "Edit Line Item" : "Add Line Item"}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {lineItem ? "Update quantity, price, discount, and VAT for this line item." : "Add a line item with quantity, price, discount, and VAT details."}
+                    </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                     {/* Product selector */}

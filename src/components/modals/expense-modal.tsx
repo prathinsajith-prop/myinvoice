@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -171,6 +172,9 @@ export function ExpenseModal({
             <DialogContent className="w-[96vw] max-w-[46rem] overflow-hidden p-0 sm:max-w-[46rem]">
                 <DialogHeader className="border-b px-6 py-4">
                     <DialogTitle>{isEdit ? "Edit Expense" : "Record Expense"}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {isEdit ? "Update expense details" : "Create a new expense entry"}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <ScrollArea className="max-h-[74vh] px-6">

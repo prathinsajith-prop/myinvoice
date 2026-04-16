@@ -1,3 +1,10 @@
+import { type Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Privacy Policy — MyInvoice AE",
+    description: "Read the privacy policy for MyInvoice AE.",
+};
+
 export default function PrivacyPage() {
     return (
         <div className="container mx-auto max-w-3xl px-4 py-14 space-y-6">

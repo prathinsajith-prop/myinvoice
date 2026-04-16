@@ -11,6 +11,7 @@ import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -174,16 +175,14 @@ export default function SuppliersPage() {
             accessorKey: "isActive",
             header: "Status",
             cell: ({ row }) => (
-                <Badge variant={row.getValue("isActive") ? "default" : "secondary"} className="text-xs">
-                    {row.getValue("isActive") ? "Active" : "Inactive"}
-                </Badge>
+                <StatusBadge status={row.getValue("isActive") ? "ACTIVE" : "INACTIVE"} />
             ),
         },
         {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
                         onClick={() => router.push(`/suppliers/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
@@ -237,6 +236,8 @@ export default function SuppliersPage() {
             <PageHeader
                 title="Suppliers"
                 description={pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
+                onRefresh={fetchSuppliers}
+                isRefreshing={loading}
                 actions={
                     <>
                         <ExportDropdown
@@ -268,8 +269,6 @@ export default function SuppliersPage() {
                             placeholder="Search suppliers..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchSuppliers}
-                            isRefreshing={loading}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
