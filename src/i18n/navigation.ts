@@ -5,7 +5,7 @@ import { locales, defaultLocale } from "./index";
 export const routing = defineRouting({
   locales,
   defaultLocale,
-  localePrefix: "as-needed", // Only show locale prefix for non-default locale
+  localePrefix: "never", // Never prefix URLs — locale resolved from NEXT_LOCALE cookie
 });
 
 export const { Link, redirect, usePathname, useRouter, getPathname } =

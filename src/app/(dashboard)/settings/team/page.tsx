@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { PermissionGate } from "@/components/tenant/permission-gate";
 import { useTenant } from "@/lib/tenant/context";
 import { jsonFetcher } from "@/lib/fetcher";
+import { useTranslations } from "next-intl";
 
 type MemberRole = "OWNER" | "ADMIN" | "ACCOUNTANT" | "MEMBER" | "VIEWER";
 
@@ -44,12 +45,12 @@ interface Member {
   };
 }
 
-const ROLE_CONFIG: Record<MemberRole, { label: string; icon: React.ElementType; color: string; description: string }> = {
-  OWNER: { label: "Owner", icon: Crown, color: "text-amber-600 bg-amber-50 border-amber-200", description: "Full access, can delete organization" },
-  ADMIN: { label: "Admin", icon: Shield, color: "text-blue-600 bg-blue-50 border-blue-200", description: "Full access except organization deletion" },
-  ACCOUNTANT: { label: "Accountant", icon: Calculator, color: "text-green-600 bg-green-50 border-green-200", description: "Financial access, manage invoices" },
-  MEMBER: { label: "Member", icon: Users, color: "text-purple-600 bg-purple-50 border-purple-200", description: "View and limited edit access" },
-  VIEWER: { label: "Viewer", icon: Eye, color: "text-gray-600 bg-gray-50 border-gray-200", description: "Read-only access" },
+const ROLE_CONFIG: Record<MemberRole, { icon: React.ElementType; color: string }> = {
+  OWNER: { icon: Crown, color: "text-amber-600 bg-amber-50 border-amber-200" },
+  ADMIN: { icon: Shield, color: "text-blue-600 bg-blue-50 border-blue-200" },
+  ACCOUNTANT: { icon: Calculator, color: "text-green-600 bg-green-50 border-green-200" },
+  MEMBER: { icon: Users, color: "text-purple-600 bg-purple-50 border-purple-200" },
+  VIEWER: { icon: Eye, color: "text-gray-600 bg-gray-50 border-gray-200" },
 };
 
 function getInitials(name: string | null, email: string) {
@@ -58,6 +59,8 @@ function getInitials(name: string | null, email: string) {
 }
 
 export default function TeamSettingsPage() {
+  const t = useTranslations("settings.team");
+  const tc = useTranslations("common");
   const { data: session } = useSession();
   const { role: currentRole, hasPermission } = useTenant();
 
@@ -79,7 +82,7 @@ export default function TeamSettingsPage() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       onError() {
-        toast.error("Failed to load team members");
+        toast.error(t("failedToLoad"));
       },
     }
   );
@@ -95,13 +98,13 @@ export default function TeamSettingsPage() {
         body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
-      toast.success("Team member invited successfully");
+      toast.success(t("invitedSuccess"));
       setInviteOpen(false);
       setInviteEmail("");
       setInviteRole("MEMBER");
       await mutate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to invite member");
+      toast.error(e instanceof Error ? e.message : t("failedToInvite"));
     } finally {
       setInviting(false);
     }
@@ -117,11 +120,11 @@ export default function TeamSettingsPage() {
         body: JSON.stringify({ role: editRole }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
-      toast.success("Member role updated");
+      toast.success(t("roleUpdated"));
       setEditingMember(null);
       await mutate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update role");
+      toast.error(e instanceof Error ? e.message : t("failedToUpdate"));
     } finally {
       setActionLoading(false);
     }
@@ -133,11 +136,11 @@ export default function TeamSettingsPage() {
     try {
       const res = await fetch(`/api/organization/members/${removingMember.id}`, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
-      toast.success("Member removed from organization");
+      toast.success(t("memberRemoved"));
       setRemovingMember(null);
       await mutate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to remove member");
+      toast.error(e instanceof Error ? e.message : t("failedToRemove"));
     } finally {
       setActionLoading(false);
     }
@@ -175,16 +178,16 @@ export default function TeamSettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <CardTitle>Team Members</CardTitle>
+              <CardTitle>{t("title")}</CardTitle>
             </div>
             <PermissionGate permission="manage_team">
               <Button onClick={() => setInviteOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                Invite Member
+                {t("invite")}
               </Button>
             </PermissionGate>
           </div>
-          <CardDescription>Manage your team members and their access permissions</CardDescription>
+          <CardDescription>{t("teamMembersDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -206,10 +209,10 @@ export default function TeamSettingsPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{member.user.name || member.user.email.split("@")[0]}</p>
-                        {isCurrentUser && <Badge variant="secondary" className="text-xs">You</Badge>}
+                        {isCurrentUser && <Badge variant="secondary" className="text-xs">{t("you")}</Badge>}
                         {isPending && (
                           <Badge variant="outline" className="text-xs text-orange-600">
-                            <Clock className="mr-1 h-3 w-3" />Pending
+                            <Clock className="mr-1 h-3 w-3" />{t("pending")}
                           </Badge>
                         )}
                       </div>
@@ -219,7 +222,7 @@ export default function TeamSettingsPage() {
                       </div>
                       {member.user.lastLoginAt && (
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Last active {formatDistanceToNow(new Date(member.user.lastLoginAt), { addSuffix: true })}
+                          {t("lastActive", { time: formatDistanceToNow(new Date(member.user.lastLoginAt), { addSuffix: true }) })}
                         </p>
                       )}
                     </div>
@@ -228,7 +231,7 @@ export default function TeamSettingsPage() {
                   <div className="flex items-center gap-3">
                     <Badge variant="outline" className={`flex items-center gap-1 ${cfg.color}`}>
                       <RoleIcon className="h-3 w-3" />
-                      {cfg.label}
+                      {t(`roleLabels.${member.role}`)}
                     </Badge>
 
                     {canManageMembers && !isCurrentUser && member.role !== "OWNER" && (
@@ -239,14 +242,14 @@ export default function TeamSettingsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => { setEditingMember(member); setEditRole(member.role); }}>
-                            <UserCog className="mr-2 h-4 w-4" />Change Role
+                            <UserCog className="mr-2 h-4 w-4" />{t("changeRole")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setRemovingMember(member)} className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />Remove Member
+                            <Trash2 className="mr-2 h-4 w-4" />{t("remove")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -262,8 +265,8 @@ export default function TeamSettingsPage() {
       {/* Role Descriptions */}
       <Card>
         <CardHeader>
-          <CardTitle>Role Permissions</CardTitle>
-          <CardDescription>Understanding what each role can do</CardDescription>
+          <CardTitle>{t("rolePermissions")}</CardTitle>
+          <CardDescription>{t("rolePermissionsDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
@@ -273,8 +276,8 @@ export default function TeamSettingsPage() {
                 <div key={key} className={`flex items-start gap-3 rounded-lg border p-3 ${cfg.color}`}>
                   <Icon className="mt-0.5 h-4 w-4" />
                   <div>
-                    <p className="font-medium">{cfg.label}</p>
-                    <p className="text-sm opacity-80">{cfg.description}</p>
+                    <p className="font-medium">{t(`roleLabels.${key}`)}</p>
+                    <p className="text-sm opacity-80">{t(`roleDescriptions.${key}`)}</p>
                   </div>
                 </div>
               );
@@ -287,32 +290,32 @@ export default function TeamSettingsPage() {
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Invite Team Member</DialogTitle>
-            <DialogDescription>Send an invitation to join your organization</DialogDescription>
+            <DialogTitle>{t("inviteTeamMember")}</DialogTitle>
+            <DialogDescription>{t("inviteDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">{t("emailAddress")}</Label>
               <Input id="email" type="email" placeholder="colleague@company.ae" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>{t("role")}</Label>
               <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
-                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("selectRole")} /></SelectTrigger>
                 <SelectContent>
-                  {canInviteAdmin && <SelectItem value="ADMIN">Admin</SelectItem>}
-                  <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
-                  <SelectItem value="MEMBER">Member</SelectItem>
-                  <SelectItem value="VIEWER">Viewer</SelectItem>
+                  {canInviteAdmin && <SelectItem value="ADMIN">{t("roleLabels.ADMIN")}</SelectItem>}
+                  <SelectItem value="ACCOUNTANT">{t("roleLabels.ACCOUNTANT")}</SelectItem>
+                  <SelectItem value="MEMBER">{t("roleLabels.MEMBER")}</SelectItem>
+                  <SelectItem value="VIEWER">{t("roleLabels.VIEWER")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">{ROLE_CONFIG[inviteRole].description}</p>
+              <p className="text-xs text-muted-foreground">{t(`roleDescriptions.${inviteRole}`)}</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>{tc("cancel")}</Button>
             <Button onClick={handleInvite} disabled={!inviteEmail || inviting}>
-              {inviting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Inviting…</> : "Send Invitation"}
+              {inviting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("inviting")}</> : t("invite")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -322,28 +325,28 @@ export default function TeamSettingsPage() {
       <Dialog open={!!editingMember} onOpenChange={() => setEditingMember(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Member Role</DialogTitle>
-            <DialogDescription>Update the role for {editingMember?.user.name || editingMember?.user.email}</DialogDescription>
+            <DialogTitle>{t("changeMemberRole")}</DialogTitle>
+            <DialogDescription>{t("changeMemberRoleDesc", { name: editingMember?.user.name || editingMember?.user.email || "" })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>New Role</Label>
+              <Label>{t("newRole")}</Label>
               <Select value={editRole} onValueChange={(v) => setEditRole(v as MemberRole)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {canInviteAdmin && <SelectItem value="ADMIN">Admin</SelectItem>}
-                  <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
-                  <SelectItem value="MEMBER">Member</SelectItem>
-                  <SelectItem value="VIEWER">Viewer</SelectItem>
+                  {canInviteAdmin && <SelectItem value="ADMIN">{t("roleLabels.ADMIN")}</SelectItem>}
+                  <SelectItem value="ACCOUNTANT">{t("roleLabels.ACCOUNTANT")}</SelectItem>
+                  <SelectItem value="MEMBER">{t("roleLabels.MEMBER")}</SelectItem>
+                  <SelectItem value="VIEWER">{t("roleLabels.VIEWER")}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">{ROLE_CONFIG[editRole].description}</p>
+              <p className="text-xs text-muted-foreground">{t(`roleDescriptions.${editRole}`)}</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingMember(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditingMember(null)}>{tc("cancel")}</Button>
             <Button onClick={handleUpdateRole} disabled={actionLoading}>
-              {actionLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating…</> : "Update Role"}
+              {actionLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("updating")}</> : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -353,15 +356,15 @@ export default function TeamSettingsPage() {
       <AlertDialog open={!!removingMember} onOpenChange={() => setRemovingMember(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+            <AlertDialogTitle>{t("removeTeamMember")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove <strong>{removingMember?.user.name || removingMember?.user.email}</strong> from the organization? They will lose access to all organization data.
+              {t("removeConfirm", { name: removingMember?.user.name || removingMember?.user.email || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleRemoveMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={actionLoading}>
-              {actionLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Removing…</> : "Remove Member"}
+              {actionLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("removing")}</> : t("remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

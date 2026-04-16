@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 const createPaymentSchema = z.object({
     customerId: z.string().min(1),
@@ -159,6 +160,8 @@ export async function POST(req: NextRequest) {
 
             return pay;
         });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Payment", entityId: payment.id, entityRef: payment.paymentNumber, newData: result.data, req });
 
         return NextResponse.json(payment, { status: 201 });
     } catch (error) {

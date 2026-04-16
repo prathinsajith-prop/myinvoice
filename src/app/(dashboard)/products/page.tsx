@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
@@ -48,13 +49,9 @@ interface Pagination {
     pages: number;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-    PRODUCT: "Product",
-    SERVICE: "Service",
-    EXPENSE: "Expense",
-};
-
 export default function ProductsPage() {
+    const t = useTranslations("products");
+    const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
@@ -112,7 +109,7 @@ export default function ProductsPage() {
     const columns = useMemo<ColumnDef<Product>[]>(() => [
         {
             accessorKey: "name",
-            header: "Name",
+            header: tc("name"),
             cell: ({ row }) => (
                 <div>
                     <div className="font-medium">{row.getValue("name")}</div>
@@ -124,7 +121,7 @@ export default function ProductsPage() {
         },
         {
             accessorKey: "sku",
-            header: "SKU",
+            header: t("sku"),
             cell: ({ row }) => (
                 <span className="text-muted-foreground font-mono text-xs">
                     {(row.getValue("sku") as string | null) ?? "—"}
@@ -133,16 +130,16 @@ export default function ProductsPage() {
         },
         {
             accessorKey: "type",
-            header: "Type",
+            header: t("type"),
             cell: ({ row }) => (
                 <Badge variant="outline" className="text-xs">
-                    {TYPE_LABELS[row.getValue("type") as string] ?? row.getValue("type")}
+                    {t(`typeLabels.${row.getValue("type") as string}`) ?? row.getValue("type")}
                 </Badge>
             ),
         },
         {
             accessorKey: "unitPrice",
-            header: () => <div className="text-right">Unit Price</div>,
+            header: () => <div className="text-right">{t("unitPriceHeader")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     {currency} {Number(row.getValue("unitPrice")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -152,7 +149,7 @@ export default function ProductsPage() {
         },
         {
             accessorKey: "vatTreatment",
-            header: "VAT",
+            header: t("vatHeader"),
             cell: ({ row }) => (
                 <span className="text-xs text-muted-foreground">
                     {(row.getValue("vatTreatment") as string)
@@ -163,7 +160,7 @@ export default function ProductsPage() {
         },
         {
             accessorKey: "isActive",
-            header: "Status",
+            header: t("statusHeader"),
             cell: ({ row }) => (
                 <StatusBadge status={row.getValue("isActive") ? "ACTIVE" : "INACTIVE"} />
             ),
@@ -177,7 +174,7 @@ export default function ProductsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        title="View"
+                        title={tc("view")}
                         onClick={() => router.push(`/products/${row.original.id}`)}
                     >
                         <Eye className="h-4 w-4" />
@@ -186,7 +183,7 @@ export default function ProductsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        title="Edit"
+                        title={tc("edit")}
                         onClick={() => openEdit(row.original.id)}
                     >
                         <Pencil className="h-4 w-4" />
@@ -194,7 +191,7 @@ export default function ProductsPage() {
                 </div>
             ),
         },
-    ], [currency, router]);
+    ], [currency, router, t, tc]);
 
     async function openEdit(id: string) {
         const res = await fetch(`/api/products/${id}`);
@@ -219,8 +216,8 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Products & Services"
-                description={pagination ? `${pagination.total} items` : "Manage your product catalog"}
+                title={t("title")}
+                description={pagination ? t("totalItems", { count: pagination.total }) : t("manageDescription")}
                 onRefresh={fetchProducts}
                 isRefreshing={loading}
                 actions={
@@ -228,19 +225,19 @@ export default function ProductsPage() {
                         <ExportDropdown
                             data={products}
                             columns={[
-                                { header: "Name", accessor: "name" },
-                                { header: "SKU", accessor: "sku" },
-                                { header: "Type", accessor: "type" },
-                                { header: "Unit Price", accessor: "unitPrice", format: (v) => formatAmount(v) },
-                                { header: "VAT Treatment", accessor: "vatTreatment", format: (v) => String(v).replace(/_/g, " ") },
-                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                                { header: t("exportName"), accessor: "name" },
+                                { header: t("exportSku"), accessor: "sku" },
+                                { header: t("exportType"), accessor: "type" },
+                                { header: t("exportUnitPrice"), accessor: "unitPrice", format: (v) => formatAmount(v) },
+                                { header: t("exportVatTreatment"), accessor: "vatTreatment", format: (v) => String(v).replace(/_/g, " ") },
+                                { header: t("exportActive"), accessor: "isActive", format: (v) => v ? tc("yes") : tc("no") },
                             ]}
                             filename="products"
-                            title="Products & Services Report"
+                            title={t("exportTitle")}
                         />
                         <Button onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Product
+                            {t("newProduct")}
                         </Button>
                     </>
                 }
@@ -250,7 +247,7 @@ export default function ProductsPage() {
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3">
                         <SearchInput
-                            placeholder="Search products..."
+                            placeholder={t("searchPlaceholder")}
                             value={search}
                             onChange={handleSearchChange}
                         />
@@ -259,10 +256,10 @@ export default function ProductsPage() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Types</SelectItem>
-                                <SelectItem value="PRODUCT">Product</SelectItem>
-                                <SelectItem value="SERVICE">Service</SelectItem>
-                                <SelectItem value="EXPENSE">Expense</SelectItem>
+                                <SelectItem value="ALL">{t("allTypes")}</SelectItem>
+                                <SelectItem value="PRODUCT">{t("typeLabels.PRODUCT")}</SelectItem>
+                                <SelectItem value="SERVICE">{t("typeLabels.SERVICE")}</SelectItem>
+                                <SelectItem value="EXPENSE">{t("typeLabels.EXPENSE")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -273,9 +270,9 @@ export default function ProductsPage() {
                     ) : products.length === 0 ? (
                         <EmptyState
                             icon={Package}
-                            title="No products found"
-                            description={normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first product or service"}
-                            action={!normalizedSearch && typeFilter === "ALL" ? { label: "Add Product", onClick: () => setCreateOpen(true) } : undefined}
+                            title={t("noFound")}
+                            description={normalizedSearch || typeFilter !== "ALL" ? tc("adjustFilters") : t("createFirst")}
+                            action={!normalizedSearch && typeFilter === "ALL" ? { label: t("newProduct"), onClick: () => setCreateOpen(true) } : undefined}
                         />
                     ) : (
                         <DataTable

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -119,6 +120,7 @@ type FilterType = "all" | "unread" | "read";
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const t = useTranslations("notificationsPage");
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
@@ -170,7 +172,7 @@ export default function NotificationsPage() {
         setUnreadCount(data.unreadCount);
         setHasMore(data.hasMore);
       } catch {
-        toast.error("Failed to load notifications");
+        toast.error(t("toastFailedLoad"));
       } finally {
         setLoading(false);
       }
@@ -232,9 +234,9 @@ export default function NotificationsPage() {
       setUnreadCount((prev) => Math.max(0, prev - idsToMark.length));
       setSelectedIds(new Set());
       setSelectAll(false);
-      toast.success("Marked as read");
+      toast.success(t("toastMarkedRead"));
     } catch {
-      toast.error("Failed to mark as read");
+      toast.error(t("toastFailedMark"));
     } finally {
       setActionLoading(false);
     }
@@ -255,9 +257,9 @@ export default function NotificationsPage() {
         prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
       );
       setUnreadCount(0);
-      toast.success("All notifications marked as read");
+      toast.success(t("toastAllRead"));
     } catch {
-      toast.error("Failed to mark all as read");
+      toast.error(t("toastFailedMarkAll"));
     } finally {
       setActionLoading(false);
     }
@@ -287,9 +289,9 @@ export default function NotificationsPage() {
       setSelectedIds(new Set());
       setSelectAll(false);
       setDeleteDialogOpen(false);
-      toast.success("Notifications deleted");
+      toast.success(t("toastDeleted"));
     } catch {
-      toast.error("Failed to delete notifications");
+      toast.error(t("toastFailedDelete"));
     } finally {
       setActionLoading(false);
     }
@@ -339,9 +341,9 @@ export default function NotificationsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
-              <CardTitle>Notifications</CardTitle>
+              <CardTitle>{t("title")}</CardTitle>
               {unreadCount > 0 && (
-                <Badge variant="destructive">{unreadCount} unread</Badge>
+                <Badge variant="destructive">{t("unread", { count: unreadCount })}</Badge>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -361,15 +363,15 @@ export default function NotificationsPage() {
                   disabled={actionLoading}
                 >
                   <CheckCheck className="mr-2 h-4 w-4" />
-                  Mark all read
+                  {t("markAllRead")}
                 </Button>
               )}
             </div>
           </div>
           <CardDescription>
             {total === 0
-              ? "No notifications yet"
-              : `${total} notification${total !== 1 ? "s" : ""}`}
+              ? t("noNotificationsYet")
+              : t("notificationCount", { count: total })}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -385,9 +387,9 @@ export default function NotificationsPage() {
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="unread">Unread</SelectItem>
-                  <SelectItem value="read">Read</SelectItem>
+                  <SelectItem value="all">{t("filterAll")}</SelectItem>
+                  <SelectItem value="unread">{t("filterUnread")}</SelectItem>
+                  <SelectItem value="read">{t("filterRead")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -395,7 +397,7 @@ export default function NotificationsPage() {
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">
-                  {selectedIds.size} selected
+                  {t("selected", { count: selectedIds.size })}
                 </span>
                 <Button
                   variant="outline"
@@ -404,7 +406,7 @@ export default function NotificationsPage() {
                   disabled={actionLoading}
                 >
                   <Check className="mr-2 h-4 w-4" />
-                  Mark read
+                  {t("markRead")}
                 </Button>
                 <Button
                   variant="outline"
@@ -414,7 +416,7 @@ export default function NotificationsPage() {
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  {t("delete")}
                 </Button>
               </div>
             )}
@@ -432,7 +434,7 @@ export default function NotificationsPage() {
                 htmlFor="select-all"
                 className="text-sm text-muted-foreground font-normal"
               >
-                Select all
+                {t("selectAll")}
               </Label>
             </div>
           )}
@@ -441,11 +443,11 @@ export default function NotificationsPage() {
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <BellOff className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="text-lg font-medium">No notifications</h3>
+              <h3 className="text-lg font-medium">{t("noNotifications")}</h3>
               <p className="text-sm text-muted-foreground">
                 {filter === "unread"
-                  ? "You're all caught up!"
-                  : "You don't have any notifications yet"}
+                  ? t("allCaughtUp")
+                  : t("noNotificationsDesc")}
               </p>
             </div>
           ) : (
@@ -539,10 +541,10 @@ export default function NotificationsPage() {
                 {actionLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
+                    {t("loadingMore")}
                   </>
                 ) : (
-                  "Load More"
+                  t("loadMore")
                 )}
               </Button>
             </div>
@@ -554,14 +556,13 @@ export default function NotificationsPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Notifications</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {selectedIds.size} notification
-              {selectedIds.size !== 1 ? "s" : ""}? This action cannot be undone.
+              {t("deleteConfirm", { count: selectedIds.size })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSelected}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -570,10 +571,10 @@ export default function NotificationsPage() {
               {actionLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t("deleting")}
                 </>
               ) : (
-                "Delete"
+                t("delete")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

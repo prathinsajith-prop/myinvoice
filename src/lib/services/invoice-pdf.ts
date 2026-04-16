@@ -64,11 +64,34 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
         try {
             let logoImg;
             const logoSrc = data.organizationLogo;
+            
             if (logoSrc.startsWith("data:image/png")) {
+                // Base64 PNG data URI
                 logoImg = await pdf.embedPng(Buffer.from(logoSrc.split(",")[1], "base64"));
             } else if (logoSrc.startsWith("data:image/jpeg") || logoSrc.startsWith("data:image/jpg")) {
+                // Base64 JPEG data URI
                 logoImg = await pdf.embedJpg(Buffer.from(logoSrc.split(",")[1], "base64"));
+            } else if (logoSrc.startsWith("http://") || logoSrc.startsWith("https://")) {
+                // URL path - fetch and embed
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    const response = await fetch(logoSrc, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (response.ok) {
+                        const buffer = await response.arrayBuffer();
+                        const contentType = response.headers.get("content-type") || "";
+                        if (contentType.includes("png")) {
+                            logoImg = await pdf.embedPng(new Uint8Array(buffer));
+                        } else if (contentType.includes("jpeg") || contentType.includes("jpg")) {
+                            logoImg = await pdf.embedJpg(new Uint8Array(buffer));
+                        }
+                    }
+                } catch (fetchError) {
+                    // Silently fail and continue without logo
+                }
             }
+            
             if (logoImg) {
                 const dims = logoImg.scaleToFit(80, 32);
                 page.drawImage(logoImg, { x: 595 - margin - dims.width, y: 813 - dims.height, width: dims.width, height: dims.height });

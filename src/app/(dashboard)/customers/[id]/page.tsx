@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CustomerModal } from "@/components/modals/customer-modal";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -98,8 +99,50 @@ export default function CustomerDetailPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-6">
+                {/* Header skeleton */}
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-1.5">
+                            <Skeleton className="h-5 w-40" />
+                            <Skeleton className="h-4 w-28" />
+                        </div>
+                    </div>
+                    <Skeleton className="h-9 w-20 rounded-md" />
+                </div>
+                {/* Cards skeleton */}
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="lg:col-span-2 space-y-4">
+                        <div className="rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-32" />
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="flex gap-3">
+                                    <Skeleton className="h-4 w-4" />
+                                    <Skeleton className="h-4 w-48" />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-32" />
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <Skeleton key={i} className="h-12 w-full rounded" />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-24" />
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="space-y-1">
+                                    <Skeleton className="h-3 w-20" />
+                                    <Skeleton className="h-8 w-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

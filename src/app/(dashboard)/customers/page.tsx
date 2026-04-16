@@ -38,13 +38,13 @@ import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 import { StatCard } from "@/components/stat-card";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { formatAmount } from "@/lib/format";
-import { CUSTOMER_TYPE_LABELS } from "@/lib/constants/labels";
 
 interface Customer {
     id: string;
@@ -68,6 +68,8 @@ interface Pagination {
 }
 
 export default function CustomersPage() {
+    const t = useTranslations("customers");
+    const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
@@ -129,7 +131,7 @@ export default function CustomersPage() {
     const columns = useMemo<ColumnDef<Customer>[]>(() => [
         {
             id: "name",
-            header: "Customer",
+            header: t("customer"),
             accessorFn: (row) => row.name,
             cell: ({ row }) => (
                 <div className="flex items-center gap-3">
@@ -142,7 +144,7 @@ export default function CustomersPage() {
                     <div>
                         <div className="font-medium">{row.original.name}</div>
                         <div className="text-xs text-muted-foreground">
-                            {row.original.invoiceCount} invoice{row.original.invoiceCount !== 1 ? "s" : ""}
+                            {t("invoiceCount", { count: row.original.invoiceCount })}
                         </div>
                     </div>
                 </div>
@@ -150,7 +152,7 @@ export default function CustomersPage() {
         },
         {
             id: "contact",
-            header: "Contact",
+            header: t("contactHeader"),
             cell: ({ row }) => (
                 <div className="flex flex-col gap-0.5">
                     {row.original.email && (
@@ -168,16 +170,16 @@ export default function CustomersPage() {
         },
         {
             accessorKey: "type",
-            header: "Type",
+            header: t("typeHeader"),
             cell: ({ row }) => (
                 <Badge variant="outline" className="text-xs">
-                    {CUSTOMER_TYPE_LABELS[row.getValue("type") as string] ?? (row.getValue("type") as string)}
+                    {row.getValue("type") === "BUSINESS" ? t("business") : t("individual")}
                 </Badge>
             ),
         },
         {
             accessorKey: "totalInvoiced",
-            header: () => <div className="text-right">Invoiced</div>,
+            header: () => <div className="text-right">{t("invoicedHeader")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     {currency} {Number(row.getValue("totalInvoiced")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -186,7 +188,7 @@ export default function CustomersPage() {
         },
         {
             accessorKey: "totalOutstanding",
-            header: () => <div className="text-right">Outstanding</div>,
+            header: () => <div className="text-right">{t("outstandingLabel")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("totalOutstanding")) > 0 ? "text-amber-600 font-medium" : ""}>
@@ -197,7 +199,7 @@ export default function CustomersPage() {
         },
         {
             accessorKey: "isActive",
-            header: "Status",
+            header: tc("status"),
             cell: ({ row }) => (
                 <StatusBadge status={row.getValue("isActive") ? "ACTIVE" : "INACTIVE"} />
             ),
@@ -207,11 +209,11 @@ export default function CustomersPage() {
             header: "",
             cell: ({ row }) => (
                 <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")}
                         onClick={() => router.push(`/customers/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                         onClick={() => openEdit(row.original.id)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
@@ -224,14 +226,14 @@ export default function CustomersPage() {
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => { setInvoiceCustomerId(row.original.id); setInvoiceOpen(true); }}>
                                 <FileText className="mr-2 h-4 w-4" />
-                                New Invoice
+                                {t("newInvoice")}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
             ),
         },
-    ], [currency, router]);
+    ], [currency, router, t, tc]);
 
     async function openEdit(id: string) {
         const res = await fetch(`/api/customers/${id}`);
@@ -262,8 +264,8 @@ export default function CustomersPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Customers"
-                description={pagination ? `${pagination.total} total customers` : "Manage your customer directory"}
+                title={t("title")}
+                description={pagination ? t("totalCustomers", { count: pagination.total }) : t("manageDescription")}
                 onRefresh={fetchCustomers}
                 isRefreshing={loading}
                 actions={
@@ -271,20 +273,20 @@ export default function CustomersPage() {
                         <ExportDropdown
                             data={customers}
                             columns={[
-                                { header: "Name", accessor: "name" },
-                                { header: "Email", accessor: "email" },
-                                { header: "Phone", accessor: "phone" },
-                                { header: "Type", accessor: "type" },
-                                { header: "Total Invoiced", accessor: "totalInvoiced", format: (v) => formatAmount(v) },
-                                { header: "Outstanding", accessor: "totalOutstanding", format: (v) => formatAmount(v) },
-                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                                { header: t("exportName"), accessor: "name" },
+                                { header: t("exportEmail"), accessor: "email" },
+                                { header: t("exportPhone"), accessor: "phone" },
+                                { header: t("exportType"), accessor: "type" },
+                                { header: t("exportTotalInvoiced"), accessor: "totalInvoiced", format: (v) => formatAmount(v) },
+                                { header: t("exportOutstanding"), accessor: "totalOutstanding", format: (v) => formatAmount(v) },
+                                { header: t("exportActive"), accessor: "isActive", format: (v) => v ? tc("yes") : tc("no") },
                             ]}
                             filename="customers"
-                            title="Customers Report"
+                            title={t("exportTitle")}
                         />
                         <Button onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Customer
+                            {t("newCustomer")}
                         </Button>
                     </>
                 }
@@ -292,12 +294,12 @@ export default function CustomersPage() {
 
             {/* Stats */}
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                <StatCard label="Total Customers">{pagination?.total ?? "-"}</StatCard>
-                <StatCard label="Total Invoiced">
+                <StatCard label={t("totalLabel")}>{pagination?.total ?? "-"}</StatCard>
+                <StatCard label={t("totalInvoicedLabel")}>
                     {currency}{" "}
                     {formatAmount(customers.reduce((s, c) => s + Number(c.totalInvoiced), 0))}
                 </StatCard>
-                <StatCard label="Outstanding">
+                <StatCard label={t("outstandingLabel")}>
                     <span className="text-amber-600">
                         {currency}{" "}
                         {formatAmount(customers.reduce((s, c) => s + Number(c.totalOutstanding), 0))}
@@ -310,16 +312,16 @@ export default function CustomersPage() {
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
                         <SearchInput
-                            placeholder="Search customers..."
+                            placeholder={t("searchPlaceholder")}
                             value={search}
                             onChange={handleSearchChange}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Types</SelectItem>
-                                <SelectItem value="BUSINESS">Business</SelectItem>
-                                <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                                <SelectItem value="ALL">{t("allTypes")}</SelectItem>
+                                <SelectItem value="BUSINESS">{t("business")}</SelectItem>
+                                <SelectItem value="INDIVIDUAL">{t("individual")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -330,15 +332,15 @@ export default function CustomersPage() {
                     ) : customers.length === 0 ? (
                         <EmptyState
                             icon={Building2}
-                            title="No customers found"
+                            title={t("noFound")}
                             description={
                                 normalizedSearch || typeFilter !== "ALL"
-                                    ? "Try adjusting your filters"
-                                    : "Add your first customer to get started"
+                                    ? tc("adjustFilters")
+                                    : t("createFirst")
                             }
                             action={
                                 !normalizedSearch && typeFilter === "ALL"
-                                    ? { label: "Add Customer", onClick: () => setCreateOpen(true) }
+                                    ? { label: t("newCustomer"), onClick: () => setCreateOpen(true) }
                                     : undefined
                             }
                         />

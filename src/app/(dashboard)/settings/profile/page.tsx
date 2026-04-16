@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Camera, User } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,8 @@ interface ProfileResponse {
 }
 
 export default function ProfileSettingsPage() {
+  const t = useTranslations("settings.profile");
+  const tc = useTranslations("common");
   const { data: session, update: updateSession } = useSession();
   const [saving, setSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -147,9 +150,9 @@ export default function ProfileSettingsPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
+          <CardTitle>{t("title")}</CardTitle>
           <CardDescription>
-            Update your personal information and profile picture
+            {t("description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -189,7 +192,7 @@ export default function ProfileSettingsPage() {
                   {session?.user?.email}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Click the camera icon to upload. JPG, PNG, GIF or WebP. Max 2MB.
+                  {t("uploadHint")}
                 </p>
               </div>
             </div>
@@ -199,10 +202,10 @@ export default function ProfileSettingsPage() {
             {/* Form Fields */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t("fullName")}</Label>
                 <Input
                   id="name"
-                  placeholder="Enter your name"
+                  placeholder={t("namePlaceholder")}
                   {...register("name")}
                 />
                 {errors.name && (
@@ -211,7 +214,7 @@ export default function ProfileSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t("emailAddress")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -220,16 +223,16 @@ export default function ProfileSettingsPage() {
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Email cannot be changed
+                  {t("emailCannotBeChanged")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">{t("phoneNumber")}</Label>
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+971 50 123 4567"
+                  placeholder={t("phonePlaceholder")}
                   {...register("phone")}
                 />
                 {errors.phone && (
@@ -245,16 +248,16 @@ export default function ProfileSettingsPage() {
                 onClick={() => reset()}
                 disabled={(!isDirty && !imageChanged) || saving}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button type="submit" disabled={(!isDirty && !imageChanged) || saving}>
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    {t("saving")}
                   </>
                 ) : (
-                  "Save Changes"
+                  t("saveChanges")
                 )}
               </Button>
             </div>
@@ -265,27 +268,27 @@ export default function ProfileSettingsPage() {
       {/* Account Info Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Account Information</CardTitle>
+          <CardTitle>{t("accountInfo")}</CardTitle>
           <CardDescription>
-            Your account details and status
+            {t("accountInfoDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Account Created
+                {t("accountCreated")}
               </p>
               <p className="text-sm">
-                {session?.user ? "Recently" : "—"}
+                {session?.user ? t("recently") : "—"}
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Email Verified
+                {t("emailVerified")}
               </p>
               <p className="text-sm">
-                {session?.user ? "Verified" : "Not verified"}
+                {session?.user ? t("verified") : t("notVerified")}
               </p>
             </div>
           </div>

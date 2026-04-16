@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -98,6 +99,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             },
         });
 
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "Expense", entityId: id, entityRef: expense.expenseNumber, previousData: expense, newData: result.data, req });
+
         return NextResponse.json(updated);
     } catch (error) {
         return toErrorResponse(error);
@@ -115,6 +118,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         if (!expense) throw new NotFoundError("Expense");
 
         await prisma.expense.update({ where: { id }, data: { deletedAt: new Date() } });
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "Expense", entityId: id, entityRef: expense.expenseNumber, req });
         return NextResponse.json({ success: true });
     } catch (error) {
         return toErrorResponse(error);

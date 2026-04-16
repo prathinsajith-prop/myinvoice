@@ -5,6 +5,7 @@ import { resolveApiContext } from "@/lib/api/auth";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { notifyOrgMembers } from "@/lib/notifications/create";
+import { logApiAudit } from "@/lib/api/audit";
 
 const createExpenseSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -42,6 +43,7 @@ const createExpenseSchema = z.object({
     isPaid: z.boolean().default(true),
     paidAt: z.string().optional().nullable(),
     merchantName: z.string().optional().nullable(),
+    receiptUrl: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
 });
 
@@ -168,6 +170,7 @@ export async function POST(req: NextRequest) {
                 isPaid: data.isPaid,
                 paidAt: data.paidAt ? new Date(data.paidAt) : data.isPaid ? new Date() : null,
                 merchantName: data.merchantName ?? null,
+                receiptUrl: data.receiptUrl ?? null,
                 notes: data.notes ?? null,
             },
         });
@@ -183,6 +186,8 @@ export async function POST(req: NextRequest) {
             entityId: expense.id,
             actionUrl: `/expenses`,
         }).catch(() => { });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Expense", entityId: expense.id, entityRef: expense.expenseNumber, newData: result.data, req });
 
         return NextResponse.json(expense, { status: 201 });
     } catch (error) {

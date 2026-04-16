@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 
@@ -98,7 +99,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
         const { lineItems, ...data } = result.data;
 
-        let updateData: any = {
+        let updateData: Record<string, unknown> = {
             ...(data.supplierId ? { supplierId: data.supplierId } : {}),
             ...(data.supplierInvoiceNumber !== undefined ? { supplierInvoiceNumber: data.supplierInvoiceNumber ?? null } : {}),
             ...(data.reference !== undefined ? { reference: data.reference ?? null } : {}),
@@ -167,6 +168,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             },
         });
 
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "Bill", entityId: id, entityRef: updated.billNumber ?? id, previousData: bill, newData: result.data, req });
+
         return NextResponse.json(updated);
     } catch (error) {
         return toErrorResponse(error);
@@ -185,6 +188,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         if (bill.status !== "DRAFT") throw new ForbiddenError("Only DRAFT bills can be deleted");
 
         await prisma.bill.update({ where: { id }, data: { deletedAt: new Date() } });
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "Bill", entityId: id, entityRef: bill.billNumber ?? id, req });
         return NextResponse.json({ success: true });
     } catch (error) {
         return toErrorResponse(error);

@@ -11,6 +11,7 @@ import {
   ForbiddenError,
   ConflictError,
 } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 import { hasRole } from "@/lib/rbac";
 import { sendEmail } from "@/lib/email";
 import { APP_URL } from "@/lib/constants/env";
@@ -166,6 +167,8 @@ export async function POST(req: NextRequest) {
         text: template.text,
       });
 
+      logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "INVITE_SENT", entityType: "Member", entityId: membership.id, entityRef: normalizedEmail, newData: { role, email: normalizedEmail }, req });
+
       return NextResponse.json(membership, { status: 201 });
     }
 
@@ -209,6 +212,8 @@ export async function POST(req: NextRequest) {
       html: template.html,
       text: template.text,
     });
+
+    logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "INVITE_SENT", entityType: "Member", entityId: membership.id, entityRef: normalizedEmail, newData: { role, email: normalizedEmail }, req });
 
     return NextResponse.json(membership, { status: 201 });
   } catch (error) {

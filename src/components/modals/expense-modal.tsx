@@ -5,7 +5,7 @@ import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X, FileImage } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -27,6 +27,7 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -94,6 +95,8 @@ export function ExpenseModal({
 }: ExpenseModalProps) {
     const isEdit = Boolean(id);
     const [saving, setSaving] = useState(false);
+    const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
     const orgSettings = useOrgSettings();
 
     const form = useForm<FormValues>({
@@ -103,6 +106,7 @@ export function ExpenseModal({
 
     useEffect(() => {
         if (open) {
+            setReceiptUrl(null);
             loadOrgSettings().then((s) => {
                 form.reset(
                     initialData
@@ -146,6 +150,7 @@ export function ExpenseModal({
                     isVatReclaimable: values.vatAmount > 0,
                     isPaid: true,
                     notes: values.notes || null,
+                    receiptUrl: receiptUrl || null,
                 }),
             });
             if (!res.ok) {
@@ -349,6 +354,76 @@ export function ExpenseModal({
                                         </FormItem>
                                     )}
                                 />
+                            </div>
+
+                            {/* Receipt Upload */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Receipt Image / PDF</Label>
+                                {receiptUrl ? (
+                                    <div className="flex items-center gap-2 rounded-md border p-2">
+                                        <FileImage className="h-4 w-4 text-muted-foreground" />
+                                        <a
+                                            href={receiptUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-primary underline-offset-4 hover:underline truncate flex-1"
+                                        >
+                                            {receiptUrl.split("/").pop()}
+                                        </a>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6"
+                                            onClick={() => setReceiptUrl(null)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            disabled={uploading}
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                setUploading(true);
+                                                try {
+                                                    const fd = new FormData();
+                                                    fd.append("file", file);
+                                                    const res = await fetch("/api/uploads/receipt", {
+                                                        method: "POST",
+                                                        body: fd,
+                                                    });
+                                                    if (!res.ok) {
+                                                        const err = await res.json();
+                                                        toast.error(err.error ?? "Upload failed");
+                                                        return;
+                                                    }
+                                                    const data = await res.json();
+                                                    setReceiptUrl(data.url);
+                                                    toast.success("Receipt uploaded");
+                                                } catch {
+                                                    toast.error("Upload failed");
+                                                } finally {
+                                                    setUploading(false);
+                                                    e.target.value = "";
+                                                }
+                                            }}
+                                        />
+                                        <div className="flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                                            {uploading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Upload className="h-4 w-4" />
+                                            )}
+                                            {uploading ? "Uploading..." : "Click to upload receipt (max 5MB)"}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <FormField

@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -54,6 +55,49 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             );
         }
 
+        // Handle FTA compliance: when credit note is ISSUED, update parent invoice outstanding balance
+        if (result.data.status === "ISSUED" && creditNote.status !== "ISSUED") {
+            const parentInvoice = await prisma.invoice.findUnique({
+                where: { id: creditNote.invoiceId },
+                select: { outstanding: true, status: true, amountPaid: true, total: true },
+            });
+            if (parentInvoice) {
+                const newOutstanding = Math.max(0, Number(parentInvoice.outstanding) - Number(creditNote.total));
+                const newStatus =
+                    newOutstanding <= 0.01
+                        ? "CREDITED"
+                        : newOutstanding < Number(parentInvoice.outstanding)
+                        ? "PARTIALLY_PAID"
+                        : parentInvoice.status;
+
+                // Update parent invoice in transaction
+                await prisma.$transaction([
+                    prisma.invoice.update({
+                        where: { id: creditNote.invoiceId },
+                        data: {
+                            outstanding: newOutstanding,
+                            status: newStatus,
+                        },
+                    }),
+                    prisma.creditNote.update({
+                        where: { id },
+                        data: {
+                            ...result.data,
+                            issuedAt: new Date(),
+                        },
+                    }),
+                ]);
+
+                logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "CreditNote", entityId: id, entityRef: creditNote.creditNoteNumber ?? id, previousData: creditNote, newData: result.data, req });
+
+                return NextResponse.json(
+                    await prisma.creditNote.findFirst({
+                        where: { id, organizationId: ctx.organizationId, deletedAt: null },
+                    })
+                );
+            }
+        }
+
         const updated = await prisma.creditNote.update({
             where: { id },
             data: {
@@ -61,6 +105,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
                 ...(result.data.status === "ISSUED" ? { issuedAt: new Date() } : {}),
             },
         });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "CreditNote", entityId: id, entityRef: updated.creditNoteNumber ?? id, previousData: creditNote, newData: result.data, req });
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -82,6 +128,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         }
 
         await prisma.creditNote.update({ where: { id }, data: { deletedAt: new Date() } });
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "CreditNote", entityId: id, entityRef: creditNote.creditNoteNumber ?? id, req });
         return NextResponse.json({ success: true });
     } catch (error) {
         return toErrorResponse(error);

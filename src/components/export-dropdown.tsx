@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { useTranslations } from "next-intl";
 
 interface ExportColumn {
     header: string;
@@ -208,6 +209,7 @@ async function exportPDF(
 
 export function ExportDropdown({ data, columns, filename, title, orgName: orgNameProp, orgLogo: orgLogoProp }: ExportDropdownProps) {
     const [exporting, setExporting] = useState(false);
+    const t = useTranslations("common");
     const tenant = useTenant();
     const orgSettings = useOrgSettings();
     const orgName = orgNameProp ?? tenant.organizationName ?? undefined;
@@ -239,7 +241,7 @@ export function ExportDropdown({ data, columns, filename, title, orgName: orgNam
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={exporting || data.length === 0}>
                     <Download className="mr-2 h-4 w-4" />
-                    Export
+                    {t("export")}
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

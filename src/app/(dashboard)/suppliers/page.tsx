@@ -28,6 +28,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
@@ -54,6 +55,8 @@ interface Pagination {
 }
 
 export default function SuppliersPage() {
+    const t = useTranslations("suppliers");
+    const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
@@ -113,20 +116,20 @@ export default function SuppliersPage() {
     const columns = useMemo<ColumnDef<Supplier>[]>(() => [
         {
             id: "name",
-            header: "Supplier",
+            header: t("supplier"),
             accessorFn: (row) => row.name,
             cell: ({ row }) => (
                 <div>
                     <div className="font-medium">{row.original.name}</div>
                     <div className="text-xs text-muted-foreground">
-                        {row.original.billCount} bill{row.original.billCount !== 1 ? "s" : ""}
+                        {t("billCount", { count: row.original.billCount })}
                     </div>
                 </div>
             ),
         },
         {
             id: "contact",
-            header: "Contact",
+            header: t("contactHeader"),
             cell: ({ row }) => (
                 <div className="flex flex-col gap-0.5">
                     {row.original.email && (
@@ -144,7 +147,7 @@ export default function SuppliersPage() {
         },
         {
             accessorKey: "type",
-            header: "Type",
+            header: t("typeHeader"),
             cell: ({ row }) => (
                 <Badge variant="outline" className="text-xs capitalize">
                     {(row.getValue("type") as string)?.toLowerCase() ?? "business"}
@@ -153,7 +156,7 @@ export default function SuppliersPage() {
         },
         {
             accessorKey: "totalBilled",
-            header: () => <div className="text-right">Total Billed</div>,
+            header: () => <div className="text-right">{t("billedHeader")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     {currency} {Number(row.getValue("totalBilled")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -162,7 +165,7 @@ export default function SuppliersPage() {
         },
         {
             accessorKey: "totalOutstanding",
-            header: () => <div className="text-right">Outstanding</div>,
+            header: () => <div className="text-right">{tc("outstanding")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("totalOutstanding")) > 0 ? "text-amber-600 font-medium" : ""}>
@@ -173,7 +176,7 @@ export default function SuppliersPage() {
         },
         {
             accessorKey: "isActive",
-            header: "Status",
+            header: tc("status"),
             cell: ({ row }) => (
                 <StatusBadge status={row.getValue("isActive") ? "ACTIVE" : "INACTIVE"} />
             ),
@@ -183,11 +186,11 @@ export default function SuppliersPage() {
             header: "",
             cell: ({ row }) => (
                 <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")}
                         onClick={() => router.push(`/suppliers/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                         onClick={() => openEdit(row.original.id)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
@@ -200,14 +203,14 @@ export default function SuppliersPage() {
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => { setBillSupplierId(row.original.id); setBillOpen(true); }}>
                                 <FileText className="mr-2 h-4 w-4" />
-                                New Bill
+                                {t("newBill")}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
             ),
         },
-    ], [currency, router]);
+    ], [currency, router, t, tc]);
 
     async function openEdit(id: string) {
         const res = await fetch(`/api/suppliers/${id}`);
@@ -234,8 +237,8 @@ export default function SuppliersPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Suppliers"
-                description={pagination ? `${pagination.total} total suppliers` : "Manage your supplier directory"}
+                title={t("title")}
+                description={pagination ? t("totalSuppliers", { count: pagination.total }) : t("manageDescription")}
                 onRefresh={fetchSuppliers}
                 isRefreshing={loading}
                 actions={
@@ -243,20 +246,20 @@ export default function SuppliersPage() {
                         <ExportDropdown
                             data={suppliers}
                             columns={[
-                                { header: "Name", accessor: "name" },
-                                { header: "Email", accessor: "email" },
-                                { header: "Phone", accessor: "phone" },
-                                { header: "Type", accessor: "type" },
-                                { header: "Total Billed", accessor: "totalBilled", format: (v) => formatAmount(v) },
-                                { header: "Outstanding", accessor: "totalOutstanding", format: (v) => formatAmount(v) },
-                                { header: "Active", accessor: "isActive", format: (v) => v ? "Yes" : "No" },
+                                { header: t("exportName"), accessor: "name" },
+                                { header: t("exportEmail"), accessor: "email" },
+                                { header: t("exportPhone"), accessor: "phone" },
+                                { header: t("exportType"), accessor: "type" },
+                                { header: t("exportTotalBilled"), accessor: "totalBilled", format: (v) => formatAmount(v) },
+                                { header: t("exportOutstanding"), accessor: "totalOutstanding", format: (v) => formatAmount(v) },
+                                { header: t("exportActive"), accessor: "isActive", format: (v) => v ? tc("yes") : tc("no") },
                             ]}
                             filename="suppliers"
-                            title="Suppliers Report"
+                            title={t("exportTitle")}
                         />
                         <Button onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Supplier
+                            {t("newSupplier")}
                         </Button>
                     </>
                 }
@@ -266,16 +269,16 @@ export default function SuppliersPage() {
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
                         <SearchInput
-                            placeholder="Search suppliers..."
+                            placeholder={t("searchPlaceholder")}
                             value={search}
                             onChange={handleSearchChange}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Types</SelectItem>
-                                <SelectItem value="BUSINESS">Business</SelectItem>
-                                <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                                <SelectItem value="ALL">{t("allTypes")}</SelectItem>
+                                <SelectItem value="BUSINESS">{t("business")}</SelectItem>
+                                <SelectItem value="INDIVIDUAL">{t("individual")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -286,9 +289,9 @@ export default function SuppliersPage() {
                     ) : suppliers.length === 0 ? (
                         <EmptyState
                             icon={Truck}
-                            title="No suppliers found"
-                            description={normalizedSearch || typeFilter !== "ALL" ? "Try adjusting your filters" : "Add your first supplier"}
-                            action={!normalizedSearch && typeFilter === "ALL" ? { label: "Add Supplier", onClick: () => setCreateOpen(true) } : undefined}
+                            title={t("noFound")}
+                            description={normalizedSearch || typeFilter !== "ALL" ? tc("adjustFilters") : t("createFirst")}
+                            action={!normalizedSearch && typeFilter === "ALL" ? { label: t("newSupplier"), onClick: () => setCreateOpen(true) } : undefined}
                         />
                     ) : (
                         <DataTable

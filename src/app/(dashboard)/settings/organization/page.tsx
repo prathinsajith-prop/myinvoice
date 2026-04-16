@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   Building2,
@@ -16,6 +17,8 @@ import {
   AlertTriangle,
   Camera,
   ImageIcon,
+  Calendar,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { jsonFetcher } from "@/lib/fetcher";
+import { invalidateOrgSettingsCache } from "@/lib/hooks/use-org-settings";
 import { updateOrganizationSchema, type UpdateOrganizationInput } from "@/lib/validations/settings";
 
 interface OrganizationResponse {
@@ -60,6 +64,9 @@ const UAE_EMIRATES = [
 ];
 
 export default function OrganizationSettingsPage() {
+  const tc = useTranslations("common");
+  const to = useTranslations("settings.organization");
+  const ta = useTranslations("settings.address");
   const { update: updateSession } = useSession();
   const [saving, setSaving] = useState(false);
   const [organization, setOrganization] = useState<UpdateOrganizationInput | null>(null);
@@ -68,6 +75,11 @@ export default function OrganizationSettingsPage() {
   const [logoChanged, setLogoChanged] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Regional settings state
+  const [dateFormat, setDateFormat] = useState("DD/MM/YYYY");
+  const [defaultCurrency, setDefaultCurrency] = useState("AED");
+  const [savingRegional, setSavingRegional] = useState(false);
 
   const {
     register,
@@ -88,12 +100,12 @@ export default function OrganizationSettingsPage() {
   const { data: orgData, isLoading: loading, mutate } = useSWR<OrganizationResponse>("/api/organization", jsonFetcher, {
     revalidateOnFocus: false,
     onError() {
-      toast.error("Failed to load organization details");
+      toast.error(to("failedToLoad"));
     },
   });
 
   useEffect(() => {
-    if (!orgData) return;
+    if (!orgData?.organization) return;
     setOrganization(orgData.organization);
     setIsAdmin(orgData.role === "OWNER" || orgData.role === "ADMIN");
     reset({
@@ -108,17 +120,20 @@ export default function OrganizationSettingsPage() {
       country: orgData.organization.country || "AE",
     });
     setLogoPreview(orgData.organization.logo ?? null);
+    setDefaultCurrency((orgData.organization as Record<string, unknown>).defaultCurrency as string ?? "AED");
+    const settings = (orgData.organization as Record<string, unknown>).settings as Record<string, unknown> | undefined;
+    if (settings?.dateFormat) setDateFormat(settings.dateFormat as string);
   }, [orgData, reset]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("Logo must be smaller than 2MB");
+      toast.error(to("logoSizeError"));
       return;
     }
     if (!["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"].includes(file.type)) {
-      toast.error("Only JPG, PNG, GIF, WebP or SVG images are allowed");
+      toast.error(to("logoTypeError"));
       return;
     }
     const reader = new FileReader();
@@ -168,15 +183,16 @@ export default function OrganizationSettingsPage() {
 
       const updated = await res.json();
       setOrganization(updated);
-      toast.success("Organization updated successfully");
+      toast.success(to("saved"));
       setLogoChanged(false);
       setLogoFile(null);
       reset(data); // Reset form state
+      invalidateOrgSettingsCache();
       // Refresh session so org name/logo update across the UI immediately
       await updateSession({});
       await mutate();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update organization");
+      toast.error(error instanceof Error ? error.message : to("failedToSave"));
     } finally {
       setSaving(false);
     }
@@ -209,7 +225,7 @@ export default function OrganizationSettingsPage() {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            You are not associated with any organization. Please contact support.
+            {to("noOrganization")}
           </AlertDescription>
         </Alert>
       </div>
@@ -222,7 +238,7 @@ export default function OrganizationSettingsPage() {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            You don&apos;t have permission to edit organization settings. Contact your organization admin.
+            {to("noPermission")}
           </AlertDescription>
         </Alert>
       )}
@@ -232,10 +248,10 @@ export default function OrganizationSettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
-            <CardTitle>Organization Details</CardTitle>
+            <CardTitle>{to("details")}</CardTitle>
           </div>
           <CardDescription>
-            Basic information about your organization
+            {to("detailsDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -270,12 +286,12 @@ export default function OrganizationSettingsPage() {
                 )}
               </div>
               <div>
-                <p className="font-medium">Organization Logo</p>
+                <p className="font-medium">{to("logo")}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Appears on invoices, quotes, and documents
+                  {to("logoHint")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  JPG, PNG, WebP or SVG. Max 2MB.
+                  {to("logoFileHint")}
                 </p>
               </div>
             </div>
@@ -284,7 +300,7 @@ export default function OrganizationSettingsPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Organization Name</Label>
+                <Label htmlFor="name">{to("name")}</Label>
                 <Input
                   id="name"
                   placeholder="Your Company LLC"
@@ -297,7 +313,7 @@ export default function OrganizationSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Business Email</Label>
+                <Label htmlFor="email">{to("businessEmail")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -315,7 +331,7 @@ export default function OrganizationSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Business Phone</Label>
+                <Label htmlFor="phone">{to("businessPhone")}</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -333,7 +349,7 @@ export default function OrganizationSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
+                <Label htmlFor="website">{to("website")}</Label>
                 <div className="relative">
                   <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -357,14 +373,14 @@ export default function OrganizationSettingsPage() {
             <div>
               <h3 className="mb-4 flex items-center gap-2 text-lg font-medium">
                 <FileText className="h-5 w-5" />
-                UAE Compliance Information
+                {to("uaeCompliance")}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="trn">
-                    Tax Registration Number (TRN)
+                    {to("trn")}
                     <Badge variant="outline" className="ml-2">
-                      Required for VAT
+                      {to("requiredForVat")}
                     </Badge>
                   </Label>
                   <Input
@@ -377,12 +393,12 @@ export default function OrganizationSettingsPage() {
                     <p className="text-sm text-destructive">{errors.trn.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    15-digit TRN issued by FTA
+                    {to("trnHint")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="tradeLicense">Trade License Number</Label>
+                  <Label htmlFor="tradeLicense">{to("tradeLicense")}</Label>
                   <Input
                     id="tradeLicense"
                     placeholder="Enter trade license number"
@@ -404,18 +420,18 @@ export default function OrganizationSettingsPage() {
             <div>
               <h3 className="mb-4 flex items-center gap-2 text-lg font-medium">
                 <MapPin className="h-5 w-5" />
-                Business Address
+                {ta("title")}
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="emirate">Emirate</Label>
+                  <Label htmlFor="emirate">{ta("emirate")}</Label>
                   <Select
                     value={watchedEmirate || ""}
                     onValueChange={(value) => setValue("emirate", value, { shouldDirty: true })}
                     disabled={!isAdmin}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select emirate" />
+                      <SelectValue placeholder={ta("selectEmirate")} />
                     </SelectTrigger>
                     <SelectContent>
                       {UAE_EMIRATES.map((emirate) => (
@@ -431,7 +447,7 @@ export default function OrganizationSettingsPage() {
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="addressLine1">Full Address</Label>
+                  <Label htmlFor="addressLine1">{ta("fullAddress")}</Label>
                   <Textarea
                     id="addressLine1"
                     placeholder="Building name, Street, Area, City"
@@ -454,16 +470,16 @@ export default function OrganizationSettingsPage() {
                   onClick={() => reset()}
                   disabled={(!isDirty && !logoChanged) || saving}
                 >
-                  Cancel
+                  {tc("cancel")}
                 </Button>
                 <Button type="submit" disabled={(!isDirty && !logoChanged) || saving}>
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
+                      {to("saving")}
                     </>
                   ) : (
-                    "Save Changes"
+                    tc("save")
                   )}
                 </Button>
               </div>
@@ -475,31 +491,144 @@ export default function OrganizationSettingsPage() {
       {/* VAT Information Card */}
       <Card>
         <CardHeader>
-          <CardTitle>VAT Status</CardTitle>
+          <CardTitle>{to("vatStatus")}</CardTitle>
           <CardDescription>
-            Your organization&apos;s VAT registration status with FTA
+            {to("vatStatusDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div>
               <div className="flex items-center gap-2">
-                <p className="font-medium">VAT Registration</p>
+                <p className="font-medium">{to("vatRegistration")}</p>
                 {organization.trn ? (
                   <Badge variant="default" className="bg-green-600">
-                    Registered
+                    {to("registered")}
                   </Badge>
                 ) : (
-                  <Badge variant="secondary">Not Registered</Badge>
+                  <Badge variant="secondary">{to("notRegistered")}</Badge>
                 )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {organization.trn
                   ? `TRN: ${organization.trn}`
-                  : "Add your TRN to enable VAT invoicing"}
+                  : to("addTrnHint")}
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Regional Settings Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            <CardTitle>{to("regionalSettings")}</CardTitle>
+          </div>
+          <CardDescription>
+            {to("regionalSettingsDesc")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="defaultCurrency">
+                <DollarSign className="inline h-4 w-4 mr-1" />
+                {to("defaultCurrency")}
+              </Label>
+              <Select
+                value={defaultCurrency}
+                onValueChange={setDefaultCurrency}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={to("selectCurrency")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+                  <SelectItem value="USD">USD — US Dollar</SelectItem>
+                  <SelectItem value="EUR">EUR — Euro</SelectItem>
+                  <SelectItem value="GBP">GBP — British Pound</SelectItem>
+                  <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+                  <SelectItem value="OMR">OMR — Omani Rial</SelectItem>
+                  <SelectItem value="QAR">QAR — Qatari Riyal</SelectItem>
+                  <SelectItem value="KWD">KWD — Kuwaiti Dinar</SelectItem>
+                  <SelectItem value="BHD">BHD — Bahraini Dinar</SelectItem>
+                  <SelectItem value="INR">INR — Indian Rupee</SelectItem>
+                  <SelectItem value="PKR">PKR — Pakistani Rupee</SelectItem>
+                  <SelectItem value="EGP">EGP — Egyptian Pound</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {to("currencyHint")}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dateFormat">
+                <Calendar className="inline h-4 w-4 mr-1" />
+                {to("dateFormat")}
+              </Label>
+              <Select
+                value={dateFormat}
+                onValueChange={setDateFormat}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={to("selectFormat")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DD/MM/YYYY">DD/MM/YYYY — 16/04/2026</SelectItem>
+                  <SelectItem value="MM/DD/YYYY">MM/DD/YYYY — 04/16/2026</SelectItem>
+                  <SelectItem value="YYYY-MM-DD">YYYY-MM-DD — 2026-04-16</SelectItem>
+                  <SelectItem value="DD-MM-YYYY">DD-MM-YYYY — 16-04-2026</SelectItem>
+                  <SelectItem value="DD MMM YYYY">DD MMM YYYY — 16 Apr 2026</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {to("dateFormatHint")}
+              </p>
+            </div>
+          </div>
+
+          {isAdmin && (
+            <div className="flex justify-end">
+              <Button
+                disabled={savingRegional}
+                onClick={async () => {
+                  setSavingRegional(true);
+                  try {
+                    const res = await fetch("/api/organization", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ defaultCurrency, dateFormat }),
+                    });
+                    if (!res.ok) {
+                      const err = await res.json();
+                      throw new Error(err.error || "Failed to save");
+                    }
+                    toast.success(to("savedRegional"));
+                    invalidateOrgSettingsCache();
+                    await mutate();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : to("failedToSave"));
+                  } finally {
+                    setSavingRegional(false);
+                  }
+                }}
+              >
+                {savingRegional ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {to("saving")}
+                  </>
+                ) : (
+                  tc("save")
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

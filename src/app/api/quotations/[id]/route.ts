@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 
@@ -86,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
         const { lineItems, ...data } = result.data;
 
-        let updateData: any = {
+        let updateData: Record<string, unknown> = {
             ...(data.customerId ? { customerId: data.customerId } : {}),
             ...(data.reference !== undefined ? { reference: data.reference ?? null } : {}),
             ...(data.issueDate ? { issueDate: new Date(data.issueDate) } : {}),
@@ -152,6 +153,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             },
         });
 
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "Quotation", entityId: id, entityRef: updated.quoteNumber ?? id, previousData: quotation, newData: result.data, req });
+
         return NextResponse.json(updated);
     } catch (error) {
         return toErrorResponse(error);
@@ -175,6 +178,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
             where: { id },
             data: { deletedAt: new Date() },
         });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "Quotation", entityId: id, entityRef: quotation.quoteNumber ?? id, req });
 
         return NextResponse.json({ success: true });
     } catch (error) {

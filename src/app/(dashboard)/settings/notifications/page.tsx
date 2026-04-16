@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { Loader2, Bell, Mail, Smartphone, FileText, CreditCard, Clock, Megaphone } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Label } from "@/components/ui/label";
 import {
@@ -28,6 +29,7 @@ interface NotificationPreferences {
 }
 
 export default function NotificationSettingsPage() {
+  const t = useTranslations("settings.notifications");
   const [saving, setSaving] = useState(false);
   const defaultPreferences: NotificationPreferences = {
     emailNotifications: true,
@@ -55,7 +57,7 @@ export default function NotificationSettingsPage() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       onError() {
-        toast.error("Failed to load notification preferences");
+        toast.error(t("failedToLoad"));
       },
     }
   );
@@ -82,9 +84,9 @@ export default function NotificationSettingsPage() {
         throw new Error("Failed to update preference");
       }
 
-      toast.success("Preference updated");
+      toast.success(t("preferenceUpdated"));
     } catch {
-      toast.error("Failed to update preference");
+      toast.error(t("failedToUpdate"));
     } finally {
       setSaving(false);
     }
@@ -121,10 +123,10 @@ export default function NotificationSettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            <CardTitle>Notification Channels</CardTitle>
+            <CardTitle>{t("channels")}</CardTitle>
           </div>
           <CardDescription>
-            Choose how you want to receive notifications
+            {t("channelsDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -135,10 +137,10 @@ export default function NotificationSettingsPage() {
               </div>
               <div>
                 <Label htmlFor="email-notifications" className="font-medium">
-                  Email Notifications
+                  {t("emailNotifications")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Receive notifications via email
+                  {t("emailNotificationsDesc")}
                 </p>
               </div>
             </div>
@@ -161,10 +163,10 @@ export default function NotificationSettingsPage() {
               </div>
               <div>
                 <Label htmlFor="push-notifications" className="font-medium">
-                  Push Notifications
+                  {t("pushNotifications")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Receive browser push notifications
+                  {t("pushNotificationsDesc")}
                 </p>
               </div>
             </div>
@@ -183,9 +185,9 @@ export default function NotificationSettingsPage() {
       {/* Notification Types */}
       <Card>
         <CardHeader>
-          <CardTitle>Notification Types</CardTitle>
+          <CardTitle>{t("types")}</CardTitle>
           <CardDescription>
-            Select which types of notifications you want to receive
+            {t("typesDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -196,10 +198,10 @@ export default function NotificationSettingsPage() {
               </div>
               <div>
                 <Label htmlFor="invoice-notifications" className="font-medium">
-                  Invoice Notifications
+                  {t("invoiceNotifications")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Get notified when invoices are created, sent, or viewed
+                  {t("invoiceNotificationsDesc")}
                 </p>
               </div>
             </div>
@@ -222,10 +224,10 @@ export default function NotificationSettingsPage() {
               </div>
               <div>
                 <Label htmlFor="payment-notifications" className="font-medium">
-                  Payment Notifications
+                  {t("paymentNotifications")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Get notified when payments are received or failed
+                  {t("paymentNotificationsDesc")}
                 </p>
               </div>
             </div>
@@ -248,10 +250,10 @@ export default function NotificationSettingsPage() {
               </div>
               <div>
                 <Label htmlFor="reminder-notifications" className="font-medium">
-                  Reminder Notifications
+                  {t("reminderNotifications")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Get reminders for overdue invoices and upcoming deadlines
+                  {t("reminderNotificationsDesc")}
                 </p>
               </div>
             </div>
@@ -274,10 +276,10 @@ export default function NotificationSettingsPage() {
               </div>
               <div>
                 <Label htmlFor="marketing-notifications" className="font-medium">
-                  Marketing & Updates
+                  {t("marketingNotifications")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Receive tips, product updates, and promotional offers
+                  {t("marketingNotificationsDesc")}
                 </p>
               </div>
             </div>
@@ -297,7 +299,7 @@ export default function NotificationSettingsPage() {
       {saving && (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Saving changes...</span>
+          <span>{t("savingChanges")}</span>
         </div>
       )}
     </div>

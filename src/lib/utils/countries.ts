@@ -175,6 +175,13 @@ export function formatTimezone(tz: string): string {
     }
 }
 
+/** Get the default currency code for a country ISO2 code */
+export function getCurrencyForCountry(iso2: string): string {
+    const countries = getCountryOptions();
+    const country = countries.find((c) => c.value === iso2);
+    return country?.currency ?? "USD";
+}
+
 export const UAE_EMIRATES = [
     "Abu Dhabi",
     "Dubai",

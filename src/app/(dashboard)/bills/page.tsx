@@ -9,6 +9,7 @@ import { BillSheet } from "@/components/modals/bill-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
@@ -27,7 +28,7 @@ import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatDate } from "@/lib/format";
 
 interface Bill {
     id: string;
@@ -45,8 +46,11 @@ interface Pagination { total: number; page: number; limit: number; pages: number
 
 
 export default function BillsPage() {
+    const t = useTranslations("bills");
+    const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
+    const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
     const [bills, setBills] = useState<Bill[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -111,39 +115,39 @@ export default function BillsPage() {
     const columns = useMemo<ColumnDef<Bill>[]>(() => [
         {
             accessorKey: "billNumber",
-            header: "Bill #",
+            header: t("billNum"),
             cell: ({ row }) => <span className="font-medium">{row.getValue("billNumber")}</span>,
         },
         {
             id: "supplier",
-            header: "Supplier",
+            header: t("supplierHeader"),
             cell: ({ row }) => row.original.supplier?.name,
         },
         {
             accessorKey: "issueDate",
-            header: "Bill Date",
+            header: t("billDate"),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {new Date(row.getValue("issueDate")).toLocaleDateString("en-AE")}
+                    {formatDate(String(row.getValue("issueDate")), dateFormat)}
                 </span>
             ),
         },
         {
             accessorKey: "dueDate",
-            header: "Due Date",
+            header: tc("date"),
             cell: ({ row }) => {
                 const isOverdue = !["PAID", "VOID"].includes(row.original.status) && new Date(row.getValue("dueDate")) < new Date();
                 return (
                     <span className={isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
                         {isOverdue && <AlertCircle className="inline h-3 w-3 mr-1" />}
-                        {new Date(row.getValue("dueDate")).toLocaleDateString("en-AE")}
+                        {formatDate(String(row.getValue("dueDate")), dateFormat)}
                     </span>
                 );
             },
         },
         {
             accessorKey: "total",
-            header: () => <div className="text-right">Amount</div>,
+            header: () => <div className="text-right">{tc("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     {row.original.currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -152,7 +156,7 @@ export default function BillsPage() {
         },
         {
             accessorKey: "outstanding",
-            header: () => <div className="text-right">Outstanding</div>,
+            header: () => <div className="text-right">{tc("outstanding")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("outstanding")) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
@@ -163,7 +167,7 @@ export default function BillsPage() {
         },
         {
             accessorKey: "status",
-            header: "Status",
+            header: t("statusHeader"),
             cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
         },
         {
@@ -171,12 +175,12 @@ export default function BillsPage() {
             header: "",
             cell: ({ row }) => (
                 <div role="presentation" className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")}
                         onClick={() => router.push(`/bills/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
                     </Button>
                     {canEdit('bill', row.original.status) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                             onClick={() => setEditBillId(row.original.id)}>
                             <Pencil className="h-4 w-4" />
                         </Button>
@@ -184,13 +188,13 @@ export default function BillsPage() {
                 </div>
             ),
         },
-    ], [router]);
+    ], [dateFormat, router, t, tc]);
 
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Bills"
-                description={pagination ? `${pagination.total} total bills` : "Manage supplier bills (payables)"}
+                title={t("title")}
+                description={pagination ? t("totalBills", { count: pagination.total }) : t("manageDescription")}
                 onRefresh={fetchBills}
                 isRefreshing={loading}
                 actions={
@@ -198,28 +202,28 @@ export default function BillsPage() {
                         <ExportDropdown
                             data={bills}
                             columns={[
-                                { header: "Bill #", accessor: "billNumber" },
-                                { header: "Supplier", accessor: "supplier.name" },
-                                { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                                { header: "Due Date", accessor: "dueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: "Outstanding", accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: "Status", accessor: "status" },
+                                { header: t("exportBillNum"), accessor: "billNumber" },
+                                { header: t("exportSupplier"), accessor: "supplier.name" },
+                                { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
+                                { header: t("exportDueDate"), accessor: "dueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="bills"
-                            title="Bills Report"
+                            title={t("exportTitle")}
                         />
                         <Button onClick={() => setSheetOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            New Bill
+                            {t("newBill")}
                         </Button>
                     </>
                 }
             />
 
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                <StatCard label="Total Bills">{pagination?.total ?? "—"}</StatCard>
-                <StatCard label="Outstanding (shown)">
+                <StatCard label={t("totalLabel")}>{pagination?.total ?? "—"}</StatCard>
+                <StatCard label={t("outstandingShown")}>
                     {hasMixedCurrencies ? (
                         <div className="space-y-0.5">
                             {Object.entries(outstandingByCurrency).map(([cur, amount]) => (
@@ -234,7 +238,7 @@ export default function BillsPage() {
                         </span>
                     )}
                 </StatCard>
-                <StatCard label="Overdue">
+                <StatCard label={t("overdueLabel")}>
                     <span className="text-destructive">
                         {bills.filter((b) => b.status === "OVERDUE").length}
                     </span>
@@ -245,14 +249,14 @@ export default function BillsPage() {
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
                         <SearchInput
-                            placeholder="Search bills..."
+                            placeholder={t("searchPlaceholder")}
                             value={search}
                             onChange={handleSearchChange}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Statuses</SelectItem>
+                                <SelectItem value="ALL">{tc("allStatuses")}</SelectItem>
                                 <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
                                 <SelectItem value="RECEIVED"><StatusOption status="RECEIVED" /></SelectItem>
                                 <SelectItem value="PARTIALLY_PAID"><StatusOption status="PARTIALLY_PAID" /></SelectItem>
@@ -269,9 +273,9 @@ export default function BillsPage() {
                     ) : bills.length === 0 ? (
                         <EmptyState
                             icon={Receipt}
-                            title="No bills found"
-                            description={normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Record your first supplier bill"}
-                            action={!normalizedSearch && statusFilter === "ALL" ? { label: "New Bill", onClick: () => setSheetOpen(true) } : undefined}
+                            title={t("noFound")}
+                            description={normalizedSearch || statusFilter !== "ALL" ? tc("adjustFilters") : t("createFirst")}
+                            action={!normalizedSearch && statusFilter === "ALL" ? { label: t("newBill"), onClick: () => setSheetOpen(true) } : undefined}
                         />
                     ) : (
                         <DataTable

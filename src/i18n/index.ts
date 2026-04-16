@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { getRequestConfig } from "next-intl/server";
 
 // Supported locales
@@ -16,12 +15,11 @@ export function isRtl(locale: Locale): boolean {
 }
 
 export default getRequestConfig(async ({ requestLocale }) => {
-  // Validate that the incoming `locale` parameter is valid
-  const locale = await requestLocale;
-  
-  if (!locale || !locales.includes(locale as Locale)) {
-    notFound();
-  }
+  // Resolve locale from the header injected by proxy.ts; fallback to default
+  const resolved = await requestLocale;
+  const locale: Locale = locales.includes(resolved as Locale)
+    ? (resolved as Locale)
+    : defaultLocale;
 
   return {
     locale,
