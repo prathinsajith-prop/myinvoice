@@ -57,7 +57,10 @@
     "active": "Active",
     "invoice": "Invoice",
     "supplier": "Supplier",
-    "customer": "Customer"
+      "customer": "Customer",
+      "selectCustomer": "Select a customer...",
+      "selectSupplier": "Select a supplier...",
+      "selectProduct": "Select a product..."
   },
   "currency": {
     "aed": "AED",
@@ -139,7 +142,9 @@
       "catalog": "Catalog",
       "finance": "Finance",
       "administration": "Administration"
-    }
+    },
+    "recurringInvoices": "Recurring Invoices",
+    "paymentReminders": "Payment Reminders"
   },
   "dashboard": {
     "welcome": "Welcome back, {name}",
@@ -190,9 +195,9 @@
     "receivableAging": "Receivable Aging",
     "receivableAgingDesc": "Outstanding invoices by days overdue",
     "current": "Current",
-    "days1to30": "1\u201330 days",
-    "days31to60": "31\u201360 days",
-    "days61to90": "61\u201390 days",
+    "days1to30": "1–30 days",
+    "days31to60": "31–60 days",
+    "days61to90": "61–90 days",
     "days90plus": "90+ days",
     "noDataPeriod": "No data yet for this period.",
     "noInvoiceActivity": "No invoice activity in this period.",
@@ -214,7 +219,33 @@
     "recentInvoicesTitle": "Recent Invoices",
     "chartRevenue": "Revenue",
     "chartExpenses": "Expenses",
-    "showingPagination": "Showing {start}–{end} of {total}"
+    "showingPagination": "Showing {start}–{end} of {total}",
+    "topCustomers": "Top Customers",
+    "customerName": "Customer",
+    "totalRevenue": "Total Revenue",
+    "invoiceCount": "Invoices",
+    "cashFlow": "Cash Flow Forecast",
+    "cashIn": "Cash In",
+    "cashOut": "Cash Out",
+    "netCash": "Net Cash",
+    "financialHealth": "Financial Health",
+    "collectionRate": "Collection Rate",
+    "profitMargin": "Profit Margin",
+    "avgDaysToCollect": "Avg Days to Collect",
+    "revenueGrowth": "Revenue Growth",
+    "expenseRatio": "Expense Ratio",
+    "forecast": "Forecast",
+    "projected": "Projected",
+    "actual": "Actual",
+    "forecastRevenue": "Revenue Forecast",
+    "forecastExpenses": "Expense Forecast",
+    "nextMonth": "Next Month",
+    "next3Months": "Next 3 Months",
+    "paymentPatterns": "Payment Patterns",
+    "onTime": "On Time",
+    "late": "Late",
+    "veryLate": "Very Late (30+ days)",
+    "days": "days"
   },
   "invoices": {
     "title": "Invoices",
@@ -1035,14 +1066,14 @@
     "networkErrorDescription": "Please check your internet connection"
   },
   "footer": {
-    "copyright": "\u00a9 {year} myinvoice.ae. All rights reserved.",
+    "copyright": "© {year} myinvoice.ae. All rights reserved.",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "contact": "Contact Us"
   },
   "deliveryNotes": {
     "title": "Delivery Notes",
-    "description": "Manage delivery notes for goods shipped to customers",
+    "description": "Description",
     "new": "New Delivery Note",
     "number": "DN #",
     "customer": "Customer",
@@ -1058,7 +1089,6 @@
     "trackingNumber": "Tracking Number",
     "items": "Items",
     "addItem": "Add Item",
-    "description": "Description",
     "quantity": "Quantity",
     "unit": "Unit",
     "notes": "Notes",
@@ -1073,7 +1103,33 @@
       "DELIVERED": "Delivered",
       "VOID": "Void"
     },
-    "allStatuses": "All statuses"
+    "allStatuses": "All statuses",
+    "details": "Delivery Note Details",
+    "markDispatched": "Mark Dispatched",
+    "markDelivered": "Mark Delivered",
+    "markVoid": "Mark Void",
+    "voidConfirm": "Are you sure you want to void this delivery note?",
+    "dispatched": "Delivery note dispatched",
+    "delivered": "Delivery note delivered",
+    "voided": "Delivery note voided",
+    "deleted": "Delivery note deleted",
+    "deleteConfirm": "Are you sure you want to delete this delivery note?",
+    "lineItems": "Line Items",
+    "dispatchedAt": "Dispatched At",
+    "deliveredAt": "Delivered At",
+    "internalNotes": "Internal Notes",
+    "linkedInvoice": "Linked Invoice",
+    "noItems": "No line items",
+    "unitOfMeasure": "Unit",
+    "itemDescription": "Description",
+    "voidReason": "Reason for voiding",
+    "voidReasonPlaceholder": "e.g. Customer cancelled, wrong address...",
+    "statuses": {
+      "DRAFT": "Draft",
+      "DISPATCHED": "Dispatched",
+      "DELIVERED": "Delivered",
+      "VOID": "Void"
+    }
   },
   "auditLog": {
     "title": "Audit Log",
@@ -1284,7 +1340,14 @@
     "inputVat": "Input VAT",
     "netVat": "Net VAT",
     "dueDate": "Due date",
-    "vatSaved": "VAT return saved"
+    "vatSaved": "VAT return saved",
+    "exportPdf": "Export PDF",
+    "exportCsv": "Export CSV",
+    "exportExcel": "Export Excel",
+    "exporting": "Exporting...",
+    "exported": "VAT return exported",
+    "ftaFormat": "FTA Format",
+    "exportFailed": "Export failed. Please try again."
   },
   "users": {
     "title": "Users",
@@ -1358,6 +1421,104 @@
       "newInvoice": "New Invoice",
       "newQuotation": "New Quotation",
       "newCustomer": "New Customer"
+    }
+  },
+  "recurringInvoices": {
+    "title": "Recurring Invoices",
+    "description": "Description",
+    "new": "New Recurring Invoice",
+    "edit": "Edit Recurring Invoice",
+    "templateName": "Template Name",
+    "customer": "Customer",
+    "frequency": "Frequency",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "nextRun": "Next Run",
+    "lastRun": "Last Run",
+    "occurrences": "Remaining",
+    "generated": "Generated",
+    "status": "Status",
+    "autoSend": "Auto-send",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "discount": "Discount",
+    "vat": "VAT",
+    "notes": "Notes",
+    "terms": "Terms",
+    "lineItems": "Line Items",
+    "addItem": "Add Item",
+    "quantity": "Quantity",
+    "unitPrice": "Unit Price",
+    "vatRate": "VAT Rate",
+    "amount": "Amount",
+    "save": "Save",
+    "create": "Create",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "created": "Recurring invoice created",
+    "updated": "Recurring invoice updated",
+    "paused": "Recurring invoice paused",
+    "resumed": "Recurring invoice resumed",
+    "canceled": "Recurring invoice canceled",
+    "deleted": "Recurring invoice deleted",
+    "empty": "No recurring invoices",
+    "emptyDescription": "Set up automated invoicing for your regular clients.",
+    "searchPlaceholder": "Search recurring invoices...",
+    "frequencies": {
+      "WEEKLY": "Weekly",
+      "BIWEEKLY": "Bi-weekly",
+      "MONTHLY": "Monthly",
+      "QUARTERLY": "Quarterly",
+      "SEMI_ANNUALLY": "Semi-annually",
+      "ANNUALLY": "Annually"
+    },
+    "statuses": {
+      "ACTIVE": "Active",
+      "PAUSED": "Paused",
+      "COMPLETED": "Completed",
+      "CANCELED": "Canceled"
+    }
+  },
+  "paymentReminders": {
+    "title": "Payment Reminders",
+    "description": "Automated reminders for overdue invoices.",
+    "schedule": "Schedule Reminder",
+    "upcoming": "Upcoming Reminders",
+    "history": "Reminder History",
+    "scheduledAt": "Scheduled At",
+    "scheduledFor": "Scheduled for",
+    "sentAt": "Sent at",
+    "cancel": "Cancel",
+    "deleted": "Reminder deleted",
+    "status": "Status",
+    "type": "Type",
+    "channel": "Channel",
+    "subject": "Subject",
+    "recipient": "Recipient",
+    "invoice": "Invoice",
+    "customer": "Customer",
+    "scheduled": "Reminder scheduled",
+    "sent": "Reminder sent",
+    "canceled": "Reminder canceled",
+    "empty": "No reminders",
+    "emptyDescription": "Payment reminders will appear here.",
+    "types": {
+      "BEFORE_DUE": "Before due",
+      "ON_DUE": "On due date",
+      "AFTER_DUE": "After due"
+    },
+    "channels": {
+      "EMAIL": "Email",
+      "WHATSAPP": "WhatsApp",
+      "SMS": "SMS"
+    },
+    "reminderStatuses": {
+      "PENDING": "Pending",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped"
     }
   }
 }

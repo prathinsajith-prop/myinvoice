@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 
@@ -15,7 +15,7 @@ const updateSchema = z.object({
 
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const creditNote = await prisma.creditNote.findFirst({
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const body = await req.json();
 
@@ -116,7 +116,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const creditNote = await prisma.creditNote.findFirst({

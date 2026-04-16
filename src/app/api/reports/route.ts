@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
 function getPeriodRange(period: string): { from: Date; to: Date } {
@@ -39,7 +39,7 @@ function getPeriodRange(period: string): { from: Date; to: Date } {
  */
 export async function GET(req: NextRequest) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { searchParams } = new URL(req.url);
         const period = searchParams.get("period") ?? "this_month";
         const { from, to } = getPeriodRange(period);
@@ -228,6 +228,80 @@ export async function GET(req: NextRequest) {
             else aging.days90plus += outstanding;
         }
 
+        // === Advanced Analytics ===
+
+        // Top 5 customers by revenue
+        const topCustomersRaw = await prisma.invoice.groupBy({
+            by: ["customerId"],
+            where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: from, lte: to } },
+            _sum: { total: true },
+            _count: { _all: true },
+            orderBy: { _sum: { total: "desc" } },
+            take: 5,
+        });
+
+        const topCustomerIds = topCustomersRaw.map((c) => c.customerId);
+        const topCustomerNames = topCustomerIds.length > 0
+            ? await prisma.customer.findMany({
+                where: { id: { in: topCustomerIds } },
+                select: { id: true, name: true },
+            })
+            : [];
+        const customerNameMap = new Map(topCustomerNames.map((c) => [c.id, c.name]));
+
+        const topCustomers = topCustomersRaw.map((c) => ({
+            customerId: c.customerId,
+            name: customerNameMap.get(c.customerId) ?? "Unknown",
+            total: Number(c._sum.total ?? 0),
+            count: c._count._all,
+        }));
+
+        // Payment patterns: on-time vs late vs very late
+        const paidInvoices = await prisma.invoice.findMany({
+            where: {
+                organizationId: orgId,
+                deletedAt: null,
+                status: "PAID",
+                issueDate: { gte: from, lte: to },
+            },
+            select: { dueDate: true, updatedAt: true },
+        });
+
+        let onTimeCount = 0;
+        let lateCount = 0;
+        let veryLateCount = 0;
+        let totalDaysToCollect = 0;
+
+        for (const inv of paidInvoices) {
+            const daysDiff = Math.floor(
+                (new Date(inv.updatedAt).getTime() - new Date(inv.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            totalDaysToCollect += Math.max(0, daysDiff);
+            if (daysDiff <= 0) onTimeCount++;
+            else if (daysDiff <= 30) lateCount++;
+            else veryLateCount++;
+        }
+
+        const avgDaysToCollect = paidInvoices.length > 0 ? Math.round(totalDaysToCollect / paidInvoices.length) : 0;
+        const collectionRate = invoiceCount > 0 ? (paidInvoiceCount / invoiceCount) * 100 : 0;
+
+        // Revenue forecast (simple linear projection from monthly trend)
+        const trendValues = Object.values(monthlyMap);
+        const recentRevenue = trendValues.slice(-3);
+        const recentExpenses = trendValues.slice(-3);
+        const avgRecentRevenue = recentRevenue.length > 0
+            ? recentRevenue.reduce((s, v) => s + v.revenue, 0) / recentRevenue.length
+            : 0;
+        const avgRecentExpenses = recentExpenses.length > 0
+            ? recentExpenses.reduce((s, v) => s + v.expenses, 0) / recentExpenses.length
+            : 0;
+
+        // Growth rate
+        const prevMonthRevenue = trendValues.length >= 2 ? trendValues[trendValues.length - 2].revenue : 0;
+        const currMonthRevenue = trendValues.length >= 1 ? trendValues[trendValues.length - 1].revenue : 0;
+        const revenueGrowth = prevMonthRevenue > 0 ? ((currMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
+        const expenseRatio = totalRevenue > 0 ? (combinedExpenses / totalRevenue) * 100 : 0;
+
         return NextResponse.json({
             period: { start: from.toISOString(), end: to.toISOString() },
             kpis: {
@@ -277,6 +351,26 @@ export async function GET(req: NextRequest) {
                 issueDate: inv.issueDate.toISOString(),
                 customer: inv.customer,
             })),
+            // Advanced analytics
+            topCustomers,
+            paymentPatterns: {
+                onTime: onTimeCount,
+                late: lateCount,
+                veryLate: veryLateCount,
+            },
+            financialHealth: {
+                collectionRate,
+                profitMargin: netProfitMargin,
+                avgDaysToCollect,
+                revenueGrowth,
+                expenseRatio,
+            },
+            forecast: {
+                nextMonthRevenue: avgRecentRevenue,
+                nextMonthExpenses: avgRecentExpenses,
+                next3MonthsRevenue: avgRecentRevenue * 3,
+                next3MonthsExpenses: avgRecentExpenses * 3,
+            },
         });
     } catch (error) {
         return toErrorResponse(error);

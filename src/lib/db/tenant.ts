@@ -18,6 +18,12 @@ const TENANT_SCOPED_MODELS = new Set([
   "vatreturn",
   "documentsequence",
   "auditlog",
+  "deliverynote",
+  "deliverynotelineitem",
+  "recurringinvoice",
+  "recurringinvoicelineitem",
+  "paymentreminder",
+  "notification",
 ]);
 
 function isTenantScoped(model: string): boolean {

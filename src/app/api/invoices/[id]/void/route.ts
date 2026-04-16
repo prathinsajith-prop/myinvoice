@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveApiContextWithPermission } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
 
 type Params = { params: Promise<{ id: string }> };
@@ -12,7 +12,7 @@ const voidSchema = z.object({
 
 export async function POST(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveApiContextWithPermission(req, "edit");
         const { id } = await params;
         const body = await req.json();
 

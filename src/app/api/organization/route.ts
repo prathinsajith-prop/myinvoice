@@ -6,6 +6,7 @@ import { updateOrganizationSchema } from "@/lib/validations/settings";
 import {
   resolveApiContext,
   resolveApiContextWithRole,
+  resolveApiContextWithPermission,
 } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { logAudit } from "@/lib/tenant/server";

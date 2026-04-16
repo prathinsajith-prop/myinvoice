@@ -48,7 +48,7 @@ export async function proxy(req: NextRequest) {
     const isAuthApi = normalizedPath.startsWith("/api/auth/");
     const limit = isAuthApi ? 60 : 300;
     const windowMs = 15 * 60 * 1000;
-    const rl = rateLimit(`${ip}:${isAuthApi ? "auth" : "api"}`, limit, windowMs);
+    const rl = await rateLimit(`${ip}:${isAuthApi ? "auth" : "api"}`, limit, windowMs);
 
     if (!rl.allowed) {
       return NextResponse.json(

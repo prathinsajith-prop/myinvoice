@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
 
 // GET /api/organizations/:id — get a specific organization the user belongs to
@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    const ctx = await resolveApiContext(req);
+    const ctx = await resolveRouteContext(req);
     const { orgId } = await params;
 
     // Verify the requesting user is actually a member

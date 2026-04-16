@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveApiContextWithPermission } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 import { generatePublicToken } from "@/lib/crypto/token";
 import { sendEmail } from "@/lib/email";
@@ -16,7 +16,7 @@ const sendSchema = z.object({
 
 export async function POST(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveApiContextWithPermission(req, "edit");
         const { id } = await params;
 
         const payload = sendSchema.safeParse(await req.json().catch(() => ({})));

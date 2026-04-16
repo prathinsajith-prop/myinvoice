@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
 // GET /api/organizations — list all organizations the current user belongs to
 export async function GET(req: NextRequest) {
   try {
-    const ctx = await resolveApiContext(req);
+    const ctx = await resolveRouteContext(req);
 
     const memberships = await prisma.organizationMembership.findMany({
       where: { userId: ctx.userId, isActive: true },

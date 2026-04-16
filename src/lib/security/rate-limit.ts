@@ -1,25 +1,3 @@
-type Bucket = {
-    count: number;
-    resetAt: number;
-};
-
-const buckets = new Map<string, Bucket>();
-
-// Periodic cleanup of expired buckets to prevent memory leaks
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-let lastCleanup = Date.now();
-
-function cleanupExpiredBuckets() {
-    const now = Date.now();
-    if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
-    lastCleanup = now;
-    for (const [key, bucket] of buckets) {
-        if (bucket.resetAt <= now) {
-            buckets.delete(key);
-        }
-    }
-}
-
 export interface RateLimitResult {
     allowed: boolean;
     remaining: number;
@@ -31,25 +9,44 @@ export function getClientIp(headers: Headers): string {
     return fwd || headers.get("x-real-ip") || "unknown";
 }
 
-export function rateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
-    cleanupExpiredBuckets();
+/**
+ * In-memory sliding-window rate limiter.
+ * Uses a Map keyed by `key:windowStart` with automatic eviction of expired entries.
+ * No DB round-trip — sub-millisecond latency.
+ */
 
+interface WindowEntry {
+    count: number;
+    expiresAt: number;
+}
+
+const store = new Map<string, WindowEntry>();
+const MAX_STORE_SIZE = 50_000;
+
+function evictExpired() {
     const now = Date.now();
-    const current = buckets.get(key);
-
-    if (!current || current.resetAt <= now) {
-        const resetAt = now + windowMs;
-        buckets.set(key, { count: 1, resetAt });
-        return { allowed: true, remaining: limit - 1, resetAt };
+    for (const [k, v] of store) {
+        if (v.expiresAt <= now) store.delete(k);
     }
+}
 
-    current.count += 1;
-    buckets.set(key, current);
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+    const now = Date.now();
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    const expiresAt = windowStart + windowMs;
+    const storeKey = `${key}:${windowStart}`;
 
-    const remaining = Math.max(0, limit - current.count);
+    // Periodic eviction when store grows large
+    if (store.size > MAX_STORE_SIZE) evictExpired();
+
+    const entry = store.get(storeKey);
+    const count = entry ? entry.count + 1 : 1;
+    store.set(storeKey, { count, expiresAt });
+
+    const remaining = Math.max(0, limit - count);
     return {
-        allowed: current.count <= limit,
+        allowed: count <= limit,
         remaining,
-        resetAt: current.resetAt,
+        resetAt: expiresAt,
     };
 }

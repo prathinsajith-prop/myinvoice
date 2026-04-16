@@ -20,6 +20,8 @@ import {
   Plus,
   Truck,
   LogOut,
+  RefreshCcw,
+  Bell,
 } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
@@ -59,6 +61,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         { name: t("creditNotes"), href: "/credit-notes", icon: FileMinus },
         { name: t("debitNotes"), href: "/debit-notes", icon: FilePlus },
         { name: t("deliveryNotes"), href: "/delivery-notes", icon: Truck },
+        { name: t("recurringInvoices"), href: "/recurring-invoices", icon: RefreshCcw },
         { name: t("customers"), href: "/customers", icon: Users },
       ],
     },
@@ -81,6 +84,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       items: [
         { name: t("reports"), href: "/reports", icon: BarChart3 },
         { name: t("vatReturns"), href: "/vat-returns", icon: Receipt },
+        { name: t("paymentReminders"), href: "/payment-reminders", icon: Bell },
       ],
     },
   ];

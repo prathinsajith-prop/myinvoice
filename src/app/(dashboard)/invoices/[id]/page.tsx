@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,7 @@ export default function InvoiceDetailPage() {
     const [lineItemModalOpen, setLineItemModalOpen] = useState(false);
     const [editingLineItem, setEditingLineItem] = useState<LineItemData | null>(null);
     const [deletingLineItem, setDeletingLineItem] = useState<LineItemData | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
 
     const fetchInvoice = useCallback(async () => {
         setLoading(true);
@@ -212,6 +213,21 @@ export default function InvoiceDetailPage() {
         }
     }
 
+    async function doDuplicate() {
+        setDuplicating(true);
+        try {
+            const res = await fetch(`/api/invoices/${params.id}/duplicate`, { method: "POST" });
+            if (!res.ok) throw new Error((await res.json()).error ?? "Failed to duplicate");
+            const dup = await res.json();
+            toast.success(`Duplicated as ${dup.invoiceNumber}`);
+            router.push(`/invoices/${dup.id}`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to duplicate invoice");
+        } finally {
+            setDuplicating(false);
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24">
@@ -278,6 +294,10 @@ export default function InvoiceDetailPage() {
                             Void
                         </Button>
                     )}
+                    <Button variant="outline" size="sm" onClick={doDuplicate} disabled={duplicating}>
+                        {duplicating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
+                        Duplicate
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
                     </Button>

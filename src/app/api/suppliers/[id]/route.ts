@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 
 const updateSchema = z.object({
@@ -33,7 +33,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const supplier = await prisma.supplier.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const body = await req.json();
         const existing = await prisma.supplier.findFirst({
@@ -86,7 +86,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const existing = await prisma.supplier.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },

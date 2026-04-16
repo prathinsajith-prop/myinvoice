@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -16,7 +16,7 @@ const ALLOWED_TYPES = new Set([
 
 export async function POST(req: NextRequest) {
     try {
-        await resolveApiContext(req);
+        await resolveRouteContext(req);
 
         const form = await req.formData();
         const file = form.get("file");
