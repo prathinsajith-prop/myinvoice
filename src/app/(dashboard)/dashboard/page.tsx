@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import {
@@ -8,7 +8,6 @@ import {
     ArrowDownRight,
     ArrowUpRight,
     FileText,
-    Loader2,
     Receipt,
     TrendingUp,
     Users,
@@ -35,9 +34,19 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { jsonFetcher } from "@/lib/fetcher";
+import { useTranslations } from "next-intl";
+import { formatDate } from "@/lib/format";
 
 type ReportResponse = {
     revenue?: {
@@ -173,12 +182,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+    const t = useTranslations("dashboard");
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const dateFormat = orgSettings.dateFormat;
+    const [period, setPeriod] = useState("this_month");
     const { data, isLoading: loading } = useSWR(
-        "dashboard-overview",
+        ["dashboard-overview", period],
         async () => {
-            const reportData = await jsonFetcher<ReportResponse>("/api/reports");
+            const reportData = await jsonFetcher<ReportResponse>(`/api/reports?period=${period}`);
             const customerData = await jsonFetcher<CustomerListResponse>("/api/customers?page=1&limit=1").catch(() => null);
 
             return {
@@ -202,47 +214,47 @@ export default function DashboardPage() {
 
         return [
             {
-                name: "Total Revenue",
+                name: t("revenue.title"),
                 value: formatCurrency(normalized.revenue.totalInvoiced, currency),
-                description: `${formatCurrency(normalized.revenue.totalCollected, currency)} collected`,
+                description: t("collectedSub", { amount: formatCurrency(normalized.revenue.totalCollected, currency) }),
                 trend: normalized.revenue.totalInvoiced >= normalized.revenue.totalCollected ? "up" : "down",
-                delta: `${normalized.revenue.invoiceCount} invoices`,
+                delta: t("invoicesDelta", { count: normalized.revenue.invoiceCount }),
                 icon: TrendingUp,
             },
             {
-                name: "Outstanding",
+                name: t("receivables.title"),
                 value: formatCurrency(normalized.revenue.outstanding, currency),
-                description: `${normalized.revenue.overdueCount} overdue`,
+                description: t("overdueSub", { count: normalized.revenue.overdueCount }),
                 trend: normalized.revenue.overdueCount > 0 ? "down" : "up",
-                delta: normalized.revenue.overdueCount > 0 ? "Needs follow-up" : "Under control",
+                delta: normalized.revenue.overdueCount > 0 ? t("needsFollowUp") : t("underControl"),
                 icon: AlertCircle,
             },
             {
-                name: "Payables",
+                name: t("payables.title"),
                 value: formatCurrency(report.kpis?.outstandingPayables ?? 0, currency),
-                description: `${report.kpis?.overdueBills ?? 0} overdue bills`,
+                description: t("overdueBillsSub", { count: report.kpis?.overdueBills ?? 0 }),
                 trend: (report.kpis?.overdueBills ?? 0) > 0 ? "down" : "up",
-                delta: `${report.kpis?.billCount ?? 0} bills`,
+                delta: t("billsDelta", { count: report.kpis?.billCount ?? 0 }),
                 icon: Receipt,
             },
             {
-                name: "Total Invoices",
+                name: t("totalInvoices"),
                 value: String(normalized.revenue.invoiceCount),
-                description: `${normalized.quotations.count} quotations created`,
+                description: t("quotationsCreatedSub", { count: normalized.quotations.count }),
                 trend: normalized.revenue.invoiceCount > 0 ? "up" : "down",
-                delta: `${normalized.quotations.count} quotes`,
+                delta: t("quotesDelta", { count: normalized.quotations.count }),
                 icon: FileText,
             },
             {
-                name: "Active Customers",
+                name: t("activeCustomers"),
                 value: String(customerTotal),
-                description: `${normalized.expenses.count} expenses recorded`,
+                description: t("expensesRecordedSub", { count: normalized.expenses.count }),
                 trend: customerTotal > 0 ? "up" : "down",
                 delta: formatCurrency(normalized.expenses.total, currency),
                 icon: Users,
             },
         ];
-    }, [customerTotal, report, currency]);
+    }, [customerTotal, report, currency, t]);
 
     const recentInvoices = useMemo(() => {
         if (!report) return [];
@@ -267,33 +279,81 @@ export default function DashboardPage() {
         <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Business Overview</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">{t("businessOverview")}</h2>
                     <p className="text-muted-foreground">
-                        Live numbers from your invoices, quotations, customers, and expenses.
+                        {t("liveNumbers")}
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Select value={period} onValueChange={setPeriod}>
+                        <SelectTrigger className="w-[160px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="this_month">{t("thisMonth")}</SelectItem>
+                            <SelectItem value="last_month">{t("lastMonth")}</SelectItem>
+                            <SelectItem value="this_quarter">{t("thisQuarter")}</SelectItem>
+                            <SelectItem value="last_quarter">{t("lastQuarter")}</SelectItem>
+                            <SelectItem value="this_year">{t("thisYear")}</SelectItem>
+                            <SelectItem value="last_year">{t("lastYear")}</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button asChild>
                         <Link href="/invoices?create=1">
                             <FileText className="mr-2 h-4 w-4" />
-                            New Invoice
+                            {t("createInvoice")}
                         </Link>
                     </Button>
                 </div>
             </div>
 
             {loading ? (
-                <div className="flex min-h-[24rem] items-center justify-center rounded-lg border bg-card">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="space-y-4">
+                    {/* Stat card skeletons */}
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="rounded-lg border bg-card p-5 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Skeleton className="h-4 w-28" />
+                                    <Skeleton className="h-4 w-4 rounded" />
+                                </div>
+                                <Skeleton className="h-8 w-32" />
+                                <Skeleton className="h-3 w-24" />
+                            </div>
+                        ))}
+                    </div>
+                    {/* Chart skeleton */}
+                    <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+                        <div className="lg:col-span-2 rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-32" />
+                            <Skeleton className="h-[220px] w-full rounded-md" />
+                        </div>
+                        <div className="rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-32" />
+                            <Skeleton className="h-[220px] w-full rounded-md" />
+                        </div>
+                    </div>
+                    {/* Table skeleton */}
+                    <div className="rounded-lg border bg-card p-5 space-y-3">
+                        <Skeleton className="h-5 w-40" />
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-4">
+                                <Skeleton className="h-4 w-[30%] rounded" />
+                                <Skeleton className="h-4 w-[25%] rounded" />
+                                <Skeleton className="h-4 w-[20%] rounded" />
+                                <Skeleton className="h-4 w-[15%] rounded" />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : !report ? (
                 <Card>
                     <CardContent className="flex min-h-[18rem] flex-col items-center justify-center gap-3 text-center">
                         <AlertCircle className="h-8 w-8 text-muted-foreground" />
                         <div>
-                            <p className="font-medium">Dashboard data could not be loaded</p>
+                            <p className="font-medium">{t("dataLoadError")}</p>
                             <p className="text-sm text-muted-foreground">
-                                Check your reports and invoice endpoints, then reload the page.
+                                {t("dataLoadErrorDesc")}
                             </p>
                         </div>
                     </CardContent>
@@ -331,13 +391,13 @@ export default function DashboardPage() {
                         {/* Monthly Revenue vs Expenses */}
                         <Card className="lg:col-span-4">
                             <CardHeader>
-                                <CardTitle>Revenue vs Expenses</CardTitle>
-                                <CardDescription>Last 12 months overview</CardDescription>
+                                <CardTitle>{t("revenueVsExpenses")}</CardTitle>
+                                <CardDescription>{t("last12MonthsOverview")}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {monthlyTrend.length === 0 ? (
                                     <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                                        No data yet for this period.
+                                        {t("noDataPeriod")}
                                     </div>
                                 ) : (
                                     <ResponsiveContainer width="100%" height={220}>
@@ -346,8 +406,8 @@ export default function DashboardPage() {
                                             <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                                             <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                             <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
-                                            <Bar dataKey="revenue" name="Revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="expenses" name="Expenses" fill="#f87171" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="revenue" name={t("chartRevenue")} fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="expenses" name={t("chartExpenses")} fill="#f87171" radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 )}
@@ -357,13 +417,13 @@ export default function DashboardPage() {
                         {/* Invoice Status Donut */}
                         <Card className="lg:col-span-3">
                             <CardHeader>
-                                <CardTitle>Invoice Status</CardTitle>
-                                <CardDescription>Breakdown by status (this month)</CardDescription>
+                                <CardTitle>{t("invoiceStatusTitle")}</CardTitle>
+                                <CardDescription>{t("invoiceStatusDesc")}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {invoiceStatusBreakdown.length === 0 ? (
                                     <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                                        No invoice activity in this period.
+                                        {t("noInvoiceActivity")}
                                     </div>
                                 ) : (
                                     <ResponsiveContainer width="100%" height={220}>
@@ -399,14 +459,14 @@ export default function DashboardPage() {
                     <div className="grid gap-6 lg:grid-cols-7">
                         <Card className="lg:col-span-4">
                             <CardHeader>
-                                <CardTitle>Recent Invoices</CardTitle>
-                                <CardDescription>Your latest invoices from the live system</CardDescription>
+                                <CardTitle>{t("recentInvoicesTitle")}</CardTitle>
+                                <CardDescription>{t("recentInvoicesDesc")}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
                                     {recentInvoices.length === 0 ? (
                                         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                                            No invoices created yet.
+                                            {t("noInvoicesCreated")}
                                         </div>
                                     ) : (
                                         recentInvoices.map((invoice) => (
@@ -421,7 +481,7 @@ export default function DashboardPage() {
                                                     <div>
                                                         <p className="font-medium">{invoice.customer.name}</p>
                                                         <p className="text-sm text-muted-foreground">
-                                                            {invoice.invoiceNumber} • {new Date(invoice.issueDate).toLocaleDateString("en-AE")}
+                                                            {invoice.invoiceNumber} • {formatDate(invoice.issueDate, dateFormat)}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -434,7 +494,7 @@ export default function DashboardPage() {
                                     )}
                                 </div>
                                 <Button variant="outline" className="mt-4 w-full" asChild>
-                                    <Link href="/invoices">View All Invoices</Link>
+                                    <Link href="/invoices">{t("viewAllInvoices")}</Link>
                                 </Button>
                             </CardContent>
                         </Card>
@@ -442,22 +502,22 @@ export default function DashboardPage() {
                         <div className="space-y-6 lg:col-span-3">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Quick Actions</CardTitle>
-                                    <CardDescription>Go directly to the most-used flows</CardDescription>
+                                    <CardTitle>{t("quickActions")}</CardTitle>
+                                    <CardDescription>{t("quickActionsDesc")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <Button variant="outline" className="h-auto py-3" asChild>
-                                            <Link href="/invoices?create=1">Create Invoice</Link>
+                                            <Link href="/invoices?create=1">{t("createInvoice")}</Link>
                                         </Button>
                                         <Button variant="outline" className="h-auto py-3" asChild>
-                                            <Link href="/customers?create=1">Add Customer</Link>
+                                            <Link href="/customers?create=1">{t("addCustomer")}</Link>
                                         </Button>
                                         <Button variant="outline" className="h-auto py-3" asChild>
-                                            <Link href="/quotations?create=1">New Quotation</Link>
+                                            <Link href="/quotations?create=1">{t("newQuotation")}</Link>
                                         </Button>
                                         <Button variant="outline" className="h-auto py-3" asChild>
-                                            <Link href="/expenses?create=1">Record Expense</Link>
+                                            <Link href="/expenses?create=1">{t("recordExpense")}</Link>
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -467,20 +527,20 @@ export default function DashboardPage() {
                                 <CardHeader className="pb-2">
                                     <div className="flex items-center gap-2">
                                         <AlertCircle className="h-5 w-5 text-orange-600" />
-                                        <CardTitle className="text-orange-600">VAT Summary</CardTitle>
+                                        <CardTitle className="text-orange-600">{t("vatSummary")}</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-2 text-sm">
                                     <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
-                                        <span>Output VAT</span>
+                                        <span>{t("outputVat")}</span>
                                         <span>{formatCurrency(vatSummary.outputVat, currency)}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
-                                        <span>Input VAT</span>
+                                        <span>{t("inputVat")}</span>
                                         <span>{formatCurrency(vatSummary.inputVat, currency)}</span>
                                     </div>
                                     <div className="flex items-center justify-between font-medium text-orange-800 dark:text-orange-200">
-                                        <span>Net VAT Payable</span>
+                                        <span>{t("netVatPayable")}</span>
                                         <span>{formatCurrency(vatSummary.netVatPayable, currency)}</span>
                                     </div>
                                 </CardContent>
@@ -489,28 +549,28 @@ export default function DashboardPage() {
                             {receivableAging && (
                                 <Card>
                                     <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm font-medium">Receivable Aging</CardTitle>
-                                        <CardDescription>Outstanding invoices by days overdue</CardDescription>
+                                        <CardTitle className="text-sm font-medium">{t("receivableAging")}</CardTitle>
+                                        <CardDescription>{t("receivableAgingDesc")}</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2 text-sm">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">Current</span>
+                                            <span className="text-muted-foreground">{t("current")}</span>
                                             <span className="font-medium text-green-600">{formatCurrency(receivableAging.current, currency)}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">1–30 days</span>
+                                            <span className="text-muted-foreground">{t("days1to30")}</span>
                                             <span className="font-medium text-yellow-600">{formatCurrency(receivableAging.days1to30, currency)}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">31–60 days</span>
+                                            <span className="text-muted-foreground">{t("days31to60")}</span>
                                             <span className="font-medium text-orange-600">{formatCurrency(receivableAging.days31to60, currency)}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">61–90 days</span>
+                                            <span className="text-muted-foreground">{t("days61to90")}</span>
                                             <span className="font-medium text-red-500">{formatCurrency(receivableAging.days61to90, currency)}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">90+ days</span>
+                                            <span className="text-muted-foreground">{t("days90plus")}</span>
                                             <span className="font-medium text-red-700">{formatCurrency(receivableAging.days90plus, currency)}</span>
                                         </div>
                                     </CardContent>

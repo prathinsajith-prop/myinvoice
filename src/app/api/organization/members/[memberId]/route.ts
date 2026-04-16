@@ -6,6 +6,7 @@ import {
   verifyMembershipOwnership,
 } from "@/lib/api/auth";
 import { toErrorResponse, ForbiddenError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 import { hasRole } from "@/lib/rbac";
 
 const updateMemberSchema = z.object({
@@ -66,6 +67,8 @@ export async function PATCH(
       },
     });
 
+    logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "Member", entityId: memberId, newData: { role }, req });
+
     return NextResponse.json(updated);
   } catch (error) {
     return toErrorResponse(error);
@@ -109,6 +112,8 @@ export async function DELETE(
         type: "TEAM_INVITE",
       },
     });
+
+    logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "Member", entityId: memberId, req });
 
     return NextResponse.json({ success: true });
   } catch (error) {

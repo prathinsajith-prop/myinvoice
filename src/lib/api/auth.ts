@@ -15,6 +15,7 @@ export interface ApiContext {
   userId: string;
   organizationId: string;
   role: MemberRole;
+  email: string | null;
 }
 
 export interface ApiUserContext {
@@ -64,6 +65,7 @@ export async function resolveApiContext(req: NextRequest): Promise<ApiContext> {
     userId: token.sub,
     organizationId: token.organizationId as string,
     role: token.role as MemberRole,
+    email: (token.email as string) ?? null,
   };
 }
 

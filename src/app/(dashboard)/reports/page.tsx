@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { useTranslations } from "next-intl";
+import { formatDate } from "@/lib/format";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, FileText, Receipt, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -75,31 +77,7 @@ interface ReportData {
     monthlyTrend?: Array<{ month: string; revenue: number; expenses: number }>;
 }
 
-const PERIODS = [
-    { value: "this_month", label: "This Month" },
-    { value: "last_month", label: "Last Month" },
-    { value: "this_quarter", label: "This Quarter" },
-    { value: "last_quarter", label: "Last Quarter" },
-    { value: "this_year", label: "This Year" },
-    { value: "last_year", label: "Last Year" },
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-    RENT: "Rent",
-    UTILITIES: "Utilities",
-    TRAVEL: "Travel",
-    MEALS_ENTERTAINMENT: "Meals & Entertainment",
-    OFFICE_SUPPLIES: "Office Supplies",
-    MARKETING: "Marketing",
-    SOFTWARE_SUBSCRIPTIONS: "Software Subscriptions",
-    PROFESSIONAL_FEES: "Professional Fees",
-    INSURANCE: "Insurance",
-    MAINTENANCE_REPAIRS: "Maintenance & Repairs",
-    SALARIES_WAGES: "Salaries & Wages",
-    TAX_PAYMENTS: "Tax Payments",
-    BANK_CHARGES: "Bank Charges",
-    OTHER: "Other",
-};
+const PERIOD_VALUES = ["this_month", "last_month", "this_quarter", "last_quarter", "this_year", "last_year"] as const;
 
 const CATEGORY_COLORS = [
     "#6366f1", "#f59e0b", "#10b981", "#f87171", "#60a5fa", "#a78bfa", "#34d399", "#fb923c",
@@ -147,10 +125,12 @@ function KpiCard({ title, value, sub, icon: Icon, trend }: {
 
 export default function ReportsPage() {
     const [period, setPeriod] = useState("this_month");
+    const t = useTranslations("reports");
     const [report, setReport] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const dateFormat = orgSettings.dateFormat;
 
     const fetchReport = useCallback(async () => {
         setLoading(true);
@@ -171,17 +151,17 @@ export default function ReportsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
                     <p className="text-muted-foreground">
                         {report
-                            ? `${new Date(report.period.start).toLocaleDateString("en-AE")} – ${new Date(report.period.end).toLocaleDateString("en-AE")}`
-                            : "Financial overview"}
+                            ? `${formatDate(report.period.start, dateFormat)} – ${formatDate(report.period.end, dateFormat)}`
+                            : t("financialOverview")}
                     </p>
                 </div>
                 <Select value={period} onValueChange={setPeriod}>
                     <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                        {PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                        {PERIOD_VALUES.map((v) => <SelectItem key={v} value={v}>{t(`periods.${v}`)}</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>
@@ -191,37 +171,37 @@ export default function ReportsPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : !report ? (
-                <p className="text-muted-foreground text-sm">Failed to load report data.</p>
+                <p className="text-muted-foreground text-sm">{t("failedToLoad")}</p>
             ) : (
                 <>
                     {/* P&L Overview */}
                     <div>
-                        <h2 className="text-base font-semibold mb-3">Profit & Loss</h2>
+                        <h2 className="text-base font-semibold mb-3">{t("profitAndLoss")}</h2>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <KpiCard
-                                title="Total Revenue"
+                                title={t("totalRevenue")}
                                 value={fmt(kpis!.totalRevenue, currency)}
-                                sub={`${kpis!.invoiceCount} invoice${kpis!.invoiceCount !== 1 ? "s" : ""}`}
+                                sub={t("invoicesSub", { count: kpis!.invoiceCount })}
                                 icon={DollarSign}
                                 trend="up"
                             />
                             <KpiCard
-                                title="Total Expenses"
+                                title={t("totalExpenses")}
                                 value={fmt(kpis!.totalExpenses, currency)}
-                                sub={`Bills + direct expenses`}
+                                sub={t("billsAndExpenses")}
                                 icon={CreditCard}
                             />
                             <KpiCard
-                                title="Net Profit"
+                                title={t("netProfit")}
                                 value={fmt(kpis!.netProfit, currency)}
-                                sub={`${(kpis!.netProfitMargin ?? 0).toFixed(1)}% margin`}
+                                sub={t("marginSub", { value: (kpis!.netProfitMargin ?? 0).toFixed(1) })}
                                 icon={isProfit ? TrendingUp : TrendingDown}
                                 trend={isProfit ? "up" : "down"}
                             />
                             <KpiCard
-                                title="Quotation Conversion"
+                                title={t("quotationConversion")}
                                 value={`${(kpis!.conversionRate ?? 0).toFixed(1)}%`}
-                                sub={`${kpis!.quotationCount} quote${kpis!.quotationCount !== 1 ? "s" : ""} sent`}
+                                sub={t("quotesSub", { count: kpis!.quotationCount })}
                                 icon={FileText}
                                 trend="neutral"
                             />
@@ -230,31 +210,31 @@ export default function ReportsPage() {
 
                     {/* Receivables & Payables */}
                     <div>
-                        <h2 className="text-base font-semibold mb-3">Cash Flow</h2>
+                        <h2 className="text-base font-semibold mb-3">{t("cashFlowSection")}</h2>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <KpiCard
-                                title="Outstanding Receivables"
+                                title={t("outstandingReceivables")}
                                 value={fmt(kpis!.outstandingReceivables, currency)}
-                                sub="Awaiting collection"
+                                sub={t("awaitingCollection")}
                                 icon={TrendingUp}
                             />
                             <KpiCard
-                                title="Overdue Invoices"
+                                title={t("overdueInvoices")}
                                 value={String(kpis!.overdueInvoices)}
-                                sub={kpis!.overdueInvoices > 0 ? "Requires attention" : "All current"}
+                                sub={kpis!.overdueInvoices > 0 ? t("requiresAttention") : t("allCurrent")}
                                 icon={Receipt}
                                 trend={kpis!.overdueInvoices > 0 ? "down" : "neutral"}
                             />
                             <KpiCard
-                                title="Outstanding Payables"
+                                title={t("outstandingPayables")}
                                 value={fmt(kpis!.outstandingPayables, currency)}
-                                sub="To be paid to suppliers"
+                                sub={t("toBePaid")}
                                 icon={TrendingDown}
                             />
                             <KpiCard
-                                title="Overdue Bills"
+                                title={t("overdueBills")}
                                 value={String(kpis!.overdueBills)}
-                                sub={kpis!.overdueBills > 0 ? "Requires attention" : "All current"}
+                                sub={kpis!.overdueBills > 0 ? t("requiresAttention") : t("allCurrent")}
                                 icon={Receipt}
                                 trend={kpis!.overdueBills > 0 ? "down" : "neutral"}
                             />
@@ -265,8 +245,8 @@ export default function ReportsPage() {
                     {(report.monthlyTrend ?? []).length > 0 && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Revenue vs Expenses Trend</CardTitle>
-                                <CardDescription>Last 12 months</CardDescription>
+                                <CardTitle className="text-base">{t("revExpTrend")}</CardTitle>
+                                <CardDescription>{t("last12Months")}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <ResponsiveContainer width="100%" height={240}>
@@ -286,8 +266,8 @@ export default function ReportsPage() {
                                         <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                         <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
                                         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                                        <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#6366f1" fill="url(#revGrad)" strokeWidth={2} dot={false} />
-                                        <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f87171" fill="url(#expGrad)" strokeWidth={2} dot={false} />
+                                        <Area type="monotone" dataKey="revenue" name={t("chartRevenue")} stroke="#6366f1" fill="url(#revGrad)" strokeWidth={2} dot={false} />
+                                        <Area type="monotone" dataKey="expenses" name={t("chartExpenses")} stroke="#f87171" fill="url(#expGrad)" strokeWidth={2} dot={false} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </CardContent>
@@ -297,18 +277,18 @@ export default function ReportsPage() {
                     {/* VAT Summary */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
-                            <CardHeader><CardTitle className="text-base">VAT Summary</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">{t("vatSummaryTitle")}</CardTitle></CardHeader>
                             <CardContent className="space-y-3 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Output VAT (collected on sales)</span>
+                                    <span className="text-muted-foreground">{t("outputVatLabel")}</span>
                                     <span className="font-medium">{fmt(report.vatSummary?.outputVat ?? kpis!.totalVatCollected, currency)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Input VAT (paid on purchases)</span>
+                                    <span className="text-muted-foreground">{t("inputVatLabel")}</span>
                                     <span className="font-medium">{fmt(report.vatSummary?.inputVat ?? kpis!.totalVatPaid, currency)}</span>
                                 </div>
                                 <div className="flex justify-between border-t pt-3 font-semibold">
-                                    <span>Net VAT Payable</span>
+                                    <span>{t("netVatPayableLabel")}</span>
                                     <span className={(report.vatSummary?.netVatPayable ?? kpis!.netVatPayable) >= 0 ? "text-destructive" : "text-green-600"}>
                                         {fmt(report.vatSummary?.netVatPayable ?? kpis!.netVatPayable, currency)}
                                     </span>
@@ -318,27 +298,28 @@ export default function ReportsPage() {
 
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Invoice Aging (Outstanding)</CardTitle>
-                                <CardDescription>Receivables by age bucket</CardDescription>
+                                <CardTitle className="text-base">{t("invoiceAgingTitle")}</CardTitle>
+                                <CardDescription>{t("invoiceAgingDesc")}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3 text-sm">
-                                <div className="flex justify-between"><span className="text-muted-foreground">Current</span><span className="font-medium">{fmt(report.receivableAging?.current ?? 0, currency)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">1-30 days</span><span className="font-medium">{fmt(report.receivableAging?.days1to30 ?? 0, currency)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">31-60 days</span><span className="font-medium">{fmt(report.receivableAging?.days31to60 ?? 0, currency)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">61-90 days</span><span className="font-medium">{fmt(report.receivableAging?.days61to90 ?? 0, currency)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">90+ days</span><span className="font-medium text-destructive">{fmt(report.receivableAging?.days90plus ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("agingCurrent")}</span><span className="font-medium">{fmt(report.receivableAging?.current ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging1to30")}</span><span className="font-medium">{fmt(report.receivableAging?.days1to30 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging31to60")}</span><span className="font-medium">{fmt(report.receivableAging?.days31to60 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging61to90")}</span><span className="font-medium">{fmt(report.receivableAging?.days61to90 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging90plus")}</span><span className="font-medium text-destructive">{fmt(report.receivableAging?.days90plus ?? 0, currency)}</span></div>
                             </CardContent>
                         </Card>
 
                         {/* Expenses by Category */}
                         <Card className="lg:col-span-2">
-                            <CardHeader><CardTitle className="text-base">Expenses by Category</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">{t("expensesByCategoryTitle")}</CardTitle></CardHeader>
                             <CardContent>
                                 {report.expensesByCategory && report.expensesByCategory.length > 0 ? (
                                     <ResponsiveContainer width="100%" height={220}>
                                         <BarChart
                                             data={report.expensesByCategory.slice(0, 8).map((c) => ({
-                                                name: CATEGORY_LABELS[c.category] ?? c.category,
+                                                name: t(`categories.${c.category}`),
+
                                                 total: c.total,
                                             }))}
                                             layout="vertical"
@@ -348,7 +329,7 @@ export default function ReportsPage() {
                                             <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                             <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
                                             <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                            <Bar dataKey="total" name="Amount" radius={[0, 4, 4, 0]}>
+                                            <Bar dataKey="total" name={t("chartAmount")} radius={[0, 4, 4, 0]}>
                                                 {report.expensesByCategory.slice(0, 8).map((entry, i) => (
                                                     <Cell key={entry.category ?? i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
                                                 ))}
@@ -356,7 +337,7 @@ export default function ReportsPage() {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">No expenses in this period</p>
+                                    <p className="text-sm text-muted-foreground">{t("noExpenses")}</p>
                                 )}
                             </CardContent>
                         </Card>
@@ -365,7 +346,7 @@ export default function ReportsPage() {
                     {/* Invoice status chart + Bills by Status */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Invoices by Status</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">{t("invoicesByStatus")}</CardTitle></CardHeader>
                             <CardContent>
                                 {report.invoicesByStatus && report.invoicesByStatus.length > 0 ? (
                                     <ResponsiveContainer width="100%" height={220}>
@@ -389,13 +370,13 @@ export default function ReportsPage() {
                                         </PieChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">No invoices in this period</p>
+                                    <p className="text-sm text-muted-foreground">{t("noInvoices")}</p>
                                 )}
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Bills by Status</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">{t("billsByStatus")}</CardTitle></CardHeader>
                             <CardContent>
                                 {report.billsByStatus && report.billsByStatus.length > 0 ? (
                                     <ResponsiveContainer width="100%" height={220}>
@@ -411,11 +392,11 @@ export default function ReportsPage() {
                                             <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                                             <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                             <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                            <Bar dataKey="total" name="Amount" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="total" name={t("chartAmount")} fill="#f59e0b" radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">No bills in this period</p>
+                                    <p className="text-sm text-muted-foreground">{t("noBills")}</p>
                                 )}
                             </CardContent>
                         </Card>

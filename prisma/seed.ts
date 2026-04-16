@@ -16,6 +16,7 @@ const DOCUMENT_SEQUENCES = [
   { documentType: "CREDIT_NOTE" as const, prefix: "CN", nextSequence: 1, padLength: 4 },
   { documentType: "DEBIT_NOTE" as const, prefix: "DN", nextSequence: 1, padLength: 4 },
   { documentType: "BILL" as const, prefix: "BILL", nextSequence: 1, padLength: 4 },
+  { documentType: "DELIVERY_NOTE" as const, prefix: "DLV", nextSequence: 1, padLength: 4 },
 ];
 
 async function seedUser(email: string, name: string, orgSlug: string, orgName: string) {

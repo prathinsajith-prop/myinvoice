@@ -15,10 +15,12 @@ import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
+import { formatDate } from "@/lib/format";
 import {
     Select,
     SelectContent,
@@ -42,9 +44,12 @@ interface Pagination { total: number; page: number; limit: number; pages: number
 
 
 export default function QuotationsPage() {
+    const t = useTranslations("quotes");
+    const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -98,38 +103,38 @@ export default function QuotationsPage() {
     const columns = useMemo<ColumnDef<Quotation>[]>(() => [
         {
             accessorKey: "quoteNumber",
-            header: "Quote #",
+            header: t("quoteNumber"),
             cell: ({ row }) => <span className="font-medium">{row.getValue("quoteNumber")}</span>,
         },
         {
             id: "customer",
-            header: "Customer",
+            header: t("customerHeader"),
             cell: ({ row }) => row.original.customer?.name,
         },
         {
             accessorKey: "issueDate",
-            header: "Issue Date",
+            header: t("issueDate"),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {new Date(row.getValue("issueDate")).toLocaleDateString("en-AE")}
+                    {formatDate(String(row.getValue("issueDate")), dateFormat)}
                 </span>
             ),
         },
         {
             accessorKey: "validUntil",
-            header: "Valid Until",
+            header: t("validUntil"),
             cell: ({ row }) => {
                 const isExpired = !["CONVERTED", "REJECTED"].includes(row.original.status) && new Date(row.getValue("validUntil")) < new Date();
                 return (
                     <span className={isExpired ? "text-destructive font-medium" : "text-muted-foreground"}>
-                        {new Date(row.getValue("validUntil")).toLocaleDateString("en-AE")}
+                        {formatDate(String(row.getValue("validUntil")), dateFormat)}
                     </span>
                 );
             },
         },
         {
             accessorKey: "total",
-            header: () => <div className="text-right">Total</div>,
+            header: () => <div className="text-right">{tc("total")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -138,7 +143,7 @@ export default function QuotationsPage() {
         },
         {
             accessorKey: "status",
-            header: "Status",
+            header: t("statusHeader"),
             cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
         },
         {
@@ -147,12 +152,12 @@ export default function QuotationsPage() {
             cell: ({ row }) => (
                 <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")}
                             onClick={() => router.push(`/quotations/${row.original.id}`)}>
                             <Eye className="h-4 w-4" />
                         </Button>
                         {canEdit('quotation', row.original.status) && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                                 onClick={() => setEditQuotationId(row.original.id)}>
                                 <Pencil className="h-4 w-4" />
                             </Button>
@@ -161,13 +166,13 @@ export default function QuotationsPage() {
                 </div>
             ),
         },
-    ], [currency, router]);
+    ], [currency, dateFormat, router, t, tc]);
 
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Quotations"
-                description={pagination ? `${pagination.total} total quotations` : "Manage your sales quotations"}
+                title={t("pageTitle")}
+                description={pagination ? t("totalQuotations", { count: pagination.total }) : t("manageDescription")}
                 onRefresh={fetchQuotations}
                 isRefreshing={loading}
                 actions={
@@ -175,19 +180,19 @@ export default function QuotationsPage() {
                         <ExportDropdown
                             data={quotations}
                             columns={[
-                                { header: "Quote #", accessor: "quoteNumber" },
-                                { header: "Customer", accessor: "customer.name" },
-                                { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                                { header: "Valid Until", accessor: "validUntil", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: "Status", accessor: "status" },
+                                { header: t("exportQuoteNum"), accessor: "quoteNumber" },
+                                { header: t("exportCustomer"), accessor: "customer.name" },
+                                { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
+                                { header: t("exportValidUntil"), accessor: "validUntil", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="quotations"
-                            title="Quotations Report"
+                            title={t("exportTitle")}
                         />
                         <Button onClick={() => setSheetOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            New Quotation
+                            {t("newQuote")}
                         </Button>
                     </>
                 }
@@ -197,7 +202,7 @@ export default function QuotationsPage() {
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
                         <SearchInput
-                            placeholder="Search quotations..."
+                            placeholder={t("searchPlaceholder")}
                             value={search}
                             onChange={handleSearchChange}
                         />
@@ -206,7 +211,7 @@ export default function QuotationsPage() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Statuses</SelectItem>
+                                <SelectItem value="ALL">{tc("allStatuses")}</SelectItem>
                                 <SelectItem value="DRAFT"><StatusOption status="DRAFT" /></SelectItem>
                                 <SelectItem value="SENT"><StatusOption status="SENT" /></SelectItem>
                                 <SelectItem value="ACCEPTED"><StatusOption status="ACCEPTED" /></SelectItem>
@@ -223,9 +228,9 @@ export default function QuotationsPage() {
                     ) : quotations.length === 0 ? (
                         <EmptyState
                             icon={FileCheck}
-                            title="No quotations found"
-                            description={normalizedSearch || statusFilter !== "ALL" ? "Try adjusting your filters" : "Create your first quotation"}
-                            action={!normalizedSearch && statusFilter === "ALL" ? { label: "New Quotation", onClick: () => setSheetOpen(true) } : undefined}
+                            title={t("noFound")}
+                            description={normalizedSearch || statusFilter !== "ALL" ? tc("adjustFilters") : t("createFirst")}
+                            action={!normalizedSearch && statusFilter === "ALL" ? { label: t("newQuote"), onClick: () => setSheetOpen(true) } : undefined}
                         />
                     ) : (
                         <DataTable

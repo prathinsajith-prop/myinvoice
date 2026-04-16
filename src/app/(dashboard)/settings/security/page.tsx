@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ interface LoginHistoryRecord {
 }
 
 export default function SecuritySettingsPage() {
+  const t = useTranslations("settings.security");
   const [saving, setSaving] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -92,7 +94,7 @@ export default function SecuritySettingsPage() {
       setLoginHistory((prev) => [...prev, ...(json.data ?? [])]);
       setNextCursor(json.nextCursor ?? null);
     } catch {
-      toast.error("Failed to load more history");
+      toast.error(t("failedToLoadHistory"));
     } finally {
       setLoadingMore(false);
     }
@@ -131,7 +133,7 @@ export default function SecuritySettingsPage() {
   };
 
   const passwordStrength = getPasswordStrength(newPassword);
-  const strengthLabels = ["Very Weak", "Weak", "Fair", "Good", "Strong"];
+  const strengthLabels = [t("strengthVeryWeak"), t("strengthWeak"), t("strengthFair"), t("strengthGood"), t("strengthStrong")];
   const strengthColors = [
     "bg-red-500",
     "bg-orange-500",
@@ -154,10 +156,10 @@ export default function SecuritySettingsPage() {
         throw new Error(error.error || "Failed to update password");
       }
 
-      toast.success("Password updated successfully");
+      toast.success(t("passwordUpdated"));
       reset();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update password");
+      toast.error(error instanceof Error ? error.message : t("failedToUpdatePassword"));
     } finally {
       setSaving(false);
     }
@@ -172,9 +174,9 @@ export default function SecuritySettingsPage() {
 
       setTotpSecret(json.secret);
       setTotpQr(json.qrCodeDataUrl);
-      toast.success("Scan the QR and verify with your 6-digit code");
+      toast.success(t("twoFactorSetupPrompt"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to initialize 2FA");
+      toast.error(error instanceof Error ? error.message : t("failedToSetup2FA"));
     } finally {
       setTwoFactorSaving(false);
     }
@@ -195,9 +197,9 @@ export default function SecuritySettingsPage() {
       setTotpSecret(null);
       setTotpQr(null);
       await mutateProfile();
-      toast.success("Two-factor authentication enabled");
+      toast.success(t("twoFactorEnabled"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to enable 2FA");
+      toast.error(error instanceof Error ? error.message : t("failedToEnable2FA"));
     } finally {
       setTwoFactorSaving(false);
     }
@@ -218,9 +220,9 @@ export default function SecuritySettingsPage() {
       setTotpSecret(null);
       setTotpQr(null);
       await mutateProfile();
-      toast.success("Two-factor authentication disabled");
+      toast.success(t("twoFactorDisabled"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to disable 2FA");
+      toast.error(error instanceof Error ? error.message : t("failedToDisable2FA"));
     } finally {
       setTwoFactorSaving(false);
     }
@@ -233,21 +235,21 @@ export default function SecuritySettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            <CardTitle>Change Password</CardTitle>
+            <CardTitle>{t("changePassword")}</CardTitle>
           </div>
           <CardDescription>
-            Update your password to keep your account secure
+            {t("changePasswordDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
+              <Label htmlFor="currentPassword">{t("currentPassword")}</Label>
               <div className="relative">
                 <Input
                   id="currentPassword"
                   type={showCurrentPassword ? "text" : "password"}
-                  placeholder="Enter your current password"
+                  placeholder={t("currentPasswordPlaceholder")}
                   {...register("currentPassword")}
                 />
                 <Button
@@ -272,12 +274,12 @@ export default function SecuritySettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
+              <Label htmlFor="newPassword">{t("newPassword")}</Label>
               <div className="relative">
                 <Input
                   id="newPassword"
                   type={showNewPassword ? "text" : "password"}
-                  placeholder="Enter your new password"
+                  placeholder={t("newPasswordPlaceholder")}
                   {...register("newPassword")}
                 />
                 <Button
@@ -314,19 +316,19 @@ export default function SecuritySettingsPage() {
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Password strength: {strengthLabels[passwordStrength - 1] || "Very Weak"}
+                    {t("passwordStrength")}: {strengthLabels[passwordStrength - 1] || t("strengthVeryWeak")}
                   </p>
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Label htmlFor="confirmPassword">{t("confirmNewPassword")}</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your new password"
+                  placeholder={t("confirmNewPasswordPlaceholder")}
                   {...register("confirmPassword")}
                 />
                 <Button
@@ -355,10 +357,10 @@ export default function SecuritySettingsPage() {
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
+                    {t("updating")}
                   </>
                 ) : (
-                  "Update Password"
+                  t("updatePassword")
                 )}
               </Button>
             </div>
@@ -372,18 +374,18 @@ export default function SecuritySettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Smartphone className="h-5 w-5 text-primary" />
-              <CardTitle>Two-Factor Authentication</CardTitle>
+              <CardTitle>{t("twoFactor")}</CardTitle>
             </div>
             {twoFactorLoading ? (
-              <Badge variant="secondary">Loading</Badge>
+              <Badge variant="secondary">{t("loading")}</Badge>
             ) : twoFactorEnabled ? (
-              <Badge variant="default">Enabled</Badge>
+              <Badge variant="default">{t("enabled")}</Badge>
             ) : (
-              <Badge variant="outline">Disabled</Badge>
+              <Badge variant="outline">{t("disabled")}</Badge>
             )}
           </div>
           <CardDescription>
-            Add an extra layer of security to your account
+            {t("twoFactorDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -394,34 +396,34 @@ export default function SecuritySettingsPage() {
                   <Shield className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium">Authenticator App</p>
+                  <p className="font-medium">{t("authenticatorApp")}</p>
                   <p className="text-sm text-muted-foreground">
-                    Use Google Authenticator, Microsoft Authenticator, or Authy
+                    {t("authenticatorAppDesc")}
                   </p>
                 </div>
               </div>
               {!twoFactorEnabled ? (
                 <Button variant="outline" onClick={handleStartTwoFactor} disabled={twoFactorSaving}>
                   {twoFactorSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Enable
+                  {t("enable")}
                 </Button>
               ) : (
                 <Button variant="destructive" onClick={handleDisableTwoFactor} disabled={twoFactorSaving || totpCode.length !== 6}>
                   {twoFactorSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Disable
+                  {t("disable")}
                 </Button>
               )}
             </div>
 
             {totpQr && !twoFactorEnabled && (
               <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
-                <p className="text-sm font-medium">1) Scan QR code in your authenticator app</p>
+                <p className="text-sm font-medium">{t("scanQrStep")}</p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={totpQr} alt="2FA QR code" className="h-48 w-48 rounded border bg-white p-2" />
                 {totpSecret && (
                   <p className="text-xs text-muted-foreground break-all">Manual key: {totpSecret}</p>
                 )}
-                <p className="text-sm font-medium">2) Enter the 6-digit code to confirm</p>
+                <p className="text-sm font-medium">{t("enterCodeStep")}</p>
                 <div className="flex gap-2">
                   <Input
                     value={totpCode}
@@ -430,7 +432,7 @@ export default function SecuritySettingsPage() {
                     inputMode="numeric"
                   />
                   <Button onClick={handleVerifyTwoFactor} disabled={twoFactorSaving || totpCode.length !== 6}>
-                    Verify
+                    {t("verify")}
                   </Button>
                 </div>
               </div>
@@ -439,7 +441,7 @@ export default function SecuritySettingsPage() {
             {twoFactorEnabled && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Enter your current authenticator code to disable 2FA.
+                  {t("disableCodePrompt")}
                 </p>
                 <Input
                   value={totpCode}
@@ -458,10 +460,10 @@ export default function SecuritySettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <History className="h-5 w-5 text-primary" />
-            <CardTitle>Login History</CardTitle>
+            <CardTitle>{t("loginHistory")}</CardTitle>
           </div>
           <CardDescription>
-            Recent sign-in activity for your account
+            {t("loginHistoryDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -472,17 +474,17 @@ export default function SecuritySettingsPage() {
               ))}
             </div>
           ) : loginHistory.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No login history yet.</p>
+            <p className="text-sm text-muted-foreground">{t("noLoginHistory")}</p>
           ) : (
             <div className="space-y-3">
               {loginHistory.map((record) => {
                 const when = new Date(record.createdAt);
                 const deviceLabel = [record.browser, record.os]
                   .filter(Boolean)
-                  .join(" · ") || record.device || "Unknown device";
+                  .join(" · ") || record.device || t("unknownDevice");
                 const location = [record.city, record.country]
                   .filter(Boolean)
-                  .join(", ") || record.ipAddress || "Unknown location";
+                  .join(", ") || record.ipAddress || t("unknownLocation");
 
                 return (
                   <div
@@ -508,7 +510,7 @@ export default function SecuritySettingsPage() {
                           <p className="text-sm font-medium">{deviceLabel}</p>
                           {!record.success && (
                             <Badge variant="destructive" className="text-xs">
-                              Failed
+                              {t("failed")}
                             </Badge>
                           )}
                         </div>
@@ -541,10 +543,10 @@ export default function SecuritySettingsPage() {
                     {loadingMore ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading…
+                        {t("loadingMore")}
                       </>
                     ) : (
-                      "Load More"
+                      t("loadMore")
                     )}
                   </Button>
                 </div>
@@ -557,21 +559,21 @@ export default function SecuritySettingsPage() {
       {/* Danger Zone */}
       <Card className="border-destructive/50">
         <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardTitle className="text-destructive">{t("dangerZone")}</CardTitle>
           <CardDescription>
-            Irreversible and destructive actions
+            {t("dangerZoneDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Delete Account</p>
+              <p className="font-medium">{t("deleteAccount")}</p>
               <p className="text-sm text-muted-foreground">
-                Permanently delete your account and all associated data
+                {t("deleteAccountDesc")}
               </p>
             </div>
             <Button variant="destructive" disabled>
-              Delete Account
+              {t("deleteAccount")}
             </Button>
           </div>
         </CardContent>

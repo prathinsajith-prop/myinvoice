@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { notifyOrgMembers } from "@/lib/notifications/create";
+import { logApiAudit } from "@/lib/api/audit";
 
 const createCustomerSchema = z.object({
     name: z.string().min(1).max(255),
@@ -133,6 +134,8 @@ export async function POST(req: NextRequest) {
             entityId: customer.id,
             actionUrl: `/customers/${customer.id}`,
         }).catch(() => { });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Customer", entityId: customer.id, entityRef: customer.name, newData: result.data, req });
 
         return NextResponse.json(customer, { status: 201 });
     } catch (error) {

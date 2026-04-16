@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -62,6 +63,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             },
         });
 
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "DebitNote", entityId: id, entityRef: updated.debitNoteNumber ?? id, previousData: debitNote, newData: result.data, req });
+
         return NextResponse.json(updated);
     } catch (error) {
         return toErrorResponse(error);
@@ -82,6 +85,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         }
 
         await prisma.debitNote.update({ where: { id }, data: { deletedAt: new Date() } });
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "DebitNote", entityId: id, entityRef: debitNote.debitNoteNumber ?? id, req });
         return NextResponse.json({ success: true });
     } catch (error) {
         return toErrorResponse(error);

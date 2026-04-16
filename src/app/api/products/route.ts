@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 const createProductSchema = z.object({
     name: z.string().min(1).max(255),
@@ -98,6 +99,8 @@ export async function POST(req: NextRequest) {
         const product = await prisma.product.create({
             data: { ...result.data, organizationId: ctx.organizationId },
         });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Product", entityId: product.id, entityRef: product.name, newData: result.data, req });
 
         return NextResponse.json(product, { status: 201 });
     } catch (error) {

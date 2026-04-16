@@ -37,6 +37,24 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CountrySelect } from "@/components/ui/country-select";
+import { getCurrencyForCountry } from "@/lib/utils/countries";
+
+const CURRENCIES = [
+    { value: "AED", label: "AED — UAE Dirham" },
+    { value: "USD", label: "USD — US Dollar" },
+    { value: "EUR", label: "EUR — Euro" },
+    { value: "GBP", label: "GBP — British Pound" },
+    { value: "SAR", label: "SAR — Saudi Riyal" },
+    { value: "OMR", label: "OMR — Omani Rial" },
+    { value: "QAR", label: "QAR — Qatari Riyal" },
+    { value: "KWD", label: "KWD — Kuwaiti Dinar" },
+    { value: "BHD", label: "BHD — Bahraini Dinar" },
+    { value: "INR", label: "INR — Indian Rupee" },
+    { value: "PKR", label: "PKR — Pakistani Rupee" },
+    { value: "EGP", label: "EGP — Egyptian Pound" },
+    { value: "JOD", label: "JOD — Jordanian Dinar" },
+    { value: "LBP", label: "LBP — Lebanese Pound" },
+] as const;
 
 const schema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -46,12 +64,14 @@ const schema = z.object({
     type: z.enum(["BUSINESS", "INDIVIDUAL"]).default("BUSINESS"),
     image: z.string().optional().or(z.literal("")),
     taxRegistrationNumber: z.string().optional().or(z.literal("")),
+    currency: z.string().default("AED"),
     unitNumber: z.string().optional().or(z.literal("")),
     buildingName: z.string().optional().or(z.literal("")),
     street: z.string().optional().or(z.literal("")),
     area: z.string().optional().or(z.literal("")),
     city: z.string().optional().or(z.literal("")),
     emirate: z.string().optional().or(z.literal("")),
+    stateProvince: z.string().optional().or(z.literal("")),
     country: z.string().optional().or(z.literal("")),
     postalCode: z.string().optional().or(z.literal("")),
     website: z.string().optional().or(z.literal("")),
@@ -68,12 +88,14 @@ const DEFAULT_VALUES: FormValues = {
     type: "BUSINESS",
     image: "",
     taxRegistrationNumber: "",
+    currency: "AED",
     unitNumber: "",
     buildingName: "",
     street: "",
     area: "",
     city: "",
     emirate: "",
+    stateProvince: "",
     country: "AE",
     postalCode: "",
     website: "",
@@ -147,12 +169,13 @@ export function CustomerModal({
                 website: values.website || null,
                 trn: values.taxRegistrationNumber || null,
                 isVatRegistered: Boolean(values.taxRegistrationNumber),
+                currency: values.currency || "AED",
                 unitNumber: values.unitNumber || null,
                 buildingName: values.buildingName || null,
                 street: values.street || null,
                 area: values.area || null,
                 city: values.city || null,
-                emirate: values.emirate || null,
+                emirate: values.country === "AE" ? (values.emirate || null) : (values.stateProvince || null),
                 country: values.country || "AE",
                 postalCode: values.postalCode || null,
                 notes: values.notes || null,
@@ -276,6 +299,30 @@ export function CustomerModal({
                                             <FormControl>
                                                 <Input placeholder="100XXXXXXXXX003" {...field} />
                                             </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="currency"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Currency</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value ?? "AED"}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select currency" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {CURRENCIES.map((c) => (
+                                                        <SelectItem key={c.value} value={c.value}>
+                                                            {c.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -419,32 +466,48 @@ export function CustomerModal({
                                         </FormItem>
                                     )}
                                 />
-                                <FormField
-                                    control={form.control}
-                                    name="emirate"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Emirate</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                                {form.watch("country") === "AE" ? (
+                                    <FormField
+                                        control={form.control}
+                                        name="emirate"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Emirate</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select emirate" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="ABU_DHABI">Abu Dhabi</SelectItem>
+                                                        <SelectItem value="DUBAI">Dubai</SelectItem>
+                                                        <SelectItem value="SHARJAH">Sharjah</SelectItem>
+                                                        <SelectItem value="AJMAN">Ajman</SelectItem>
+                                                        <SelectItem value="UMM_AL_QUWAIN">Umm Al Quwain</SelectItem>
+                                                        <SelectItem value="RAS_AL_KHAIMAH">Ras Al Khaimah</SelectItem>
+                                                        <SelectItem value="FUJAIRAH">Fujairah</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                ) : (
+                                    <FormField
+                                        control={form.control}
+                                        name="stateProvince"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>State / Province</FormLabel>
                                                 <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select emirate" />
-                                                    </SelectTrigger>
+                                                    <Input placeholder="e.g. California, Maharashtra" {...field} />
                                                 </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="ABU_DHABI">Abu Dhabi</SelectItem>
-                                                    <SelectItem value="DUBAI">Dubai</SelectItem>
-                                                    <SelectItem value="SHARJAH">Sharjah</SelectItem>
-                                                    <SelectItem value="AJMAN">Ajman</SelectItem>
-                                                    <SelectItem value="UMM_AL_QUWAIN">Umm Al Quwain</SelectItem>
-                                                    <SelectItem value="RAS_AL_KHAIMAH">Ras Al Khaimah</SelectItem>
-                                                    <SelectItem value="FUJAIRAH">Fujairah</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
                                 <FormField
                                     control={form.control}
                                     name="postalCode"
@@ -467,7 +530,15 @@ export function CustomerModal({
                                             <FormControl>
                                                 <CountrySelect
                                                     value={field.value ?? "AE"}
-                                                    onChange={field.onChange}
+                                                    onChange={(iso2) => {
+                                                        field.onChange(iso2);
+                                                        // Auto-set currency from country atlas
+                                                        const currency = getCurrencyForCountry(iso2);
+                                                        const supported = CURRENCIES.find((c) => c.value === currency);
+                                                        if (supported) {
+                                                            form.setValue("currency", currency, { shouldDirty: true });
+                                                        }
+                                                    }}
                                                 />
                                             </FormControl>
                                             <FormMessage />

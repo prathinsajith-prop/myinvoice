@@ -9,6 +9,7 @@ import {
     Camera,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ const DEFAULT_PRIMARY = "#3B82F6";
 const DEFAULT_SECONDARY = "#10B981";
 
 export default function BrandingSettingsPage() {
+    const t = useTranslations("settings.branding");
     const [saving, setSaving] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function BrandingSettingsPage() {
     const { data, isLoading: loading, mutate } = useSWR<BrandingResponse>("/api/organization", jsonFetcher, {
         revalidateOnFocus: false,
         onError() {
-            toast.error("Failed to load branding settings");
+            toast.error(t("failedToLoad"));
         },
     });
 
@@ -70,7 +72,7 @@ export default function BrandingSettingsPage() {
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > 2 * 1024 * 1024) {
-            toast.error("Logo must be smaller than 2 MB");
+            toast.error(t("logoSizeError"));
             return;
         }
         const reader = new FileReader();
@@ -116,11 +118,11 @@ export default function BrandingSettingsPage() {
                 throw new Error(err.error ?? "Failed to save branding");
             }
 
-            toast.success("Branding saved successfully");
+            toast.success(t("saved"));
             setLogoFile(null);
             await mutate();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to save branding");
+            toast.error(error instanceof Error ? error.message : t("failedToSave"));
         } finally {
             setSaving(false);
         }
@@ -142,10 +144,10 @@ export default function BrandingSettingsPage() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <ImageIcon className="h-5 w-5 text-primary" />
-                        <CardTitle>Organization Logo</CardTitle>
+                        <CardTitle>{t("organizationLogo")}</CardTitle>
                     </div>
                     <CardDescription>
-                        Upload your logo to appear on invoices, quotes, and other documents
+                        {t("organizationLogoDesc")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -177,10 +179,10 @@ export default function BrandingSettingsPage() {
                         </div>
                         <div className="space-y-2">
                             <p className="text-sm font-medium">
-                                {logoPreview ? "Current logo" : "No logo uploaded"}
+                                {logoPreview ? t("currentLogo") : t("noLogoUploaded")}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                PNG, JPG, or SVG. Max 2 MB. Recommended: 200×200 px or larger.
+                                {t("logoFileHint")}
                             </p>
                             {isAdmin && (
                                 <Button
@@ -190,7 +192,7 @@ export default function BrandingSettingsPage() {
                                     onClick={() => fileInputRef.current?.click()}
                                 >
                                     <Camera className="mr-2 h-4 w-4" />
-                                    {logoPreview ? "Change Logo" : "Upload Logo"}
+                                    {logoPreview ? t("changeLogo") : t("uploadLogo")}
                                 </Button>
                             )}
                         </div>
@@ -211,17 +213,17 @@ export default function BrandingSettingsPage() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <Palette className="h-5 w-5 text-primary" />
-                        <CardTitle>Brand Colors</CardTitle>
+                        <CardTitle>{t("brandColors")}</CardTitle>
                     </div>
                     <CardDescription>
-                        Choose colors used on your PDF documents and invoices
+                        {t("brandColorsDesc")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid gap-6 sm:grid-cols-2">
                         {/* Primary color */}
                         <div className="space-y-2">
-                            <Label htmlFor="primaryColor">Primary Color</Label>
+                            <Label htmlFor="primaryColor">{t("primaryColor")}</Label>
                             <div className="flex items-center gap-3">
                                 <Input
                                     id="primaryColor"
@@ -247,13 +249,13 @@ export default function BrandingSettingsPage() {
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Used for headings, table headers, and accents
+                                {t("primaryColorHint")}
                             </p>
                         </div>
 
                         {/* Secondary color */}
                         <div className="space-y-2">
-                            <Label htmlFor="secondaryColor">Secondary Color</Label>
+                            <Label htmlFor="secondaryColor">{t("secondaryColor")}</Label>
                             <div className="flex items-center gap-3">
                                 <Input
                                     id="secondaryColor"
@@ -279,7 +281,7 @@ export default function BrandingSettingsPage() {
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Used for subtotals, badges, and secondary elements
+                                {t("secondaryColorHint")}
                             </p>
                         </div>
                     </div>
@@ -288,19 +290,19 @@ export default function BrandingSettingsPage() {
 
                     {/* Preview strip */}
                     <div>
-                        <p className="mb-3 text-sm font-medium">Preview</p>
+                        <p className="mb-3 text-sm font-medium">{t("preview")}</p>
                         <div
                             className="rounded-lg p-4 text-white"
                             style={{ backgroundColor: primaryColor }}
                         >
                             <p className="font-bold">INVOICE #INV-0001</p>
-                            <p className="text-sm opacity-80">{orgName || "Your Company"}</p>
+                            <p className="text-sm opacity-80">{orgName || t("yourCompany")}</p>
                             <div className="mt-3 flex gap-2">
                                 <span
                                     className="rounded px-2 py-0.5 text-xs font-medium text-white"
                                     style={{ backgroundColor: secondaryColor }}
                                 >
-                                    Paid
+                                    {t("paid")}
                                 </span>
                             </div>
                         </div>
@@ -315,10 +317,10 @@ export default function BrandingSettingsPage() {
                         {saving ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving…
+                                {t("savingBranding")}
                             </>
                         ) : (
-                            "Save Branding"
+                            t("saveBranding")
                         )}
                     </Button>
                 </div>

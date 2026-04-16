@@ -11,79 +11,79 @@ import {
   Users,
   Palette,
   FileText,
+  Activity,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 
-const settingsNavigation = [
-  {
-    title: "Personal",
-    items: [
-      {
-        name: "Profile",
-        href: "/settings/profile",
-        icon: User,
-        description: "Manage your personal information",
-      },
-      {
-        name: "Security",
-        href: "/settings/security",
-        icon: Shield,
-        description: "Password and two-factor authentication",
-      },
-      {
-        name: "Notifications",
-        href: "/settings/notifications",
-        icon: Bell,
-        description: "Choose what notifications you receive",
-      },
-    ],
-  },
-  {
-    title: "Organization",
-    items: [
-      {
-        name: "General",
-        href: "/settings/organization",
-        icon: Building2,
-        description: "Organization details and settings",
-      },
-      {
-        name: "Team Members",
-        href: "/settings/team",
-        icon: Users,
-        description: "Manage your team and permissions",
-      },
-      {
-        name: "Branding",
-        href: "/settings/branding",
-        icon: Palette,
-        description: "Customize your invoice appearance",
-      },
-      {
-        name: "Invoice Settings",
-        href: "/settings/invoices",
-        icon: FileText,
-        description: "Default invoice settings and templates",
-      },
-    ],
-  },
-  {
-    title: "Billing",
-    items: [
-      {
-        name: "Subscription",
-        href: "/settings/billing",
-        icon: CreditCard,
-        description: "Manage your subscription and billing",
-      },
-    ],
-  },
-];
-
 function SettingsSidebar() {
   const pathname = usePathname();
+  const t = useTranslations("settings.nav");
+
+  const settingsNavigation = [
+    {
+      title: t("personal"),
+      items: [
+        {
+          name: t("profileName"),
+          href: "/settings/profile",
+          icon: User,
+        },
+        {
+          name: t("securityName"),
+          href: "/settings/security",
+          icon: Shield,
+        },
+        {
+          name: t("notificationsName"),
+          href: "/settings/notifications",
+          icon: Bell,
+        },
+      ],
+    },
+    {
+      title: t("organization"),
+      items: [
+        {
+          name: t("generalName"),
+          href: "/settings/organization",
+          icon: Building2,
+        },
+        {
+          name: t("teamMembersName"),
+          href: "/settings/team",
+          icon: Users,
+        },
+        {
+          name: t("brandingName"),
+          href: "/settings/branding",
+          icon: Palette,
+        },
+        {
+          name: t("invoiceSettingsName"),
+          href: "/settings/invoices",
+          icon: FileText,
+        },
+        {
+          name: t("auditLogName"),
+          href: "/settings/audit-log",
+          icon: Activity,
+        },
+      ],
+    },
+    {
+      title: t("billing"),
+      items: [
+        {
+          name: t("subscriptionName"),
+          href: "/settings/billing",
+          icon: CreditCard,
+        },
+      ],
+    },
+  ];
 
   return (
     <aside className="w-64 space-y-6">
@@ -123,12 +123,14 @@ export default function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("settings");
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Manage your account and organization settings
+          {t("manageDescription")}
         </p>
       </div>
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
+import { logApiAudit } from "@/lib/api/audit";
 import { toErrorResponse } from "@/lib/errors";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
@@ -144,8 +145,24 @@ export async function POST(req: NextRequest) {
         // Resolve customer TRN for FTA compliance (buyerTrn required on B2B invoices > AED 10,000)
         const customerRecord = await prisma.customer.findUnique({
             where: { id: invoiceData.customerId },
-            select: { trn: true },
+            select: { trn: true, type: true, email: true },
         });
+
+        // FTA Compliance: B2B invoices over AED 10,000 MUST have buyerTrn
+        if (
+            customerRecord?.type === "BUSINESS" &&
+            totals.total > 10000 &&
+            !customerRecord?.trn
+        ) {
+            return NextResponse.json(
+                {
+                    error: "FTA Compliance Error",
+                    message: "B2B invoices over AED 10,000 require the customer's Tax Registration Number (TRN). Please add the customer's TRN and try again.",
+                    code: "FTA_B2B_TRN_REQUIRED",
+                },
+                { status: 400 }
+            );
+        }
 
         const issueDateValue = issueDate ? new Date(issueDate) : new Date();
 
@@ -211,16 +228,7 @@ export async function POST(req: NextRequest) {
         }).catch(() => { }); // fire-and-forget, non-critical
 
         // Audit log — feeds enforceInvoiceLimit counter
-        prisma.auditLog.create({
-            data: {
-                organizationId: ctx.organizationId,
-                userId: ctx.userId,
-                action: "CREATE",
-                entityType: "Invoice",
-                entityId: invoice.id,
-                newData: { invoiceNumber: invoice.invoiceNumber },
-            },
-        }).catch(() => { }); // fire-and-forget, non-critical
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Invoice", entityId: invoice.id, entityRef: invoice.invoiceNumber, newData: { invoiceNumber: invoice.invoiceNumber }, req });
 
         // Notify org members about new invoice
         notifyOrgMembers({

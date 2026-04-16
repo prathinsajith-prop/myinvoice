@@ -6,6 +6,7 @@ import { jsonFetcher } from "@/lib/fetcher";
 
 export interface OrgSettings {
     defaultCurrency: string;
+    dateFormat: string;
     defaultDueDateDays: number;
     defaultPaymentTerms: number;
     defaultVatRate: number;
@@ -16,6 +17,7 @@ export interface OrgSettings {
 
 const DEFAULTS: OrgSettings = {
     defaultCurrency: "AED",
+    dateFormat: "DD/MM/YYYY",
     defaultDueDateDays: 30,
     defaultPaymentTerms: 30,
     defaultVatRate: 5,
@@ -28,11 +30,18 @@ const ORG_SETTINGS_KEY = "/api/organization";
 
 async function fetchOrgSettings(): Promise<OrgSettings> {
     try {
-        const json = await jsonFetcher<{ organization?: Partial<OrgSettings> }>(ORG_SETTINGS_KEY);
+        const json = await jsonFetcher<{
+            organization?: Partial<OrgSettings> & {
+                settings?: {
+                    dateFormat?: string;
+                };
+            };
+        }>(ORG_SETTINGS_KEY);
         const org = json.organization ?? {};
 
         return {
             defaultCurrency: org.defaultCurrency ?? "AED",
+            dateFormat: org.settings?.dateFormat ?? "DD/MM/YYYY",
             defaultDueDateDays: org.defaultDueDateDays ?? 30,
             defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
             defaultVatRate: Number(org.defaultVatRate ?? 5),

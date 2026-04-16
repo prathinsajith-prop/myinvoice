@@ -7,6 +7,8 @@ import {
     FileText,
     DollarSign,
     Hash,
+    Bell,
+    AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,9 +31,11 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { jsonFetcher } from "@/lib/fetcher";
 import { invalidateOrgSettingsCache } from "@/lib/hooks/use-org-settings";
+import { useTranslations } from "next-intl";
 
 const CURRENCIES = [
     { value: "AED", label: "AED — UAE Dirham" },
@@ -43,6 +47,9 @@ const CURRENCIES = [
     { value: "QAR", label: "QAR — Qatari Riyal" },
     { value: "KWD", label: "KWD — Kuwaiti Dinar" },
     { value: "BHD", label: "BHD — Bahraini Dinar" },
+    { value: "INR", label: "INR — Indian Rupee" },
+    { value: "PKR", label: "PKR — Pakistani Rupee" },
+    { value: "EGP", label: "EGP — Egyptian Pound" },
 ] as const;
 
 const PAYMENT_TERMS_OPTIONS = [
@@ -71,14 +78,35 @@ interface InvoiceSettingsData {
     defaultVatRate: number | string;
     defaultNotes: string | null;
     defaultTerms: string | null;
+    autoReminders: boolean;
+    reminderDaysBefore: number[];
+    reminderDaysAfter: number[];
+    lateFeeEnabled: boolean;
+    lateFeeType: string;
+    lateFeeValue: number | null;
+    lateFeeDays: number | null;
 }
 
 interface InvoiceSettingsResponse {
-    organization: Partial<InvoiceSettingsData>;
+    organization: Partial<InvoiceSettingsData> & {
+        settings?: Partial<{
+            autoReminders: boolean;
+            reminderDaysBefore: number[];
+            reminderDaysAfter: number[];
+            lateFeeEnabled: boolean;
+            lateFeeType: string;
+            lateFeeValue: number | null;
+            lateFeeDays: number | null;
+        }>;
+    };
     role: string;
 }
 
 export default function InvoiceSettingsPage() {
+    const tc = useTranslations("common");
+    const ti = useTranslations("settings.invoicing");
+    const tr = useTranslations("reminders");
+    const tl = useTranslations("lateFees");
     const [saving, setSaving] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [form, setForm] = useState<InvoiceSettingsData>({
@@ -96,17 +124,25 @@ export default function InvoiceSettingsPage() {
         defaultVatRate: 5,
         defaultNotes: "",
         defaultTerms: "",
+        autoReminders: true,
+        reminderDaysBefore: [3, 7],
+        reminderDaysAfter: [3, 7, 14],
+        lateFeeEnabled: false,
+        lateFeeType: "PERCENTAGE",
+        lateFeeValue: null,
+        lateFeeDays: null,
     });
     const { data: settingsData, isLoading: loading, mutate } = useSWR<InvoiceSettingsResponse>("/api/organization", jsonFetcher, {
         revalidateOnFocus: false,
         onError() {
-            toast.error("Failed to load invoice settings");
+            toast.error(ti("failedToLoad"));
         },
     });
 
     useEffect(() => {
         if (!settingsData) return;
         const org = settingsData.organization;
+        const s = org.settings;
         setForm({
             defaultCurrency: org.defaultCurrency ?? "AED",
             fiscalYearStart: org.fiscalYearStart ?? 1,
@@ -122,6 +158,13 @@ export default function InvoiceSettingsPage() {
             defaultVatRate: Number(org.defaultVatRate ?? 5),
             defaultNotes: org.defaultNotes ?? "",
             defaultTerms: org.defaultTerms ?? "",
+            autoReminders: s?.autoReminders ?? true,
+            reminderDaysBefore: s?.reminderDaysBefore ?? [3, 7],
+            reminderDaysAfter: s?.reminderDaysAfter ?? [3, 7, 14],
+            lateFeeEnabled: s?.lateFeeEnabled ?? false,
+            lateFeeType: s?.lateFeeType ?? "PERCENTAGE",
+            lateFeeValue: s?.lateFeeValue != null ? Number(s.lateFeeValue) : null,
+            lateFeeDays: s?.lateFeeDays ?? null,
         });
         setIsAdmin(settingsData.role === "OWNER" || settingsData.role === "ADMIN");
     }, [settingsData]);
@@ -137,6 +180,8 @@ export default function InvoiceSettingsPage() {
                 defaultVatRate: Number(form.defaultVatRate),
                 defaultNotes: form.defaultNotes || null,
                 defaultTerms: form.defaultTerms || null,
+                lateFeeValue: form.lateFeeEnabled ? form.lateFeeValue : null,
+                lateFeeDays: form.lateFeeEnabled ? form.lateFeeDays : null,
             };
 
             const res = await fetch("/api/organization", {
@@ -150,11 +195,11 @@ export default function InvoiceSettingsPage() {
                 throw new Error(err.error ?? "Failed to save settings");
             }
 
-            toast.success("Invoice settings saved");
+            toast.success(ti("saved"));
             invalidateOrgSettingsCache();
             await mutate();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to save settings");
+            toast.error(error instanceof Error ? error.message : ti("failedToSave"));
         } finally {
             setSaving(false);
         }
@@ -176,15 +221,15 @@ export default function InvoiceSettingsPage() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <DollarSign className="h-5 w-5 text-primary" />
-                        <CardTitle>Currency & Tax</CardTitle>
+                        <CardTitle>{ti("currencyAndTax")}</CardTitle>
                     </div>
                     <CardDescription>
-                        Default currency and VAT rate applied to new documents
+                        {ti("currencyAndTaxDesc")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                        <Label>Default Currency</Label>
+                        <Label>{ti("defaultCurrency")}</Label>
                         <Select
                             value={form.defaultCurrency}
                             onValueChange={(v) => set("defaultCurrency", v)}
@@ -204,7 +249,7 @@ export default function InvoiceSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="vatRate">Default VAT Rate (%)</Label>
+                        <Label htmlFor="vatRate">{ti("defaultVatRate")}</Label>
                         <Input
                             id="vatRate"
                             type="text"
@@ -220,7 +265,7 @@ export default function InvoiceSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Default Payment Terms</Label>
+                        <Label>{ti("defaultPaymentTerms")}</Label>
                         <Select
                             value={String(form.defaultPaymentTerms)}
                             onValueChange={(v) => set("defaultPaymentTerms", Number(v))}
@@ -240,7 +285,7 @@ export default function InvoiceSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="fiscalYear">Fiscal Year Start (month)</Label>
+                        <Label htmlFor="fiscalYear">{ti("fiscalYearStart")}</Label>
                         <Select
                             value={String(form.fiscalYearStart)}
                             onValueChange={(v) => set("fiscalYearStart", Number(v))}
@@ -251,11 +296,11 @@ export default function InvoiceSettingsPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 {[
-                                    "January", "February", "March", "April", "May", "June",
-                                    "July", "August", "September", "October", "November", "December",
+                                    "1", "2", "3", "4", "5", "6",
+                                    "7", "8", "9", "10", "11", "12",
                                 ].map((m, i) => (
                                     <SelectItem key={i + 1} value={String(i + 1)}>
-                                        {m}
+                                        {ti(`months.${m}`)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -269,22 +314,22 @@ export default function InvoiceSettingsPage() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <Hash className="h-5 w-5 text-primary" />
-                        <CardTitle>Document Number Prefixes</CardTitle>
+                        <CardTitle>{ti("documentPrefixes")}</CardTitle>
                     </div>
                     <CardDescription>
-                        Prefix used when generating new document numbers (e.g. INV-0001)
+                        {ti("documentPrefixesDesc")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {(
                         [
-                            ["invoicePrefix", "Invoice"],
-                            ["proformaPrefix", "Proforma Invoice"],
-                            ["quotePrefix", "Quotation"],
-                            ["creditNotePrefix", "Credit Note"],
-                            ["debitNotePrefix", "Debit Note"],
-                            ["billPrefix", "Bill"],
-                            ["paymentPrefix", "Payment"],
+                            ["invoicePrefix", ti("invoicePrefix")],
+                            ["proformaPrefix", ti("proformaPrefix")],
+                            ["quotePrefix", ti("quotePrefix")],
+                            ["creditNotePrefix", ti("creditNotePrefix")],
+                            ["debitNotePrefix", ti("debitNotePrefix")],
+                            ["billPrefix", ti("billPrefix")],
+                            ["paymentPrefix", ti("paymentPrefix")],
                         ] as [keyof InvoiceSettingsData, string][]
                     ).map(([field, label]) => (
                         <div key={field} className="space-y-2">
@@ -307,19 +352,19 @@ export default function InvoiceSettingsPage() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <FileText className="h-5 w-5 text-primary" />
-                        <CardTitle>Default Document Content</CardTitle>
+                        <CardTitle>{ti("defaultContent")}</CardTitle>
                     </div>
                     <CardDescription>
-                        Pre-filled notes and terms that appear on new invoices and quotes
+                        {ti("defaultContentDesc")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="defaultNotes">Default Notes</Label>
+                        <Label htmlFor="defaultNotes">{ti("defaultNotesLabel")}</Label>
                         <Textarea
                             id="defaultNotes"
                             rows={4}
-                            placeholder="e.g. Thank you for your business. Payment is appreciated within the agreed terms."
+                            placeholder={ti("defaultNotesPlaceholder")}
                             value={form.defaultNotes ?? ""}
                             onChange={(e) => set("defaultNotes", e.target.value)}
                             disabled={!isAdmin}
@@ -329,16 +374,150 @@ export default function InvoiceSettingsPage() {
                     <Separator />
 
                     <div className="space-y-2">
-                        <Label htmlFor="defaultTerms">Default Terms & Conditions</Label>
+                        <Label htmlFor="defaultTerms">{ti("defaultTermsLabel")}</Label>
                         <Textarea
                             id="defaultTerms"
                             rows={6}
-                            placeholder="e.g. All goods remain the property of the seller until payment is received in full."
+                            placeholder={ti("defaultTermsPlaceholder")}
                             value={form.defaultTerms ?? ""}
                             onChange={(e) => set("defaultTerms", e.target.value)}
                             disabled={!isAdmin}
                         />
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Auto Reminders */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-primary" />
+                        <CardTitle>{tr("title")}</CardTitle>
+                    </div>
+                    <CardDescription>
+                        {tr("description")}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <Label>{tr("enable")}</Label>
+                            <p className="text-sm text-muted-foreground">{tr("enableDescription")}</p>
+                        </div>
+                        <Switch
+                            checked={form.autoReminders}
+                            onCheckedChange={(v) => set("autoReminders", v)}
+                            disabled={!isAdmin}
+                        />
+                    </div>
+
+                    {form.autoReminders && (
+                        <>
+                            <Separator />
+                            <div className="space-y-2">
+                                <Label>{tr("daysBefore")}</Label>
+                                <Input
+                                    placeholder="e.g. 3, 7"
+                                    value={form.reminderDaysBefore.join(", ")}
+                                    onChange={(e) =>
+                                        set("reminderDaysBefore",
+                                            e.target.value.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n) && n > 0)
+                                        )
+                                    }
+                                    disabled={!isAdmin}
+                                />
+                                <p className="text-xs text-muted-foreground">{tr("daysBeforeHelp")}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{tr("daysAfter")}</Label>
+                                <Input
+                                    placeholder="e.g. 3, 7, 14"
+                                    value={form.reminderDaysAfter.join(", ")}
+                                    onChange={(e) =>
+                                        set("reminderDaysAfter",
+                                            e.target.value.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n) && n > 0)
+                                        )
+                                    }
+                                    disabled={!isAdmin}
+                                />
+                                <p className="text-xs text-muted-foreground">{tr("daysAfterHelp")}</p>
+                            </div>
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Late Fees */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-primary" />
+                        <CardTitle>{tl("title")}</CardTitle>
+                    </div>
+                    <CardDescription>
+                        {tl("description")}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <Label>{tl("enable")}</Label>
+                            <p className="text-sm text-muted-foreground">{tl("enableDescription")}</p>
+                        </div>
+                        <Switch
+                            checked={form.lateFeeEnabled}
+                            onCheckedChange={(v) => set("lateFeeEnabled", v)}
+                            disabled={!isAdmin}
+                        />
+                    </div>
+
+                    {form.lateFeeEnabled && (
+                        <>
+                            <Separator />
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <div className="space-y-2">
+                                    <Label>{tl("feeType")}</Label>
+                                    <Select
+                                        value={form.lateFeeType}
+                                        onValueChange={(v) => set("lateFeeType", v)}
+                                        disabled={!isAdmin}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="PERCENTAGE">{tl("percentage")}</SelectItem>
+                                            <SelectItem value="FIXED">{tl("fixedAmount")}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>{tl("feeValue")}</Label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        step={form.lateFeeType === "PERCENTAGE" ? 0.5 : 1}
+                                        placeholder={form.lateFeeType === "PERCENTAGE" ? "e.g. 2" : "e.g. 50"}
+                                        value={form.lateFeeValue ?? ""}
+                                        onChange={(e) => set("lateFeeValue", e.target.value ? Number(e.target.value) : null)}
+                                        disabled={!isAdmin}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>{tl("gracePeriod")}</Label>
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        placeholder="e.g. 7"
+                                        value={form.lateFeeDays ?? ""}
+                                        onChange={(e) => set("lateFeeDays", e.target.value ? Number(e.target.value) : null)}
+                                        disabled={!isAdmin}
+                                    />
+                                    <p className="text-xs text-muted-foreground">{tl("gracePeriodHelp")}</p>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
@@ -349,10 +528,10 @@ export default function InvoiceSettingsPage() {
                         {saving ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Saving…
+                                {tc("loading")}
                             </>
                         ) : (
-                            "Save Invoice Settings"
+                            tc("save")
                         )}
                     </Button>
                 </div>

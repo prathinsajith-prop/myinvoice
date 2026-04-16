@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +25,9 @@ import { USER_ROLE_META } from "@/lib/constants/users";
 import { jsonFetcher } from "@/lib/fetcher";
 import { PageHeader } from "@/components/page-header";
 import { SearchInput } from "@/components/search-input";
+import { useTranslations } from "next-intl";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { formatDate } from "@/lib/format";
 
 interface Member {
     id: string;
@@ -41,13 +45,6 @@ interface Member {
 
 type InviteRole = "ADMIN" | "ACCOUNTANT" | "MEMBER" | "VIEWER";
 
-const ROLE_DESCRIPTIONS: Record<InviteRole, string> = {
-    ADMIN: "Full access except organization deletion",
-    ACCOUNTANT: "Financial access, manage invoices",
-    MEMBER: "View and limited edit access",
-    VIEWER: "Read-only access",
-};
-
 function initials(name: string | null, email: string): string {
     if (!name) return email.slice(0, 2).toUpperCase();
     return name
@@ -60,6 +57,10 @@ function initials(name: string | null, email: string): string {
 }
 
 export default function UsersPage() {
+    const t = useTranslations("users");
+    const tc = useTranslations("common");
+    const orgSettings = useOrgSettings();
+    const dateFormat = orgSettings.dateFormat;
     const { data: session } = useSession();
     const { role: currentRole } = useTenant();
     const [search, setSearch] = useState("");
@@ -136,13 +137,13 @@ export default function UsersPage() {
                 const d = await res.json();
                 throw new Error(d.error || "Failed to invite user");
             }
-            toast.success("User invited successfully and added to the listing");
+            toast.success(t("inviteSuccess"));
             setInviteOpen(false);
             setInviteEmail("");
             setInviteRole("MEMBER");
             await mutate();
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Failed to invite user");
+            toast.error(e instanceof Error ? e.message : t("inviteFailed"));
         } finally {
             setInviting(false);
         }
@@ -151,7 +152,7 @@ export default function UsersPage() {
     const columns = useMemo<ColumnDef<Member>[]>(() => [
         {
             id: "user",
-            header: "User",
+            header: t("user"),
             cell: ({ row }) => {
                 const isPending = row.original.inviteStatus === "PENDING" || !row.original.acceptedAt;
                 return (
@@ -161,10 +162,10 @@ export default function UsersPage() {
                             <AvatarFallback>{initials(row.original.user.name, row.original.user.email)}</AvatarFallback>
                         </Avatar>
                         <div className="flex items-center gap-2">
-                            <span className="font-medium">{row.original.user.name ?? "Unnamed User"}</span>
+                            <span className="font-medium">{row.original.user.name ?? t("unnamedUser")}</span>
                             {isPending && (
                                 <Badge variant="outline" className="text-xs text-orange-600 border-orange-200 bg-orange-50">
-                                    <Clock className="mr-1 h-3 w-3" />Pending
+                                    <Clock className="mr-1 h-3 w-3" />{t("pending")}
                                 </Badge>
                             )}
                         </div>
@@ -174,12 +175,12 @@ export default function UsersPage() {
         },
         {
             id: "email",
-            header: "Email",
+            header: t("email"),
             cell: ({ row }) => <span className="text-muted-foreground">{row.original.user.email}</span>,
         },
         {
             id: "role",
-            header: "Role",
+            header: t("role"),
             cell: ({ row }) => {
                 const meta = USER_ROLE_META[row.original.role] ?? {
                     label: row.original.role,
@@ -198,67 +199,62 @@ export default function UsersPage() {
         },
         {
             id: "lastLogin",
-            header: "Last Login",
+            header: t("lastLogin"),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
                     {row.original.user.lastLoginAt
                         ? new Date(row.original.user.lastLoginAt).toLocaleString("en-AE")
-                        : "Never"}
+                        : t("never")}
                 </span>
             ),
         },
         {
             id: "actions",
-            header: () => <div className="text-right">Actions</div>,
+            header: () => <div className="text-right">{tc("actions")}</div>,
             cell: ({ row }) => (
                 <div role="presentation" className="text-right" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => setSelectedMember(row.original)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")} onClick={() => setSelectedMember(row.original)}>
                         <Eye className="h-4 w-4" />
                     </Button>
                 </div>
             ),
         },
-    ], []);
+    ], [t, tc]);
 
     return (
         <div className="space-y-6 xl:space-y-8">
             <PageHeader
-                title="Users"
-                description="People assigned to your current organization"
+                title={t("title")}
+                description={t("description")}
                 onRefresh={() => {
                     void mutate();
                 }}
                 isRefreshing={loading}
                 actions={
-                    <>
-                        <PermissionGate permission="manage_team">
-                            <Button onClick={() => setInviteOpen(true)}>
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Invite User
-                            </Button>
-                        </PermissionGate>
-                        <Button variant="outline" asChild>
-                            <Link href="/settings/team">Manage Team</Link>
+                    <PermissionGate permission="manage_team">
+                        <Button onClick={() => setInviteOpen(true)}>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            {t("inviteUser")}
                         </Button>
-                    </>
+                    </PermissionGate>
                 }
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Total Users</CardDescription></CardHeader>
+                    <CardHeader className="pb-2"><CardDescription>{t("totalUsers")}</CardDescription></CardHeader>
                     <CardContent><div className="text-2xl font-bold">{counts.total}</div></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Owners & Admins</CardDescription></CardHeader>
+                    <CardHeader className="pb-2"><CardDescription>{t("ownersAdmins")}</CardDescription></CardHeader>
                     <CardContent><div className="text-2xl font-bold">{counts.owners + counts.admins}</div></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Team Members</CardDescription></CardHeader>
+                    <CardHeader className="pb-2"><CardDescription>{t("teamMembers")}</CardDescription></CardHeader>
                     <CardContent><div className="text-2xl font-bold">{counts.staff}</div></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Pending Invites</CardDescription></CardHeader>
+                    <CardHeader className="pb-2"><CardDescription>{t("pendingInvites")}</CardDescription></CardHeader>
                     <CardContent><div className="text-2xl font-bold text-orange-600">{counts.pending}</div></CardContent>
                 </Card>
             </div>
@@ -266,10 +262,10 @@ export default function UsersPage() {
             <Card>
                 <CardHeader className="gap-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <CardTitle className="text-base">User Listing</CardTitle>
+                        <CardTitle className="text-base">{t("userListing")}</CardTitle>
                         <div className="flex items-center gap-3 flex-wrap">
                             <SearchInput
-                                placeholder="Search by name, email, or role"
+                                placeholder={t("searchPlaceholder")}
                                 value={search}
                                 onChange={setSearch}
                                 className="relative w-full sm:w-64"
@@ -279,12 +275,12 @@ export default function UsersPage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="ALL">All Roles</SelectItem>
-                                    <SelectItem value="OWNER">Owner</SelectItem>
-                                    <SelectItem value="ADMIN">Admin</SelectItem>
-                                    <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
-                                    <SelectItem value="MEMBER">Member</SelectItem>
-                                    <SelectItem value="VIEWER">Viewer</SelectItem>
+                                    <SelectItem value="ALL">{t("allRoles")}</SelectItem>
+                                    <SelectItem value="OWNER">{t("roleLabels.owner")}</SelectItem>
+                                    <SelectItem value="ADMIN">{t("roleLabels.admin")}</SelectItem>
+                                    <SelectItem value="ACCOUNTANT">{t("roleLabels.accountant")}</SelectItem>
+                                    <SelectItem value="MEMBER">{t("roleLabels.member")}</SelectItem>
+                                    <SelectItem value="VIEWER">{t("roleLabels.viewer")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -292,12 +288,22 @@ export default function UsersPage() {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div className="flex items-center justify-center py-14 text-muted-foreground">
-                            <Loader2 className="h-5 w-5 animate-spin" />
+                        <div className="space-y-3 py-2">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="flex items-center gap-4 rounded-lg border px-4 py-3">
+                                    <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <Skeleton className="h-4 w-36" />
+                                        <Skeleton className="h-3 w-48" />
+                                    </div>
+                                    <Skeleton className="h-6 w-20 rounded-full" />
+                                    <Skeleton className="h-8 w-8 rounded-md" />
+                                </div>
+                            ))}
                         </div>
                     ) : filtered.length === 0 ? (
                         <div className="rounded-lg border border-dashed py-14 text-center text-sm text-muted-foreground">
-                            No users found for this filter.
+                            {t("noUsersFound")}
                         </div>
                     ) : (
                         <>
@@ -321,10 +327,10 @@ export default function UsersPage() {
                                                 </Avatar>
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-2">
-                                                        <p className="truncate font-medium">{member.user.name ?? "Unnamed User"}</p>
+                                                        <p className="truncate font-medium">{member.user.name ?? t("unnamedUser")}</p>
                                                         {isPending && (
                                                             <Badge variant="outline" className="text-xs text-orange-600 border-orange-200 bg-orange-50">
-                                                                <Clock className="mr-1 h-3 w-3" />Pending
+                                                                <Clock className="mr-1 h-3 w-3" />{t("pending")}
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -336,19 +342,19 @@ export default function UsersPage() {
                                                         </Badge>
                                                         <span className="text-xs text-muted-foreground">
                                                             {member.user.lastLoginAt
-                                                                ? new Date(member.user.lastLoginAt).toLocaleDateString("en-AE")
-                                                                : "Never"}
+                                                                ? formatDate(member.user.lastLoginAt, dateFormat)
+                                                                : t("never")}
                                                         </span>
                                                     </div>
                                                     <div className="mt-3 flex gap-2">
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" title="View" onClick={() => setSelectedMember(member)}>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" title={tc("view")} onClick={() => setSelectedMember(member)}>
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="sm" asChild>
-                                                            <Link href={isCurrentUser ? "/settings/profile" : "/settings/team"}>
-                                                                {isCurrentUser ? "Edit Profile" : "Manage Access"}
-                                                            </Link>
-                                                        </Button>
+                                                        {isCurrentUser && (
+                                                            <Button variant="ghost" size="sm" asChild>
+                                                                <Link href="/settings/profile">{t("editProfile")}</Link>
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -376,7 +382,7 @@ export default function UsersPage() {
                                         <AvatarFallback>{initials(selectedMember.user.name, selectedMember.user.email)}</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <SheetTitle>{selectedMember.user.name ?? "Unnamed User"}</SheetTitle>
+                                        <SheetTitle>{selectedMember.user.name ?? t("unnamedUser")}</SheetTitle>
                                         <SheetDescription>{selectedMember.user.email}</SheetDescription>
                                     </div>
                                 </div>
@@ -385,35 +391,35 @@ export default function UsersPage() {
                             <div className="space-y-6 px-6 py-6">
                                 <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Role</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("role")}</p>
                                         <Badge variant={selectedRoleMeta?.variant ?? "outline"} className="mt-2 gap-1">
                                             <SelectedRoleIcon className="h-3 w-3" />
                                             {selectedRoleMeta?.label ?? selectedMember.role}
                                         </Badge>
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Last Login</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("lastLogin")}</p>
                                         <p className="mt-2 text-sm font-medium">
                                             {selectedMember.user.lastLoginAt
                                                 ? new Date(selectedMember.user.lastLoginAt).toLocaleString("en-AE")
-                                                : "Never"}
+                                                : t("never")}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="space-y-3">
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Name</p>
-                                        <p className="mt-1 text-sm font-medium">{selectedMember.user.name ?? "Unnamed User"}</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("name")}</p>
+                                        <p className="mt-1 text-sm font-medium">{selectedMember.user.name ?? t("unnamedUser")}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Email</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("email")}</p>
                                         <p className="mt-1 text-sm font-medium">{selectedMember.user.email}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Access</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("access")}</p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            {selectedRoleMeta?.label ?? selectedMember.role} access is configured for this organization.
+                                            {t("accessDescription", { role: selectedRoleMeta?.label ?? selectedMember.role })}
                                         </p>
                                     </div>
                                 </div>
@@ -422,15 +428,13 @@ export default function UsersPage() {
                             <SheetFooter className="border-t px-6 py-4 sm:flex-row sm:justify-between">
                                 {(() => {
                                     const isCurrentUser = selectedMember.user.id === session?.user?.id;
-                                    return (
+                                    return isCurrentUser ? (
                                         <Button variant="outline" asChild>
-                                            <Link href={isCurrentUser ? "/settings/profile" : "/settings/team"}>
-                                                {isCurrentUser ? "Edit Profile" : "Manage Team"}
-                                            </Link>
+                                            <Link href="/settings/profile">{t("editProfile")}</Link>
                                         </Button>
-                                    );
+                                    ) : null;
                                 })()}
-                                <Button onClick={() => setSelectedMember(null)}>Close</Button>
+                                <Button onClick={() => setSelectedMember(null)}>{tc("close")}</Button>
                             </SheetFooter>
                         </>
                     )}
@@ -441,14 +445,14 @@ export default function UsersPage() {
             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Invite User</DialogTitle>
+                        <DialogTitle>{t("inviteUser")}</DialogTitle>
                         <DialogDescription>
-                            Invite a user to your organization. If they don&apos;t have an account, one will be created automatically.
+                            {t("inviteDescription")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="invite-email">Email Address</Label>
+                            <Label htmlFor="invite-email">{t("emailAddress")}</Label>
                             <Input
                                 id="invite-email"
                                 type="email"
@@ -459,23 +463,23 @@ export default function UsersPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Role</Label>
+                            <Label>{t("role")}</Label>
                             <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as InviteRole)}>
-                                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder={t("selectRole")} /></SelectTrigger>
                                 <SelectContent>
-                                    {canInviteAdmin && <SelectItem value="ADMIN">Admin</SelectItem>}
-                                    <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
-                                    <SelectItem value="MEMBER">Member</SelectItem>
-                                    <SelectItem value="VIEWER">Viewer</SelectItem>
+                                    {canInviteAdmin && <SelectItem value="ADMIN">{t("roleLabels.admin")}</SelectItem>}
+                                    <SelectItem value="ACCOUNTANT">{t("roleLabels.accountant")}</SelectItem>
+                                    <SelectItem value="MEMBER">{t("roleLabels.member")}</SelectItem>
+                                    <SelectItem value="VIEWER">{t("roleLabels.viewer")}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[inviteRole]}</p>
+                            <p className="text-xs text-muted-foreground">{t(`roles.${inviteRole}`)}</p>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setInviteOpen(false)}>{tc("cancel")}</Button>
                         <Button onClick={handleInvite} disabled={!inviteEmail.trim() || inviting}>
-                            {inviting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Inviting…</> : "Send Invitation"}
+                            {inviting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("inviting")}</> : t("sendInvitation")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

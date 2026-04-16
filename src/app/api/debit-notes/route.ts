@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 
 const lineItemSchema = z.object({
@@ -160,6 +161,8 @@ export async function POST(req: NextRequest) {
                 invoice: { select: { id: true, invoiceNumber: true } },
             },
         });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "DebitNote", entityId: debitNote.id, entityRef: debitNote.debitNoteNumber, newData: result.data, req });
 
         return NextResponse.json(debitNote, { status: 201 });
     } catch (error) {

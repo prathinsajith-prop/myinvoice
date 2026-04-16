@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 const updateSchema = z.object({
     name: z.string().min(1).max(255).optional(),
@@ -57,6 +58,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             );
         }
         const product = await prisma.product.update({ where: { id }, data: result.data });
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "UPDATE", entityType: "Product", entityId: id, entityRef: product.name, previousData: existing, newData: result.data, req });
         return NextResponse.json(product);
     } catch (error) {
         return toErrorResponse(error);
@@ -75,6 +77,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
             where: { id },
             data: { deletedAt: new Date(), isActive: false },
         });
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "DELETE", entityType: "Product", entityId: id, entityRef: existing.name, req });
         return NextResponse.json({ success: true });
     } catch (error) {
         return toErrorResponse(error);

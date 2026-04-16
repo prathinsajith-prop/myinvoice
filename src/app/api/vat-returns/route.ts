@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 
 const computeSchema = z.object({
     periodStart: z.string().datetime(),
@@ -135,6 +136,8 @@ export async function POST(req: NextRequest) {
                 netVat: draft.netVat,
             },
         });
+
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "VatReturn", entityId: saved.id, newData: draft, req });
 
         return NextResponse.json({ data: saved, saved: true });
     } catch (error) {

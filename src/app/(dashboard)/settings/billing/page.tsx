@@ -12,6 +12,7 @@ import {
     AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
     Card,
@@ -53,26 +54,12 @@ interface BillingResponse {
     };
 }
 
-const PLAN_LABELS: Record<SubscriptionPlan, string> = {
-    FREE: "Free",
-    STARTER: "Starter",
-    PROFESSIONAL: "Professional",
-    ENTERPRISE: "Enterprise",
-};
-
-const PLAN_PRICES: Record<SubscriptionPlan, string> = {
-    FREE: "Free forever",
-    STARTER: "AED 49 / month",
-    PROFESSIONAL: "AED 149 / month",
-    ENTERPRISE: "Custom pricing",
-};
-
-const STATUS_BADGE: Record<SubscriptionStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    TRIALING: { label: "Trial", variant: "secondary" },
-    ACTIVE: { label: "Active", variant: "default" },
-    PAST_DUE: { label: "Past Due", variant: "destructive" },
-    CANCELED: { label: "Canceled", variant: "outline" },
-    PAUSED: { label: "Paused", variant: "secondary" },
+const STATUS_VARIANT: Record<SubscriptionStatus, "default" | "secondary" | "destructive" | "outline"> = {
+    TRIALING: "secondary",
+    ACTIVE: "default",
+    PAST_DUE: "destructive",
+    CANCELED: "outline",
+    PAUSED: "secondary",
 };
 
 function FeatureRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
@@ -87,44 +74,45 @@ function FeatureRow({ icon: Icon, label, value }: { icon: React.ElementType; lab
     );
 }
 
-function BoolFeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
+function BoolFeatureRow({ label, enabled, notIncludedText }: { label: string; enabled: boolean; notIncludedText: string }) {
     return (
         <div className="flex items-center justify-between py-3">
             <span className="text-sm">{label}</span>
             {enabled ? (
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
             ) : (
-                <span className="text-xs text-muted-foreground">Not included</span>
+                <span className="text-xs text-muted-foreground">{notIncludedText}</span>
             )}
         </div>
     );
 }
 
-const UPGRADE_PLANS: { plan: SubscriptionPlan; price: string; highlights: string[] }[] = [
+const UPGRADE_PLANS: { plan: SubscriptionPlan; priceKey: string; highlightKeys: string[] }[] = [
     {
         plan: "STARTER",
-        price: "AED 49/mo",
-        highlights: ["100 invoices/month", "5 team members", "10 GB storage", "500 customers"],
+        priceKey: "AED 49/mo",
+        highlightKeys: ["highlight_100invoices", "highlight_5members", "highlight_10gb", "highlight_500customers"],
     },
     {
         plan: "PROFESSIONAL",
-        price: "AED 149/mo",
-        highlights: ["Unlimited invoices", "15 team members", "50 GB storage", "Custom branding", "API access"],
+        priceKey: "AED 149/mo",
+        highlightKeys: ["highlight_unlimitedInvoices", "highlight_15members", "highlight_50gb", "highlight_customBranding", "highlight_apiAccess"],
     },
     {
         plan: "ENTERPRISE",
-        price: "Custom",
-        highlights: ["Unlimited everything", "White label", "Dedicated support", "Custom integrations"],
+        priceKey: "Custom",
+        highlightKeys: ["highlight_unlimitedEverything", "highlight_whiteLabel", "highlight_dedicatedSupport", "highlight_customIntegrations"],
     },
 ];
 
 export default function BillingSettingsPage() {
+    const t = useTranslations("settings.billing");
     const [upgradingPlan, setUpgradingPlan] = useState<SubscriptionPlan | null>(null);
     const { data, isLoading: loading } = useSWR<BillingResponse>("/api/organization", jsonFetcher, {
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         onError() {
-            toast.error("Failed to load billing information");
+            toast.error(t("failedToLoad"));
         },
     });
     const subscription = data?.organization?.subscription ?? null;
@@ -143,13 +131,13 @@ export default function BillingSettingsPage() {
             <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                    No subscription data found. Please contact support.
+                    {t("noSubscription")}
                 </AlertDescription>
             </Alert>
         );
     }
 
-    const statusInfo = STATUS_BADGE[subscription.status];
+    const statusVariant = STATUS_VARIANT[subscription.status];
     const isTrialing = subscription.status === "TRIALING";
     const trialEnd = subscription.trialEndsAt ? new Date(subscription.trialEndsAt) : null;
     const periodEnd = subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
@@ -169,7 +157,7 @@ export default function BillingSettingsPage() {
 
             window.location.href = data.url;
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to start upgrade flow");
+            toast.error(error instanceof Error ? error.message : t("failedToUpgrade"));
             setUpgradingPlan(null);
         }
     }
@@ -185,38 +173,38 @@ export default function BillingSettingsPage() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5 text-primary" />
-                        <CardTitle>Current Plan</CardTitle>
+                        <CardTitle>{t("currentPlan")}</CardTitle>
                     </div>
-                    <CardDescription>Your active subscription and usage limits</CardDescription>
+                    <CardDescription>{t("currentPlanDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between rounded-lg border p-4">
                         <div>
                             <div className="flex items-center gap-3">
-                                <p className="text-xl font-bold">{PLAN_LABELS[subscription.plan]}</p>
-                                <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                                <p className="text-xl font-bold">{t(`planLabels.${subscription.plan}`)}</p>
+                                <Badge variant={statusVariant}>{t(`statusLabels.${subscription.status}`)}</Badge>
                             </div>
                             <p className="text-sm text-muted-foreground mt-1">
-                                {PLAN_PRICES[subscription.plan]}
+                                {t(`planPrices.${subscription.plan}`)}
                             </p>
                             {isTrialing && daysUntilTrialEnd !== null && (
                                 <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                                    Trial ends in {daysUntilTrialEnd} day{daysUntilTrialEnd !== 1 ? "s" : ""}
+                                    {t("trialEndsIn", { days: daysUntilTrialEnd })}
                                     {trialEnd ? ` (${trialEnd.toLocaleDateString()})` : ""}
                                 </p>
                             )}
                             {periodEnd && !isTrialing && (
                                 <p className="text-xs text-muted-foreground mt-1">
                                     {subscription.cancelAtPeriodEnd
-                                        ? `Cancels on ${periodEnd.toLocaleDateString()}`
-                                        : `Renews on ${periodEnd.toLocaleDateString()}`}
+                                        ? t("cancelsOn", { date: periodEnd.toLocaleDateString() })
+                                        : t("renewsOn", { date: periodEnd.toLocaleDateString() })}
                                 </p>
                             )}
                         </div>
                         {!isFree && (
                             <Button variant="outline" asChild>
                                 <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer">
-                                    Manage Billing
+                                    {t("manageBilling")}
                                 </a>
                             </Button>
                         )}
@@ -227,34 +215,34 @@ export default function BillingSettingsPage() {
                     <div className="divide-y">
                         <FeatureRow
                             icon={FileText}
-                            label="Monthly Invoices"
-                            value={subscription.monthlyInvoiceLimit === -1 ? "Unlimited" : String(subscription.monthlyInvoiceLimit)}
+                            label={t("monthlyInvoices")}
+                            value={subscription.monthlyInvoiceLimit === -1 ? t("unlimited") : String(subscription.monthlyInvoiceLimit)}
                         />
                         <FeatureRow
                             icon={Users}
-                            label="Team Members"
-                            value={subscription.teamMemberLimit === -1 ? "Unlimited" : String(subscription.teamMemberLimit)}
+                            label={t("teamMembers")}
+                            value={subscription.teamMemberLimit === -1 ? t("unlimited") : String(subscription.teamMemberLimit)}
                         />
                         <FeatureRow
                             icon={HardDrive}
-                            label="Storage"
+                            label={t("storage")}
                             value={`${subscription.storageGbLimit} GB`}
                         />
                         <FeatureRow
                             icon={Users}
-                            label="Customers"
-                            value={subscription.customersLimit === -1 ? "Unlimited" : String(subscription.customersLimit)}
+                            label={t("customers")}
+                            value={subscription.customersLimit === -1 ? t("unlimited") : String(subscription.customersLimit)}
                         />
                     </div>
 
                     <Separator />
 
                     <div className="divide-y">
-                        <BoolFeatureRow label="API Access" enabled={subscription.hasApiAccess} />
-                        <BoolFeatureRow label="Custom Branding" enabled={subscription.hasCustomBranding} />
-                        <BoolFeatureRow label="Advanced Reports" enabled={subscription.hasAdvancedReports} />
-                        <BoolFeatureRow label="Multi-Currency" enabled={subscription.hasMultiCurrency} />
-                        <BoolFeatureRow label="White Label" enabled={subscription.hasWhiteLabel} />
+                        <BoolFeatureRow label={t("apiAccess")} enabled={subscription.hasApiAccess} notIncludedText={t("notIncluded")} />
+                        <BoolFeatureRow label={t("customBranding")} enabled={subscription.hasCustomBranding} notIncludedText={t("notIncluded")} />
+                        <BoolFeatureRow label={t("advancedReports")} enabled={subscription.hasAdvancedReports} notIncludedText={t("notIncluded")} />
+                        <BoolFeatureRow label={t("multiCurrency")} enabled={subscription.hasMultiCurrency} notIncludedText={t("notIncluded")} />
+                        <BoolFeatureRow label={t("whiteLabel")} enabled={subscription.hasWhiteLabel} notIncludedText={t("notIncluded")} />
                     </div>
                 </CardContent>
             </Card>
@@ -265,10 +253,10 @@ export default function BillingSettingsPage() {
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <Zap className="h-5 w-5 text-primary" />
-                            <CardTitle>Upgrade Your Plan</CardTitle>
+                            <CardTitle>{t("upgradePlanTitle")}</CardTitle>
                         </div>
                         <CardDescription>
-                            Unlock more features and higher limits
+                            {t("upgradePlanDesc")}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -286,18 +274,18 @@ export default function BillingSettingsPage() {
                                 >
                                     <div>
                                         <div className="flex items-center justify-between">
-                                            <p className="font-semibold">{PLAN_LABELS[p.plan]}</p>
+                                            <p className="font-semibold">{t(`planLabels.${p.plan}`)}</p>
                                             {p.plan === "PROFESSIONAL" && (
-                                                <Badge variant="default" className="text-xs">Popular</Badge>
+                                                <Badge variant="default" className="text-xs">{t("popular")}</Badge>
                                             )}
                                         </div>
-                                        <p className="text-sm text-muted-foreground">{p.price}</p>
+                                        <p className="text-sm text-muted-foreground">{p.priceKey}</p>
                                     </div>
                                     <ul className="space-y-1">
-                                        {p.highlights.map((h) => (
+                                        {p.highlightKeys.map((h) => (
                                             <li key={h} className="flex items-center gap-2 text-xs text-muted-foreground">
                                                 <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
-                                                {h}
+                                                {t(h)}
                                             </li>
                                         ))}
                                     </ul>
@@ -308,12 +296,12 @@ export default function BillingSettingsPage() {
                                         onClick={() => handleUpgrade(p.plan)}
                                         disabled={upgradingPlan !== null}
                                     >
-                                        {upgradingPlan === p.plan ? "Redirecting..." : p.plan === "ENTERPRISE" ? "Contact Sales" : "Upgrade"}
+                                        {upgradingPlan === p.plan ? t("redirecting") : p.plan === "ENTERPRISE" ? t("contactSales") : t("upgradeButton")}
                                     </Button>
                                 </div>
                             ))}
                         </div>
-                        <p className="mt-4 text-center text-xs text-muted-foreground">Secure checkout is powered by Stripe.</p>
+                        <p className="mt-4 text-center text-xs text-muted-foreground">{t("stripeNote")}</p>
                     </CardContent>
                 </Card>
             )}

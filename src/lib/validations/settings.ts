@@ -111,7 +111,19 @@ export const updateOrganizationSchema = z.object({
     .nullable(),
 
   // Invoice/Quote Settings
-  defaultCurrency: z.enum(["AED", "USD", "EUR", "GBP", "SAR", "OMR", "QAR", "KWD", "BHD"]).optional(),
+  defaultCurrency: z.enum(["AED", "USD", "EUR", "GBP", "SAR", "OMR", "QAR", "KWD", "BHD", "INR", "PKR", "EGP"]).optional(),
+
+  // Locale / Regional Settings (saved to OrganizationSettings)
+  dateFormat: z.string().max(20).optional(),
+  numberFormat: z.string().max(20).optional(),
+  language: z.enum(["en", "ar"]).optional(),
+  autoReminders: z.boolean().optional(),
+  reminderDaysBefore: z.array(z.number().int().min(1).max(90)).max(10).optional(),
+  reminderDaysAfter: z.array(z.number().int().min(1).max(365)).max(10).optional(),
+  lateFeeEnabled: z.boolean().optional(),
+  lateFeeType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+  lateFeeValue: z.number().nonnegative().optional().nullable(),
+  lateFeeDays: z.number().int().positive().optional().nullable(),
   fiscalYearStart: z.number().min(1).max(12).optional(),
   invoicePrefix: z.string().max(10).optional(),
   proformaPrefix: z.string().max(10).optional(),

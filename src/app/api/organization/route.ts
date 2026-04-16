@@ -62,6 +62,20 @@ const ORG_SELECT = {
       hasWhiteLabel: true,
     },
   },
+  settings: {
+    select: {
+      autoReminders: true,
+      reminderDaysBefore: true,
+      reminderDaysAfter: true,
+      lateFeeEnabled: true,
+      lateFeeType: true,
+      lateFeeValue: true,
+      lateFeeDays: true,
+      dateFormat: true,
+      numberFormat: true,
+      language: true,
+    },
+  },
 } as const;
 
 // GET /api/organization — get current organization
@@ -137,6 +151,7 @@ export async function POST(req: NextRequest) {
       { documentType: "CREDIT_NOTE" as const, prefix: "CN", nextSequence: 1, padLength: 4 },
       { documentType: "DEBIT_NOTE" as const, prefix: "DN", nextSequence: 1, padLength: 4 },
       { documentType: "BILL" as const, prefix: "BILL", nextSequence: 1, padLength: 4 },
+      { documentType: "DELIVERY_NOTE" as const, prefix: "DLV", nextSequence: 1, padLength: 4 },
     ];
 
     const organization = await prisma.organization.create({
@@ -222,12 +237,34 @@ export async function PATCH(req: NextRequest) {
 
     const data = result.data;
 
+    // Separate settings fields from organization fields
+    const SETTINGS_KEYS = [
+      "autoReminders", "reminderDaysBefore", "reminderDaysAfter",
+      "lateFeeEnabled", "lateFeeType", "lateFeeValue", "lateFeeDays",
+      "dateFormat", "numberFormat", "language",
+    ] as const;
+    const settingsData: Record<string, unknown> = {};
+    const orgData = { ...data };
+    for (const key of SETTINGS_KEYS) {
+      if (key in orgData) {
+        settingsData[key] = (orgData as Record<string, unknown>)[key];
+        delete (orgData as Record<string, unknown>)[key];
+      }
+    }
+
     const organization = await prisma.$transaction(async (tx) => {
-      const updatedOrg = await tx.organization.update({
+      await tx.organization.update({
         where: { id: ctx.organizationId },
-        data,
-        select: ORG_SELECT,
+        data: orgData,
       });
+
+      if (Object.keys(settingsData).length > 0) {
+        await tx.organizationSettings.upsert({
+          where: { organizationId: ctx.organizationId },
+          update: settingsData,
+          create: { organizationId: ctx.organizationId, ...settingsData },
+        });
+      }
 
       const prefixUpdates: Array<{ documentType: "INVOICE" | "PROFORMA" | "QUOTATION" | "CREDIT_NOTE" | "DEBIT_NOTE" | "BILL"; prefix?: string }> = [
         { documentType: "INVOICE", prefix: data.invoicePrefix },
@@ -249,7 +286,10 @@ export async function PATCH(req: NextRequest) {
           )
       );
 
-      return updatedOrg;
+      return tx.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: ORG_SELECT,
+      });
     });
 
     // Sync prefix changes to DocumentSequence rows

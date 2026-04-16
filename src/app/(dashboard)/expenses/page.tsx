@@ -13,12 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { StatCard } from "@/components/stat-card";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatDate } from "@/lib/format";
 import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 import {
     Dialog,
@@ -72,26 +73,12 @@ interface ExpenseDetail {
     notes: string | null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-    RENT: "Rent",
-    UTILITIES: "Utilities",
-    TRAVEL: "Travel",
-    MEALS_ENTERTAINMENT: "Meals & Entertainment",
-    OFFICE_SUPPLIES: "Office Supplies",
-    MARKETING: "Marketing",
-    SOFTWARE_SUBSCRIPTIONS: "Software Subscriptions",
-    PROFESSIONAL_FEES: "Professional Fees",
-    INSURANCE: "Insurance",
-    MAINTENANCE_REPAIRS: "Maintenance & Repairs",
-    SALARIES_WAGES: "Salaries & Wages",
-    TAX_PAYMENTS: "Tax Payments",
-    BANK_CHARGES: "Bank Charges",
-    OTHER: "Other",
-};
-
 export default function ExpensesPage() {
+    const t = useTranslations("expenses");
+    const tc = useTranslations("common");
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -174,35 +161,35 @@ export default function ExpensesPage() {
     const columns = useMemo<ColumnDef<Expense>[]>(() => [
         {
             accessorKey: "expenseNumber",
-            header: "Expense #",
+            header: t("expenseNum"),
             cell: ({ row }) => <span className="font-medium">{row.getValue("expenseNumber")}</span>,
         },
         {
             accessorKey: "description",
-            header: "Description",
+            header: tc("description"),
             cell: ({ row }) => <span className="max-w-[200px] truncate block">{row.getValue("description")}</span>,
         },
         {
             accessorKey: "category",
-            header: "Category",
+            header: tc("category"),
             cell: ({ row }) => (
                 <Badge variant="outline" className="text-xs">
-                    {CATEGORY_LABELS[row.getValue("category") as string] ?? row.getValue("category")}
+                    {t(`categories.${row.getValue("category") as string}`)}
                 </Badge>
             ),
         },
         {
             accessorKey: "expenseDate",
-            header: "Date",
+            header: tc("date"),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {new Date(row.getValue("expenseDate")).toLocaleDateString("en-AE")}
+                    {formatDate(String(row.getValue("expenseDate")), dateFormat)}
                 </span>
             ),
         },
         {
             accessorKey: "paymentMethod",
-            header: "Method",
+            header: tc("method"),
             cell: ({ row }) => (
                 <Badge variant="secondary" className="text-xs capitalize">
                     {(row.getValue("paymentMethod") as string)?.toLowerCase().replace(/_/g, " ")}
@@ -211,7 +198,7 @@ export default function ExpensesPage() {
         },
         {
             accessorKey: "total",
-            header: () => <div className="text-right">Amount</div>,
+            header: () => <div className="text-right">{tc("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums font-medium">
                     {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -220,7 +207,7 @@ export default function ExpensesPage() {
         },
         {
             accessorKey: "isPaid",
-            header: "Payment",
+            header: tc("payment"),
             cell: ({ row }) => (
                 <StatusBadge status={row.getValue("isPaid") ? "PAID" : "UNPAID"} />
             ),
@@ -230,24 +217,24 @@ export default function ExpensesPage() {
             header: "",
             cell: ({ row }) => (
                 <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")}
                         onClick={() => openView(row.original.id)}>
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                         onClick={() => openEdit(row.original.id)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
                 </div>
             ),
         },
-    ], [currency, openView, openEdit]);
+    ], [currency, dateFormat, openView, openEdit, t, tc]);
 
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Expenses"
-                description={pagination ? `${pagination.total} total expenses` : "Track business expenses"}
+                title={t("title")}
+                description={pagination ? t("totalExpenses", { count: pagination.total }) : t("manageDescription")}
                 onRefresh={fetchExpenses}
                 isRefreshing={loading}
                 actions={
@@ -255,57 +242,57 @@ export default function ExpensesPage() {
                         <ExportDropdown
                             data={expenses}
                             columns={[
-                                { header: "Expense #", accessor: "expenseNumber" },
-                                { header: "Description", accessor: "description" },
-                                { header: "Category", accessor: "category", format: (v) => CATEGORY_LABELS[v as string] ?? String(v) },
-                                { header: "Date", accessor: "expenseDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                                { header: "Method", accessor: "paymentMethod", format: (v) => String(v).toLowerCase().replace(/_/g, " ") },
-                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: "Paid", accessor: "isPaid", format: (v) => v ? "Yes" : "No" },
+                                { header: t("exportExpenseNum"), accessor: "expenseNumber" },
+                                { header: t("exportDescription"), accessor: "description" },
+                                { header: t("exportCategory"), accessor: "category", format: (v) => t(`categories.${v as string}`) },
+                                { header: t("exportDate"), accessor: "expenseDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
+                                { header: t("exportMethod"), accessor: "paymentMethod", format: (v) => String(v).toLowerCase().replace(/_/g, " ") },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportPaid"), accessor: "isPaid", format: (v) => v ? tc("yes") : tc("no") },
                             ]}
                             filename="expenses"
-                            title="Expenses Report"
+                            title={t("exportTitle")}
                         />
                         <Button onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            New Expense
+                            {t("newExpense")}
                         </Button>
                     </>
                 }
             />
 
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                <StatCard label="Total Expenses">{pagination?.total ?? "—"}</StatCard>
-                <StatCard label="Amount (shown)">{currency} {formatAmount(totalAmount)}</StatCard>
-                <StatCard label="Unpaid"><span className="text-amber-600">{expenses.filter((e) => !e.isPaid).length}</span></StatCard>
+                <StatCard label={t("totalLabel")}>{pagination?.total ?? "—"}</StatCard>
+                <StatCard label={t("amountShown")}>{currency} {formatAmount(totalAmount)}</StatCard>
+                <StatCard label={t("unpaid")}><span className="text-amber-600">{expenses.filter((e) => !e.isPaid).length}</span></StatCard>
             </div>
 
             <Card>
                 <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 flex-wrap">
                         <SearchInput
-                            placeholder="Search expenses..."
+                            placeholder={t("searchPlaceholder")}
                             value={search}
                             onChange={handleSearchChange}
                         />
                         <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
                             <SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Categories</SelectItem>
-                                <SelectItem value="TRAVEL">Travel</SelectItem>
-                                <SelectItem value="MEALS_ENTERTAINMENT">Meals & Entertainment</SelectItem>
-                                <SelectItem value="OFFICE_SUPPLIES">Office Supplies</SelectItem>
-                                <SelectItem value="UTILITIES">Utilities</SelectItem>
-                                <SelectItem value="RENT">Rent</SelectItem>
-                                <SelectItem value="MARKETING">Marketing</SelectItem>
-                                <SelectItem value="PROFESSIONAL_FEES">Professional Fees</SelectItem>
-                                <SelectItem value="INSURANCE">Insurance</SelectItem>
-                                <SelectItem value="MAINTENANCE_REPAIRS">Maintenance & Repairs</SelectItem>
-                                <SelectItem value="SOFTWARE_SUBSCRIPTIONS">Software Subscriptions</SelectItem>
-                                <SelectItem value="SALARIES_WAGES">Salaries & Wages</SelectItem>
-                                <SelectItem value="TAX_PAYMENTS">Tax Payments</SelectItem>
-                                <SelectItem value="BANK_CHARGES">Bank Charges</SelectItem>
-                                <SelectItem value="OTHER">Other</SelectItem>
+                                <SelectItem value="ALL">{t("allCategories")}</SelectItem>
+                                <SelectItem value="TRAVEL">{t("categories.TRAVEL")}</SelectItem>
+                                <SelectItem value="MEALS_ENTERTAINMENT">{t("categories.MEALS_ENTERTAINMENT")}</SelectItem>
+                                <SelectItem value="OFFICE_SUPPLIES">{t("categories.OFFICE_SUPPLIES")}</SelectItem>
+                                <SelectItem value="UTILITIES">{t("categories.UTILITIES")}</SelectItem>
+                                <SelectItem value="RENT">{t("categories.RENT")}</SelectItem>
+                                <SelectItem value="MARKETING">{t("categories.MARKETING")}</SelectItem>
+                                <SelectItem value="PROFESSIONAL_FEES">{t("categories.PROFESSIONAL_FEES")}</SelectItem>
+                                <SelectItem value="INSURANCE">{t("categories.INSURANCE")}</SelectItem>
+                                <SelectItem value="MAINTENANCE_REPAIRS">{t("categories.MAINTENANCE_REPAIRS")}</SelectItem>
+                                <SelectItem value="SOFTWARE_SUBSCRIPTIONS">{t("categories.SOFTWARE_SUBSCRIPTIONS")}</SelectItem>
+                                <SelectItem value="SALARIES_WAGES">{t("categories.SALARIES_WAGES")}</SelectItem>
+                                <SelectItem value="TAX_PAYMENTS">{t("categories.TAX_PAYMENTS")}</SelectItem>
+                                <SelectItem value="BANK_CHARGES">{t("categories.BANK_CHARGES")}</SelectItem>
+                                <SelectItem value="OTHER">{t("categories.OTHER")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -316,9 +303,9 @@ export default function ExpensesPage() {
                     ) : expenses.length === 0 ? (
                         <EmptyState
                             icon={CreditCard}
-                            title="No expenses found"
-                            description={normalizedSearch || categoryFilter !== "ALL" ? "Try adjusting your filters" : "Track your first business expense"}
-                            action={!normalizedSearch && categoryFilter === "ALL" ? { label: "New Expense", onClick: () => setCreateOpen(true) } : undefined}
+                            title={t("noFound")}
+                            description={normalizedSearch || categoryFilter !== "ALL" ? tc("adjustFilters") : t("createFirst")}
+                            action={!normalizedSearch && categoryFilter === "ALL" ? { label: t("newExpense"), onClick: () => setCreateOpen(true) } : undefined}
                         />
                     ) : (
                         <DataTable
@@ -356,30 +343,30 @@ export default function ExpensesPage() {
                         <div className="space-y-4 text-sm">
                             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                                 <div>
-                                    <p className="text-xs text-muted-foreground">Description</p>
+                                    <p className="text-xs text-muted-foreground">{tc("description")}</p>
                                     <p className="font-medium mt-0.5">{viewDetail.description}</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-muted-foreground">Category</p>
-                                    <Badge variant="outline" className="mt-1 text-xs">{CATEGORY_LABELS[viewDetail.category] ?? viewDetail.category}</Badge>
+                                    <p className="text-xs text-muted-foreground">{tc("category")}</p>
+                                    <Badge variant="outline" className="mt-1 text-xs">{t(`categories.${viewDetail.category}`)}</Badge>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-muted-foreground">Date</p>
-                                    <p className="font-medium mt-0.5">{new Date(viewDetail.expenseDate).toLocaleDateString("en-AE")}</p>
+                                    <p className="text-xs text-muted-foreground">{tc("date")}</p>
+                                    <p className="font-medium mt-0.5">{formatDate(viewDetail.expenseDate, dateFormat)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-muted-foreground">Payment Method</p>
+                                    <p className="text-xs text-muted-foreground">{t("paymentMethod")}</p>
                                     <Badge variant="secondary" className="mt-1 text-xs capitalize">{viewDetail.paymentMethod?.toLowerCase().replace(/_/g, " ")}</Badge>
                                 </div>
                                 {viewDetail.merchantName && (
                                     <div>
-                                        <p className="text-xs text-muted-foreground">Vendor</p>
+                                        <p className="text-xs text-muted-foreground">{t("vendor")}</p>
                                         <p className="font-medium mt-0.5">{viewDetail.merchantName}</p>
                                     </div>
                                 )}
                                 {viewDetail.reference && (
                                     <div>
-                                        <p className="text-xs text-muted-foreground">Reference</p>
+                                        <p className="text-xs text-muted-foreground">{t("reference")}</p>
                                         <p className="font-medium mt-0.5">{viewDetail.reference}</p>
                                     </div>
                                 )}
@@ -387,7 +374,7 @@ export default function ExpensesPage() {
                             <Separator />
                             <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
                                 <div className="flex justify-between text-muted-foreground">
-                                    <span>Amount</span>
+                                    <span>{t("amount")}</span>
                                     <span>{viewDetail.currency} {Number(viewDetail.amount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 {Number(viewDetail.vatAmount) > 0 && (
@@ -397,20 +384,20 @@ export default function ExpensesPage() {
                                     </div>
                                 )}
                                 <div className="flex justify-between font-semibold pt-1 border-t">
-                                    <span>Total</span>
+                                    <span>{t("total")}</span>
                                     <span>{viewDetail.currency} {Number(viewDetail.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                             {viewDetail.notes && (
                                 <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                                    <p className="text-xs text-muted-foreground mb-1">{t("notes")}</p>
                                     <p className="text-sm text-muted-foreground">{viewDetail.notes}</p>
                                 </div>
                             )}
                             <div className="flex justify-between items-center pt-1">
                                 <StatusBadge status={viewDetail.isPaid ? "PAID" : "UNPAID"} />
                                 <Button size="sm" variant="outline" onClick={() => { setViewDetail(null); openEdit(viewDetail.id); }}>
-                                    <Pencil className="mr-2 h-3.5 w-3.5" />Edit
+                                    <Pencil className="mr-2 h-3.5 w-3.5" />{tc("edit")}
                                 </Button>
                             </div>
                         </div>

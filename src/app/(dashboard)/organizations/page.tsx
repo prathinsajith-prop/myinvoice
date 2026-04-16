@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { useTenant } from "@/lib/tenant/context";
 import { Building2, Loader2, CheckCircle2, ArrowRightLeft, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { jsonFetcher } from "@/lib/fetcher";
 
 interface OrganizationItem {
@@ -59,6 +61,7 @@ interface OrganizationDetail {
 
 export default function OrganizationsPage() {
     const { organizationId, switchOrganization } = useTenant();
+    const t = useTranslations("organizationsPage");
     const [switchingId, setSwitchingId] = useState<string | null>(null);
     const [selectedOrganization, setSelectedOrganization] = useState<OrganizationDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -69,7 +72,7 @@ export default function OrganizationsPage() {
             revalidateOnFocus: false,
             revalidateOnReconnect: false,
             onError(error) {
-                toast.error(error instanceof Error ? error.message : "Failed to load organizations");
+                toast.error(error instanceof Error ? error.message : t("failedToLoad"));
             },
         }
     );
@@ -105,11 +108,11 @@ export default function OrganizationsPage() {
             }
 
             await switchOrganization(targetOrgId);
-            toast.success(`Switched to ${payload.organizationName}`);
+            toast.success(t("switchedTo", { name: payload.organizationName }));
             // Hard navigation to pick up the new session cookie
             window.location.href = "/dashboard";
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Organization switch failed");
+            toast.error(error instanceof Error ? error.message : t("switchFailed"));
             setSwitchingId(null);
         }
     }
@@ -127,7 +130,7 @@ export default function OrganizationsPage() {
             const data = (await res.json()) as OrganizationDetail;
             setSelectedOrganization(data);
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to load organization details");
+            toast.error(error instanceof Error ? error.message : t("failedToLoadDetails"));
         } finally {
             setDetailLoading(false);
         }
@@ -137,17 +140,17 @@ export default function OrganizationsPage() {
         <div className="space-y-6 xl:space-y-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Organizations</h1>
-                    <p className="text-sm text-muted-foreground">All organizations assigned to your account</p>
+                    <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+                    <p className="text-sm text-muted-foreground">{t("description")}</p>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                     <Button variant="outline" asChild>
-                        <Link href="/settings/organization">Manage Current</Link>
+                        <Link href="/settings/organization">{t("manageCurrent")}</Link>
                     </Button>
                     <Button asChild>
                         <Link href="/settings/organization/new">
                             <Plus className="mr-2 h-4 w-4" />
-                            Create Organization
+                            {t("createOrganization")}
                         </Link>
                     </Button>
                 </div>
@@ -155,32 +158,42 @@ export default function OrganizationsPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Total</CardDescription></CardHeader>
+                    <CardHeader className="pb-2"><CardDescription>{t("total")}</CardDescription></CardHeader>
                     <CardContent><div className="text-2xl font-bold">{stats.total}</div></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Active</CardDescription></CardHeader>
+                    <CardHeader className="pb-2"><CardDescription>{t("active")}</CardDescription></CardHeader>
                     <CardContent><div className="text-2xl font-bold">{stats.active}</div></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardDescription>Current</CardDescription></CardHeader>
-                    <CardContent><div className="truncate text-sm font-medium">{stats.current || "Not selected"}</div></CardContent>
+                    <CardHeader className="pb-2"><CardDescription>{t("current")}</CardDescription></CardHeader>
+                    <CardContent><div className="truncate text-sm font-medium">{stats.current || t("notSelected")}</div></CardContent>
                 </Card>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-base">Organization Listing</CardTitle>
-                    <CardDescription>Switch between assigned organizations instantly</CardDescription>
+                    <CardTitle className="text-base">{t("orgListing")}</CardTitle>
+                    <CardDescription>{t("orgListingDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div className="flex items-center justify-center py-14 text-muted-foreground">
-                            <Loader2 className="h-5 w-5 animate-spin" />
+                        <div className="space-y-3">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="flex items-center gap-4 rounded-xl border p-4">
+                                    <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <Skeleton className="h-4 w-40" />
+                                        <Skeleton className="h-3 w-28" />
+                                    </div>
+                                    <Skeleton className="h-8 w-16 rounded-md" />
+                                    <Skeleton className="h-8 w-20 rounded-md" />
+                                </div>
+                            ))}
                         </div>
                     ) : organizations.length === 0 ? (
                         <div className="rounded-lg border border-dashed py-14 text-center text-sm text-muted-foreground">
-                            No organizations assigned yet.
+                            {t("noOrgsYet")}
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -199,10 +212,10 @@ export default function OrganizationsPage() {
                                                 {org.isCurrent && (
                                                     <Badge variant="default" className="gap-1">
                                                         <CheckCircle2 className="h-3 w-3" />
-                                                        Current
+                                                        {t("currentBadge")}
                                                     </Badge>
                                                 )}
-                                                {!org.isActive && <Badge variant="destructive">Inactive</Badge>}
+                                                {!org.isActive && <Badge variant="destructive">{t("inactive")}</Badge>}
                                             </div>
                                             <p className="text-sm text-muted-foreground">/{org.slug} • {org.role.toLowerCase()}</p>
                                             <p className="text-xs text-muted-foreground">Joined {new Date(org.joinedAt).toLocaleDateString("en-AE")}</p>
@@ -210,7 +223,7 @@ export default function OrganizationsPage() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Button size="sm" variant="outline" onClick={() => handleOpenDetails(org.id)}>
-                                            View
+                                            {t("view")}
                                         </Button>
                                         <Button
                                             size="sm"
@@ -219,11 +232,11 @@ export default function OrganizationsPage() {
                                             disabled={org.id === organizationId || !!switchingId}
                                         >
                                             {switchingId === org.id ? (
-                                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Switching...</>
+                                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("switching")}</>
                                             ) : org.id === organizationId ? (
-                                                "Current"
+                                                t("currentBadge")
                                             ) : (
-                                                <><ArrowRightLeft className="mr-2 h-4 w-4" />Switch</>
+                                                <><ArrowRightLeft className="mr-2 h-4 w-4" />{t("switch")}</>
                                             )}
                                         </Button>
                                     </div>
@@ -253,62 +266,76 @@ export default function OrganizationsPage() {
                                 </AvatarFallback>
                             </Avatar>
                             <div>
-                                <SheetTitle>{selectedOrganization?.name ?? "Loading organization"}</SheetTitle>
+                                <SheetTitle>{selectedOrganization?.name ?? t("loadingOrg")}</SheetTitle>
                                 <SheetDescription>
-                                    {selectedOrganization ? `/${selectedOrganization.slug}` : "Fetching organization details"}
+                                    {selectedOrganization ? `/${selectedOrganization.slug}` : t("fetchingDetails")}
                                 </SheetDescription>
                             </div>
                         </div>
                     </SheetHeader>
 
                     {detailLoading && !selectedOrganization ? (
-                        <div className="flex min-h-[18rem] items-center justify-center px-6 py-6 text-muted-foreground">
-                            <Loader2 className="h-5 w-5 animate-spin" />
+                        <div className="space-y-4 px-6 py-6">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <div key={i} className="space-y-1.5">
+                                        <Skeleton className="h-3 w-16" />
+                                        <Skeleton className="h-4 w-28" />
+                                    </div>
+                                ))}
+                            </div>
+                            <Skeleton className="h-px w-full" />
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <Skeleton className="h-8 w-8 rounded-full" />
+                                    <Skeleton className="h-4 w-36" />
+                                </div>
+                            ))}
                         </div>
                     ) : selectedOrganization ? (
                         <>
                             <div className="space-y-6 px-6 py-6">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Badge variant={selectedOrganization.isActive ? "default" : "destructive"}>
-                                        {selectedOrganization.isActive ? "Active" : "Inactive"}
+                                        {selectedOrganization.isActive ? t("active") : t("inactive")}
                                     </Badge>
                                     <Badge variant="secondary">{selectedOrganization.role}</Badge>
-                                    {selectedOrganization.id === organizationId && <Badge variant="outline">Current</Badge>}
+                                    {selectedOrganization.id === organizationId && <Badge variant="outline">{t("currentBadge")}</Badge>}
                                 </div>
 
                                 <div className="grid gap-4 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Plan</p>
-                                        <p className="mt-1 text-sm font-medium">{selectedOrganization.subscription?.plan ?? "No plan"}</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("plan")}</p>
+                                        <p className="mt-1 text-sm font-medium">{selectedOrganization.subscription?.plan ?? t("noPlan")}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
-                                        <p className="mt-1 text-sm font-medium">{selectedOrganization.subscription?.status ?? "Unknown"}</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("status")}</p>
+                                        <p className="mt-1 text-sm font-medium">{selectedOrganization.subscription?.status ?? t("unknown")}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Team Limit</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("teamLimit")}</p>
                                         <p className="mt-1 text-sm font-medium">{selectedOrganization.subscription?.teamMemberLimit ?? "-"}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer Limit</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("customerLimit")}</p>
                                         <p className="mt-1 text-sm font-medium">{selectedOrganization.subscription?.customersLimit ?? "-"}</p>
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Contact</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("contact")}</p>
                                         <div className="mt-2 space-y-1 text-sm">
-                                            <p>{selectedOrganization.email || "No email"}</p>
-                                            <p>{selectedOrganization.phone || "No phone"}</p>
-                                            <p>{selectedOrganization.website || "No website"}</p>
+                                            <p>{selectedOrganization.email || t("noEmail")}</p>
+                                            <p>{selectedOrganization.phone || t("noPhone")}</p>
+                                            <p>{selectedOrganization.website || t("noWebsite")}</p>
                                         </div>
                                     </div>
 
                                     <Separator />
 
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Address</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("address")}</p>
                                         <p className="mt-2 text-sm">
                                             {[
                                                 selectedOrganization.addressLine1,
@@ -319,7 +346,7 @@ export default function OrganizationsPage() {
                                                 selectedOrganization.postalCode,
                                             ]
                                                 .filter(Boolean)
-                                                .join(", ") || "No address saved"}
+                                                .join(", ") || t("noAddress")}
                                         </p>
                                     </div>
 
@@ -346,14 +373,14 @@ export default function OrganizationsPage() {
                                     onClick={() => handleSwitch(selectedOrganization.id)}
                                     disabled={selectedOrganization.id === organizationId || !!switchingId}
                                 >
-                                    {selectedOrganization.id === organizationId ? "Current Organization" : "Switch Here"}
+                                    {selectedOrganization.id === organizationId ? t("currentOrganization") : t("switchHere")}
                                 </Button>
                                 {selectedOrganization.id === organizationId && ["OWNER", "ADMIN"].includes(selectedOrganization.role) ? (
                                     <Button asChild>
-                                        <Link href="/settings/organization">Edit Organization</Link>
+                                        <Link href="/settings/organization">{t("editOrganization")}</Link>
                                     </Button>
                                 ) : (
-                                    <Button onClick={() => setSelectedOrganization(null)}>Close</Button>
+                                    <Button onClick={() => setSelectedOrganization(null)}>{t("close")}</Button>
                                 )}
                             </SheetFooter>
                         </>

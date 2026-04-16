@@ -29,8 +29,12 @@ function isPublicPath(path: string): boolean {
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const localeMatch = pathname.match(/^\/(ar|en)(?=\/|$)/);
-  const localeFromPath = localeMatch?.[1];
+  const localeMatch = pathname.match(/^\/(?:ar|en)(?=\/|$)/);
+  const localeFromPath = localeMatch ? pathname.split("/")[1] as "ar" | "en" : undefined;
+
+  // Resolve locale: prefer URL path prefix, then NEXT_LOCALE cookie, fallback to "en"
+  const cookieLocale = req.cookies.get("NEXT_LOCALE")?.value as "ar" | "en" | undefined;
+  const activeLocale: "ar" | "en" = localeFromPath ?? (cookieLocale === "ar" ? "ar" : "en");
 
   // This app uses cookie-based locale (not locale-prefixed routes).
   // Rewrite legacy/accidental locale-prefixed URLs to real routes.
@@ -132,6 +136,9 @@ export async function proxy(req: NextRequest) {
       return rewritten;
     })()
     : NextResponse.next();
+
+  // Inject locale header so next-intl's getLocale() / useLocale() resolve correctly
+  response.headers.set("X-NEXT-INTL-LOCALE", activeLocale);
 
   // Inject organization context headers for downstream Server Components / Route Handlers
   if (isLoggedIn && token.organizationId) {

@@ -25,7 +25,9 @@ import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 interface CreditNote {
     id: string;
@@ -47,9 +49,12 @@ interface Pagination {
 }
 
 export default function CreditNotesPage() {
+    const t = useTranslations("creditNotes");
+    const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
     const [notes, setNotes] = useState<CreditNote[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -95,17 +100,17 @@ export default function CreditNotesPage() {
     const columns = useMemo<ColumnDef<CreditNote>[]>(() => [
         {
             accessorKey: "creditNoteNumber",
-            header: "CN #",
+            header: t("cnNum"),
             cell: ({ row }) => <span className="font-medium">{row.getValue("creditNoteNumber")}</span>,
         },
         {
             id: "customer",
-            header: "Customer",
+            header: t("customer"),
             cell: ({ row }) => row.original.customer?.name,
         },
         {
             id: "invoice",
-            header: "Invoice",
+            header: t("invoice"),
             cell: ({ row }) => (
                 <Link
                     href={`/invoices/${row.original.invoice?.id}`}
@@ -118,16 +123,16 @@ export default function CreditNotesPage() {
         },
         {
             accessorKey: "issueDate",
-            header: "Issue Date",
+            header: t("issueDate"),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {new Date(row.getValue("issueDate")).toLocaleDateString("en-AE")}
+                    {formatDate(String(row.getValue("issueDate")), dateFormat)}
                 </span>
             ),
         },
         {
             accessorKey: "total",
-            header: () => <div className="text-right">Amount</div>,
+            header: () => <div className="text-right">{t("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     {formatCurrency(Number(row.getValue("total")), row.original.currency || currency)}
@@ -136,7 +141,7 @@ export default function CreditNotesPage() {
         },
         {
             accessorKey: "status",
-            header: "Status",
+            header: t("statusHeader"),
             cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
         },
         {
@@ -148,7 +153,7 @@ export default function CreditNotesPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        title="View"
+                        title={tc("view")}
                         onClick={() => router.push(`/credit-notes/${row.original.id}`)}
                     >
                         <Eye className="h-4 w-4" />
@@ -156,18 +161,18 @@ export default function CreditNotesPage() {
                 </div>
             ),
         },
-    ], [currency, router]);
+    ], [currency, dateFormat, router, t]);
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
             <PageHeader
-                title="Credit Notes"
-                description="Manage credit notes issued to customers"
+                title={t("title")}
+                description={t("description")}
                 onRefresh={fetchNotes}
                 isRefreshing={loading}
                 actions={
                     <Button onClick={() => setSheetOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> New Credit Note
+                        <Plus className="mr-2 h-4 w-4" /> {t("new")}
                     </Button>
                 }
             />
@@ -178,19 +183,19 @@ export default function CreditNotesPage() {
                         <SearchInput
                             value={search}
                             onChange={handleSearchChange}
-                            placeholder="Search by CN# or customer..."
+                            placeholder={t("searchPlaceholder")}
                             className="sm:w-72"
                         />
                         <Select value={statusFilter} onValueChange={handleStatusChange}>
                             <SelectTrigger className="sm:w-40">
-                                <SelectValue placeholder="All statuses" />
+                                <SelectValue placeholder={t("allStatuses")} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="DRAFT">Draft</SelectItem>
-                                <SelectItem value="ISSUED">Issued</SelectItem>
-                                <SelectItem value="APPLIED">Applied</SelectItem>
-                                <SelectItem value="VOID">Void</SelectItem>
+                                <SelectItem value="ALL">{tc("allStatuses")}</SelectItem>
+                                <SelectItem value="DRAFT">{t("statuses.DRAFT")}</SelectItem>
+                                <SelectItem value="ISSUED">{t("statuses.ISSUED")}</SelectItem>
+                                <SelectItem value="APPLIED">{t("statuses.APPLIED")}</SelectItem>
+                                <SelectItem value="VOID">{t("statuses.VOID")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -201,9 +206,9 @@ export default function CreditNotesPage() {
                     ) : notes.length === 0 ? (
                         <EmptyState
                             icon={FileText}
-                            title="No credit notes yet"
-                            description="Create your first credit note to get started."
-                            action={{ label: "New Credit Note", onClick: () => setSheetOpen(true) }}
+                            title={t("empty")}
+                            description={t("emptyDescription")}
+                            action={{ label: t("new"), onClick: () => setSheetOpen(true) }}
                         />
                     ) : (
                         <DataTable
