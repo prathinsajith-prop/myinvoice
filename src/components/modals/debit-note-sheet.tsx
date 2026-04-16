@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -75,9 +77,16 @@ interface DebitNoteSheetProps {
 }
 
 export function DebitNoteSheet({ open, onClose, onSuccess, defaultCustomerId, defaultInvoiceId }: DebitNoteSheetProps) {
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
+    const { data: customersData } = useSWR(
+        open ? "/api/customers?limit=200" : null,
+        jsonFetcher<{ data: Customer[] }>
+    );
+    const { data: productsData } = useSWR(
+        open ? "/api/products?limit=200" : null,
+        jsonFetcher<{ data: Product[] }>
+    );
+    const customers = customersData?.data ?? [];
+    const products = productsData?.data ?? [];
     const [submitting, setSubmitting] = useState(false);
     const orgSettings = useOrgSettings();
 
@@ -104,18 +113,14 @@ export function DebitNoteSheet({ open, onClose, onSuccess, defaultCustomerId, de
     const currency = form.watch("currency");
     const watchedCustomerId = form.watch("customerId");
 
-    const fetchData = useCallback(async () => {
-        const [c, p] = await Promise.all([
-            fetch("/api/customers?limit=200"),
-            fetch("/api/products?limit=200"),
-        ]);
-        if (c.ok) setCustomers((await c.json()).data ?? []);
-        if (p.ok) setProducts((await p.json()).data ?? []);
-    }, []);
+    const { data: customerInvoicesData } = useSWR(
+        watchedCustomerId ? `/api/invoices?customerId=${watchedCustomerId}&limit=100` : null,
+        jsonFetcher<{ data: Invoice[] }>
+    );
+    const customerInvoices = (customerInvoicesData?.data ?? []).filter((inv) => inv.status !== "VOID");
 
     useEffect(() => {
         if (open) {
-            fetchData();
             loadOrgSettings().then((s) => {
                 form.reset({
                     customerId: defaultCustomerId ?? "",
@@ -132,13 +137,6 @@ export function DebitNoteSheet({ open, onClose, onSuccess, defaultCustomerId, de
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
-
-    useEffect(() => {
-        if (!watchedCustomerId) { setCustomerInvoices([]); return; }
-        fetch(`/api/invoices?customerId=${watchedCustomerId}&limit=100`)
-            .then((r) => r.ok ? r.json() : { data: [] })
-            .then((d) => setCustomerInvoices((d.data ?? []).filter((inv: Invoice) => inv.status !== "VOID")));
-    }, [watchedCustomerId]);
 
     const totals = watchedItems.reduce(
         (acc, item) => {

@@ -27,7 +27,7 @@ function isPublicPath(path: string): boolean {
   return PUBLIC_EXACT.includes(path) || matchesPrefix(path, PUBLIC_PREFIXES);
 }
 
-export default async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const localeMatch = pathname.match(/^\/(ar|en)(?=\/|$)/);
   const localeFromPath = localeMatch?.[1];

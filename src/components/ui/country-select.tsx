@@ -83,8 +83,10 @@ export function CountrySelect({
                 <>
                     {/* Backdrop */}
                     <div
+                        role="presentation"
                         className="fixed inset-0 z-40"
                         onClick={() => { setOpen(false); setQuery(""); }}
+                        onKeyDown={() => { setOpen(false); setQuery(""); }}
                     />
                     <div className="absolute z-50 mt-1 w-full min-w-[16rem] rounded-md border bg-popover shadow-lg">
                         {/* Search input */}

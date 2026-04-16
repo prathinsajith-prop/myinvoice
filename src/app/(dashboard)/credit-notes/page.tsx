@@ -1,9 +1,9 @@
 "use client";
 
-import { useDeferredValue, useState, useEffect, useCallback, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, FileText } from "lucide-react";
+import { Plus, FileText, Eye } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { CreditNoteSheet } from "@/components/modals/credit-note-sheet";
@@ -13,12 +13,6 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -30,6 +24,7 @@ import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
+import { PageHeader } from "@/components/page-header";
 import { formatCurrency } from "@/lib/format";
 
 interface CreditNote {
@@ -55,6 +50,7 @@ export default function CreditNotesPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const createParamHandled = useRef(false);
     const [notes, setNotes] = useState<CreditNote[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
@@ -83,6 +79,15 @@ export default function CreditNotesPage() {
     }, [page, normalizedSearch, statusFilter]);
 
     useEffect(() => { fetchNotes(); }, [fetchNotes]);
+
+    useEffect(() => {
+        if (createParamHandled.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("create") === "1") {
+            setSheetOpen(true);
+        }
+        createParamHandled.current = true;
+    }, []);
 
     const handleSearchChange = (value: string) => { setPage(1); setSearch(value); };
     const handleStatusChange = (value: string) => { setPage(1); setStatusFilter(value); };
@@ -138,35 +143,34 @@ export default function CreditNotesPage() {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                                <Link href={`/credit-notes/${row.original.id}`}>View</Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                <div role="presentation" className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="View"
+                        onClick={() => router.push(`/credit-notes/${row.original.id}`)}
+                    >
+                        <Eye className="h-4 w-4" />
+                    </Button>
                 </div>
             ),
         },
-    ], [currency]);
+    ], [currency, router]);
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Credit Notes</h1>
-                    <p className="text-muted-foreground text-sm">Manage credit notes issued to customers</p>
-                </div>
-                <Button onClick={() => setSheetOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> New Credit Note
-                </Button>
-            </div>
+            <PageHeader
+                title="Credit Notes"
+                description="Manage credit notes issued to customers"
+                onRefresh={fetchNotes}
+                isRefreshing={loading}
+                actions={
+                    <Button onClick={() => setSheetOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> New Credit Note
+                    </Button>
+                }
+            />
 
             <Card>
                 <CardHeader className="pb-3">
@@ -175,8 +179,6 @@ export default function CreditNotesPage() {
                             value={search}
                             onChange={handleSearchChange}
                             placeholder="Search by CN# or customer..."
-                            onRefresh={fetchNotes}
-                            isRefreshing={loading}
                             className="sm:w-72"
                         />
                         <Select value={statusFilter} onValueChange={handleStatusChange}>
@@ -201,7 +203,7 @@ export default function CreditNotesPage() {
                             icon={FileText}
                             title="No credit notes yet"
                             description="Create your first credit note to get started."
-                            action={<Button onClick={() => setSheetOpen(true)}><Plus className="mr-2 h-4 w-4" /> New Credit Note</Button>}
+                            action={{ label: "New Credit Note", onClick: () => setSheetOpen(true) }}
                         />
                     ) : (
                         <DataTable
@@ -215,9 +217,8 @@ export default function CreditNotesPage() {
 
             {pagination && pagination.pages > 1 && (
                 <PaginationControls
+                    pagination={pagination}
                     page={page}
-                    pages={pagination.pages}
-                    total={pagination.total}
                     onPageChange={setPage}
                 />
             )}

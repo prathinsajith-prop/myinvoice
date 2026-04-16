@@ -1,3 +1,10 @@
+import { type Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Terms of Service — MyInvoice AE",
+    description: "Read the terms of service for MyInvoice AE.",
+};
+
 export default function TermsPage() {
     return (
         <div className="container mx-auto max-w-3xl px-4 py-14 space-y-6">

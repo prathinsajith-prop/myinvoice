@@ -8,6 +8,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { BillSheet } from "@/components/modals/bill-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { PageHeader } from "@/components/page-header";
 
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
@@ -169,7 +170,7 @@ export default function BillsPage() {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
                         onClick={() => router.push(`/bills/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
@@ -187,34 +188,34 @@ export default function BillsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Bills</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total bills` : "Manage supplier bills (payables)"}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <ExportDropdown
-                        data={bills}
-                        columns={[
-                            { header: "Bill #", accessor: "billNumber" },
-                            { header: "Supplier", accessor: "supplier.name" },
-                            { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                            { header: "Due Date", accessor: "dueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                            { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                            { header: "Outstanding", accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                            { header: "Status", accessor: "status" },
-                        ]}
-                        filename="bills"
-                        title="Bills Report"
-                    />
-                    <Button onClick={() => setSheetOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Bill
-                    </Button>
-                </div>
-            </div>
+            <PageHeader
+                title="Bills"
+                description={pagination ? `${pagination.total} total bills` : "Manage supplier bills (payables)"}
+                onRefresh={fetchBills}
+                isRefreshing={loading}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={bills}
+                            columns={[
+                                { header: "Bill #", accessor: "billNumber" },
+                                { header: "Supplier", accessor: "supplier.name" },
+                                { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Due Date", accessor: "dueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: "Outstanding", accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: "Status", accessor: "status" },
+                            ]}
+                            filename="bills"
+                            title="Bills Report"
+                        />
+                        <Button onClick={() => setSheetOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Bill
+                        </Button>
+                    </>
+                }
+            />
 
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                 <StatCard label="Total Bills">{pagination?.total ?? "—"}</StatCard>
@@ -247,8 +248,6 @@ export default function BillsPage() {
                             placeholder="Search bills..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchBills}
-                            isRefreshing={loading}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>

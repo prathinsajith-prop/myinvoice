@@ -21,6 +21,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { VAT_TREATMENT_LABELS } from "@/lib/constants/labels";
 
 interface LineItem {
     id: string;
@@ -232,7 +233,7 @@ export default function DebitNoteDetailPage() {
                                         {note.currency} {Number(item.unitPrice).toFixed(2)}
                                     </TableCell>
                                     <TableCell className="text-xs text-muted-foreground">
-                                        {item.vatTreatment.replace("_", " ")}
+                                        {VAT_TREATMENT_LABELS[item.vatTreatment] ?? item.vatTreatment.replace(/_/g, " ")}
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums">
                                         {note.currency} {Number(item.vatAmount).toFixed(2)}

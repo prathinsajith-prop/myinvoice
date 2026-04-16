@@ -22,6 +22,8 @@ interface InvoicePdfData {
     customerEmail?: string | null;
     organizationName: string;
     organizationTrn?: string | null;
+    organizationLogo?: string | null;
+    primaryColor?: string | null;
     notes?: string | null;
     lineItems: InvoicePdfLineItem[];
     qrCodeData?: string | null;
@@ -29,6 +31,15 @@ interface InvoicePdfData {
 
 function money(v: number, currency: string) {
     return `${currency} ${Number(v || 0).toFixed(2)}`;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+    const clean = hex.replace("#", "").padEnd(6, "0");
+    return [
+        parseInt(clean.substring(0, 2), 16) / 255,
+        parseInt(clean.substring(2, 4), 16) / 255,
+        parseInt(clean.substring(4, 6), 16) / 255,
+    ];
 }
 
 export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Array> {
@@ -40,14 +51,39 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
     const margin = 48;
     let y = 800;
 
-    page.drawText(data.organizationName, { x: margin, y, size: 18, font: bold, color: rgb(0.1, 0.1, 0.1) });
-    y -= 18;
+    // Colored header bar
+    const [hr, hg, hb] = hexToRgb(data.primaryColor ?? "#1e3a8a");
+    page.drawRectangle({ x: 0, y: 796, width: 595, height: 46, color: rgb(hr, hg, hb) });
+
+    // Org name and invoice number in the header bar (white text)
+    page.drawText(data.organizationName, { x: margin, y: 811, size: 14, font: bold, color: rgb(1, 1, 1) });
+    page.drawText(`Invoice ${data.invoiceNumber}`, { x: 380, y: 811, size: 12, font: bold, color: rgb(1, 1, 1) });
+
+    // Optional org logo (right side of header bar)
+    if (data.organizationLogo) {
+        try {
+            let logoImg;
+            const logoSrc = data.organizationLogo;
+            if (logoSrc.startsWith("data:image/png")) {
+                logoImg = await pdf.embedPng(Buffer.from(logoSrc.split(",")[1], "base64"));
+            } else if (logoSrc.startsWith("data:image/jpeg") || logoSrc.startsWith("data:image/jpg")) {
+                logoImg = await pdf.embedJpg(Buffer.from(logoSrc.split(",")[1], "base64"));
+            }
+            if (logoImg) {
+                const dims = logoImg.scaleToFit(80, 32);
+                page.drawImage(logoImg, { x: 595 - margin - dims.width, y: 813 - dims.height, width: dims.width, height: dims.height });
+            }
+        } catch {
+            // ignore logo embedding errors
+        }
+    }
+
+    y = 784;
     if (data.organizationTrn) {
         page.drawText(`TRN: ${data.organizationTrn}`, { x: margin, y, size: 10, font, color: rgb(0.35, 0.35, 0.35) });
         y -= 16;
     }
 
-    page.drawText(`Invoice ${data.invoiceNumber}`, { x: 380, y: 800, size: 14, font: bold });
     page.drawText(`Issue: ${data.issueDate.toLocaleDateString("en-AE")}`, { x: 380, y: 784, size: 10, font });
     page.drawText(`Due: ${data.dueDate.toLocaleDateString("en-AE")}`, { x: 380, y: 770, size: 10, font });
 

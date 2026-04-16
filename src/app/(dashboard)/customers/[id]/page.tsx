@@ -277,7 +277,7 @@ export default function CustomerDetailPage() {
                                                         variant={STATUS_COLORS[inv.status] ?? "secondary"}
                                                         className="text-xs"
                                                     >
-                                                        {inv.status.replace("_", " ")}
+                                                        {inv.status.replace(/_/g, " ")}
                                                     </Badge>
                                                 </TableCell>
                                             </TableRow>

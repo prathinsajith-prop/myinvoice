@@ -1,4 +1,10 @@
+import { type Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "MyInvoice AE — Smart Invoicing for UAE Businesses",
+  description: "Create VAT-compliant invoices, manage customers and expenses, and simplify your business finances with MyInvoice AE.",
+};
 import { FileText, Shield, Globe, Zap, ArrowRight, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

@@ -79,6 +79,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             );
         }
 
+        // FTA compliance: snapshot before-state as an immutable InvoiceVersion
+        const versionCount = await prisma.invoiceVersion.count({ where: { invoiceId: id } });
+        prisma.invoiceVersion.create({
+            data: {
+                invoiceId: id,
+                version: versionCount + 1,
+                snapshot: invoice as object,
+                changedBy: ctx.userId,
+            },
+        }).catch(() => {}); // fire-and-forget — non-critical to response
+
         const updated = await prisma.invoice.update({
             where: { id },
             data: {

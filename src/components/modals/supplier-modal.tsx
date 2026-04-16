@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -145,6 +146,9 @@ export function SupplierModal({
             <DialogContent className="w-[96vw] max-w-[52rem] overflow-hidden p-0 sm:max-w-[52rem]">
                 <DialogHeader className="border-b px-6 py-4">
                     <DialogTitle>{isEdit ? "Edit Supplier" : "New Supplier"}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {isEdit ? "Update supplier details, tax information, and banking details." : "Create a new supplier with contact, tax, and payment details."}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <ScrollArea className="max-h-[74vh] px-6">

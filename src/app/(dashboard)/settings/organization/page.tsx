@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
@@ -85,29 +85,30 @@ export default function OrganizationSettingsPage() {
 
   const watchedEmirate = watch("emirate");
 
-  const { isLoading: loading, mutate } = useSWR<OrganizationResponse>("/api/organization", jsonFetcher, {
+  const { data: orgData, isLoading: loading, mutate } = useSWR<OrganizationResponse>("/api/organization", jsonFetcher, {
     revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    onSuccess(data) {
-      setOrganization(data.organization);
-      setIsAdmin(data.role === "OWNER" || data.role === "ADMIN");
-      reset({
-        name: data.organization.name ?? undefined,
-        email: data.organization.email ?? undefined,
-        phone: data.organization.phone ?? undefined,
-        website: data.organization.website ?? undefined,
-        trn: data.organization.trn ?? undefined,
-        tradeLicense: data.organization.tradeLicense ?? undefined,
-        emirate: data.organization.emirate ?? undefined,
-        addressLine1: data.organization.addressLine1 ?? undefined,
-        country: data.organization.country || "AE",
-      });
-      setLogoPreview(data.organization.logo ?? null);
-    },
     onError() {
       toast.error("Failed to load organization details");
     },
   });
+
+  useEffect(() => {
+    if (!orgData) return;
+    setOrganization(orgData.organization);
+    setIsAdmin(orgData.role === "OWNER" || orgData.role === "ADMIN");
+    reset({
+      name: orgData.organization.name ?? undefined,
+      email: orgData.organization.email ?? undefined,
+      phone: orgData.organization.phone ?? undefined,
+      website: orgData.organization.website ?? undefined,
+      trn: orgData.organization.trn ?? undefined,
+      tradeLicense: orgData.organization.tradeLicense ?? undefined,
+      emirate: orgData.organization.emirate ?? undefined,
+      addressLine1: orgData.organization.addressLine1 ?? undefined,
+      country: orgData.organization.country || "AE",
+    });
+    setLogoPreview(orgData.organization.logo ?? null);
+  }, [orgData, reset]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,8 +251,11 @@ export default function OrganizationSettingsPage() {
             {/* Logo Section */}
             <div className="flex items-center gap-6">
               <div
+                role="button"
+                tabIndex={isAdmin ? 0 : -1}
                 className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted transition-colors hover:border-primary/50"
                 onClick={() => isAdmin && fileInputRef.current?.click()}
+                onKeyDown={(e) => { if (isAdmin && (e.key === "Enter" || e.key === " ")) fileInputRef.current?.click(); }}
               >
                 {logoPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element

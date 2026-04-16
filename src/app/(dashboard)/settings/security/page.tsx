@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -69,18 +69,19 @@ export default function SecuritySettingsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const { isLoading: historyLoading } = useSWR<LoginHistoryResponse>(
+  const { data: historyData, isLoading: historyLoading } = useSWR<LoginHistoryResponse>(
     "/api/user/login-history",
     jsonFetcher,
     {
       revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      onSuccess(data) {
-        setLoginHistory(data.data ?? []);
-        setNextCursor(data.nextCursor ?? null);
-      },
     }
   );
+
+  useEffect(() => {
+    if (!historyData) return;
+    setLoginHistory(historyData.data ?? []);
+    setNextCursor(historyData.nextCursor ?? null);
+  }, [historyData]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return;
@@ -304,7 +305,7 @@ export default function SecuritySettingsPage() {
                   <div className="flex gap-1">
                     {[0, 1, 2, 3, 4].map((index) => (
                       <div
-                        key={index}
+                        key={`strength-${index}`}
                         className={`h-1 flex-1 rounded-full transition-colors ${index < passwordStrength
                           ? strengthColors[passwordStrength - 1]
                           : "bg-muted"

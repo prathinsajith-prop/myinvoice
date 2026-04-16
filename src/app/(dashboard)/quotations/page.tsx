@@ -145,7 +145,7 @@ export default function QuotationsPage() {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
                             onClick={() => router.push(`/quotations/${row.original.id}`)}>
@@ -168,6 +168,8 @@ export default function QuotationsPage() {
             <PageHeader
                 title="Quotations"
                 description={pagination ? `${pagination.total} total quotations` : "Manage your sales quotations"}
+                onRefresh={fetchQuotations}
+                isRefreshing={loading}
                 actions={
                     <>
                         <ExportDropdown
@@ -198,8 +200,6 @@ export default function QuotationsPage() {
                             placeholder="Search quotations..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchQuotations}
-                            isRefreshing={loading}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40">

@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTenant } from "@/lib/tenant/context";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 interface ExportColumn {
     header: string;
@@ -66,7 +67,7 @@ function exportCSV(data: any[], columns: ExportColumn[], filename: string, orgNa
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function exportExcel(data: any[], columns: ExportColumn[], filename: string, orgName?: string) {
+async function exportExcel(data: any[], columns: ExportColumn[], filename: string, orgName?: string, primaryColor = "#1e3a8a") {
     const XLSX = await import("xlsx");
 
     const headerRows: (string | null)[][] = [];
@@ -86,6 +87,18 @@ async function exportExcel(data: any[], columns: ExportColumn[], filename: strin
     ];
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
+    // Style the column header row
+    const headerRowIdx = headerRows.length; // 0-based index of the column header row
+    const colorHex = primaryColor.replace("#", "").toUpperCase().padEnd(6, "0");
+    const headerStyle = {
+        fill: { patternType: "solid", fgColor: { rgb: colorHex } },
+        font: { bold: true, color: { rgb: "FFFFFFFF" } },
+    };
+    columns.forEach((_, colIndex) => {
+        const cellRef = XLSX.utils.encode_cell({ r: headerRowIdx, c: colIndex });
+        if (ws[cellRef]) ws[cellRef].s = headerStyle;
+    });
+
     // Auto-fit column widths
     ws["!cols"] = columns.map((col) => {
         const maxLen = Math.max(
@@ -100,7 +113,7 @@ async function exportExcel(data: any[], columns: ExportColumn[], filename: strin
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Data");
-    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array", cellStyles: true });
     saveAs(new Blob([buf], { type: "application/octet-stream" }), `${filename}.xlsx`);
 }
 
@@ -196,8 +209,10 @@ async function exportPDF(
 export function ExportDropdown({ data, columns, filename, title, orgName: orgNameProp, orgLogo: orgLogoProp }: ExportDropdownProps) {
     const [exporting, setExporting] = useState(false);
     const tenant = useTenant();
+    const orgSettings = useOrgSettings();
     const orgName = orgNameProp ?? tenant.organizationName ?? undefined;
     const orgLogo = orgLogoProp ?? tenant.organizationLogo ?? undefined;
+    const primaryColor = orgSettings.primaryColor ?? "#1e3a8a";
 
     const handleExport = async (type: "csv" | "excel" | "pdf") => {
         if (data.length === 0) return;
@@ -208,7 +223,7 @@ export function ExportDropdown({ data, columns, filename, title, orgName: orgNam
                     exportCSV(data, columns, filename, orgName);
                     break;
                 case "excel":
-                    await exportExcel(data, columns, filename, orgName);
+                    await exportExcel(data, columns, filename, orgName, primaryColor);
                     break;
                 case "pdf":
                     await exportPDF(data, columns, filename, title, orgName, orgLogo);

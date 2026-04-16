@@ -9,6 +9,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { PageHeader } from "@/components/page-header";
 
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
@@ -172,7 +173,7 @@ export default function InvoicesPage() {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -197,34 +198,34 @@ export default function InvoicesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
-                    <p className="text-muted-foreground">
-                        {pagination ? `${pagination.total} total invoices` : "Manage your sales invoices"}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <ExportDropdown
-                        data={invoices}
-                        columns={[
-                            { header: "Invoice #", accessor: "invoiceNumber" },
-                            { header: "Customer", accessor: "customer.name" },
-                            { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                            { header: "Due Date", accessor: "dueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
-                            { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                            { header: "Outstanding", accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                            { header: "Status", accessor: "status" },
-                        ]}
-                        filename="invoices"
-                        title="Invoices Report"
-                    />
-                    <Button onClick={() => setSheetOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Invoice
-                    </Button>
-                </div>
-            </div>
+            <PageHeader
+                title="Invoices"
+                description={pagination ? `${pagination.total} total invoices` : "Manage your sales invoices"}
+                onRefresh={fetchInvoices}
+                isRefreshing={loading}
+                actions={
+                    <>
+                        <ExportDropdown
+                            data={invoices}
+                            columns={[
+                                { header: "Invoice #", accessor: "invoiceNumber" },
+                                { header: "Customer", accessor: "customer.name" },
+                                { header: "Issue Date", accessor: "issueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Due Date", accessor: "dueDate", format: (v) => v ? new Date(v as string).toLocaleDateString("en-AE") : "" },
+                                { header: "Total", accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: "Outstanding", accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: "Status", accessor: "status" },
+                            ]}
+                            filename="invoices"
+                            title="Invoices Report"
+                        />
+                        <Button onClick={() => setSheetOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Invoice
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Stat cards */}
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
@@ -244,8 +245,6 @@ export default function InvoicesPage() {
                             placeholder="Search invoices..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchInvoices}
-                            isRefreshing={loading}
                         />
                         <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-full sm:w-40">

@@ -101,6 +101,13 @@ type ReportResponse = {
         totalExpenses: number;
         expenseCount: number;
     };
+    receivableAging?: {
+        current: number;
+        days1to30: number;
+        days31to60: number;
+        days61to90: number;
+        days90plus: number;
+    };
 };
 
 type CustomerListResponse = {
@@ -253,6 +260,8 @@ export default function DashboardPage() {
     }, [report]);
 
     const monthlyTrend = useMemo(() => report?.monthlyTrend ?? [], [report]);
+
+    const receivableAging = useMemo(() => report?.receivableAging ?? null, [report]);
 
     return (
         <div className="space-y-6">
@@ -477,6 +486,36 @@ export default function DashboardPage() {
                                 </CardContent>
                             </Card>
 
+                            {receivableAging && (
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium">Receivable Aging</CardTitle>
+                                        <CardDescription>Outstanding invoices by days overdue</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">Current</span>
+                                            <span className="font-medium text-green-600">{formatCurrency(receivableAging.current, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">1–30 days</span>
+                                            <span className="font-medium text-yellow-600">{formatCurrency(receivableAging.days1to30, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">31–60 days</span>
+                                            <span className="font-medium text-orange-600">{formatCurrency(receivableAging.days31to60, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">61–90 days</span>
+                                            <span className="font-medium text-red-500">{formatCurrency(receivableAging.days61to90, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">90+ days</span>
+                                            <span className="font-medium text-red-700">{formatCurrency(receivableAging.days90plus, currency)}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                     </div>
                 </>

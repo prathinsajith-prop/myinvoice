@@ -317,7 +317,7 @@ export default function NotificationsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-start gap-4 rounded-lg border p-4">
+              <div key={`skel-${i}`} className="flex items-start gap-4 rounded-lg border p-4">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-48" />
@@ -458,6 +458,8 @@ export default function NotificationsPage() {
                 return (
                   <div
                     key={notification.id}
+                    role={notification.actionUrl ? "button" : undefined}
+                    tabIndex={notification.actionUrl ? 0 : undefined}
                     className={cn(
                       "flex items-start gap-3 rounded-lg border p-4 transition-colors",
                       notification.isRead
@@ -470,6 +472,10 @@ export default function NotificationsPage() {
                       notification.actionUrl &&
                       handleNotificationClick(notification)
                     }
+                    onKeyDown={(e) => {
+                      if (notification.actionUrl && (e.key === "Enter" || e.key === " "))
+                        handleNotificationClick(notification);
+                    }}
                   >
                     <Checkbox
                       checked={selectedIds.has(notification.id)}

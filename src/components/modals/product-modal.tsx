@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -143,6 +144,9 @@ export function ProductModal({
                     <DialogTitle>
                         {isEdit ? "Edit Product / Service" : "New Product / Service"}
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {isEdit ? "Update product or service pricing, VAT, and status." : "Create a new product or service with pricing and VAT settings."}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <ScrollArea className="max-h-[74vh] px-6">

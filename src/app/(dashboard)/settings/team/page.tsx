@@ -153,7 +153,7 @@ export default function TeamSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4">
+              <div key={`skel-${i}`} className="flex items-center gap-4">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-1">
                   <Skeleton className="h-4 w-32" />

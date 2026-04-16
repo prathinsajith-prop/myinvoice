@@ -100,7 +100,7 @@ export default function NotificationSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {[1, 2].map((i) => (
-              <div key={i} className="flex items-center justify-between">
+              <div key={`skel-${i}`} className="flex items-center justify-between">
                 <div className="space-y-1">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-48" />

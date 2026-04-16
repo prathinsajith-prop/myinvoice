@@ -349,8 +349,8 @@ export default function ReportsPage() {
                                             <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
                                             <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
                                             <Bar dataKey="total" name="Amount" radius={[0, 4, 4, 0]}>
-                                                {report.expensesByCategory.slice(0, 8).map((_, i) => (
-                                                    <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                                                {report.expensesByCategory.slice(0, 8).map((entry, i) => (
+                                                    <Cell key={entry.category ?? i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
                                                 ))}
                                             </Bar>
                                         </BarChart>
@@ -401,7 +401,7 @@ export default function ReportsPage() {
                                     <ResponsiveContainer width="100%" height={220}>
                                         <BarChart
                                             data={report.billsByStatus.map((s) => ({
-                                                name: s.status.replace("_", " "),
+                                                name: s.status.replace(/_/g, " "),
                                                 total: s.total,
                                                 count: s.count,
                                             }))}

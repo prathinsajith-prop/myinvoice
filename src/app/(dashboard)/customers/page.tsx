@@ -17,6 +17,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { ExportDropdown } from "@/components/export-dropdown";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
     Select,
@@ -43,6 +44,7 @@ import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { formatAmount } from "@/lib/format";
+import { CUSTOMER_TYPE_LABELS } from "@/lib/constants/labels";
 
 interface Customer {
     id: string;
@@ -168,8 +170,8 @@ export default function CustomersPage() {
             accessorKey: "type",
             header: "Type",
             cell: ({ row }) => (
-                <Badge variant="outline" className="text-xs capitalize">
-                    {(row.getValue("type") as string)?.toLowerCase() ?? "business"}
+                <Badge variant="outline" className="text-xs">
+                    {CUSTOMER_TYPE_LABELS[row.getValue("type") as string] ?? (row.getValue("type") as string)}
                 </Badge>
             ),
         },
@@ -197,16 +199,14 @@ export default function CustomersPage() {
             accessorKey: "isActive",
             header: "Status",
             cell: ({ row }) => (
-                <Badge variant={row.getValue("isActive") ? "default" : "secondary"} className="text-xs">
-                    {row.getValue("isActive") ? "Active" : "Inactive"}
-                </Badge>
+                <StatusBadge status={row.getValue("isActive") ? "ACTIVE" : "INACTIVE"} />
             ),
         },
         {
             id: "actions",
             header: "",
             cell: ({ row }) => (
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div role="presentation" className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View"
                         onClick={() => router.push(`/customers/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
@@ -264,6 +264,8 @@ export default function CustomersPage() {
             <PageHeader
                 title="Customers"
                 description={pagination ? `${pagination.total} total customers` : "Manage your customer directory"}
+                onRefresh={fetchCustomers}
+                isRefreshing={loading}
                 actions={
                     <>
                         <ExportDropdown
@@ -311,8 +313,6 @@ export default function CustomersPage() {
                             placeholder="Search customers..."
                             value={search}
                             onChange={handleSearchChange}
-                            onRefresh={fetchCustomers}
-                            isRefreshing={loading}
                         />
                         <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
                             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>

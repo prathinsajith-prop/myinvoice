@@ -337,7 +337,7 @@ export default function BillDetailPage() {
                                             <TableRow key={link.paymentOut.id}>
                                                 <TableCell className="font-medium">{link.paymentOut.paymentNumber}</TableCell>
                                                 <TableCell>{new Date(link.paymentOut.paymentDate).toLocaleDateString("en-AE")}</TableCell>
-                                                <TableCell className="capitalize">{link.paymentOut.method?.toLowerCase().replace("_", " ")}</TableCell>
+                                                <TableCell className="capitalize">{link.paymentOut.method?.toLowerCase().replace(/_/g, " ")}</TableCell>
                                                 <TableCell className="text-right tabular-nums font-medium">
                                                     {bill.currency} {Number(link.paymentOut.amount).toFixed(2)}
                                                 </TableCell>

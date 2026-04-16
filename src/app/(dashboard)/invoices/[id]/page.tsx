@@ -447,7 +447,7 @@ export default function InvoiceDetailPage() {
                                         {invoice.payments.map((p) => (
                                             <TableRow key={p.id}>
                                                 <TableCell>{new Date(p.paymentDate).toLocaleDateString("en-AE")}</TableCell>
-                                                <TableCell className="capitalize">{p.paymentMethod?.toLowerCase().replace("_", " ")}</TableCell>
+                                                <TableCell className="capitalize">{p.paymentMethod?.toLowerCase().replace(/_/g, " ")}</TableCell>
                                                 <TableCell className="text-muted-foreground">{p.reference || "—"}</TableCell>
                                                 <TableCell className="text-right tabular-nums font-medium">{invoice.currency} {Number(p.amount).toFixed(2)}</TableCell>
                                             </TableRow>
