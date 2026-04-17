@@ -167,7 +167,7 @@ export default function ProductDetailPage() {
                                         {product.currentStock ?? 0}
                                     </span>
                                 </div>
-                                {product.reorderPoint != null && (
+                                {product.reorderPoint !== null && (
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Reorder Point</span>
                                         <span>{product.reorderPoint}</span>

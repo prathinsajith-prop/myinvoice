@@ -163,7 +163,7 @@ export default function InvoiceSettingsPage() {
             reminderDaysAfter: s?.reminderDaysAfter ?? [3, 7, 14],
             lateFeeEnabled: s?.lateFeeEnabled ?? false,
             lateFeeType: s?.lateFeeType ?? "PERCENTAGE",
-            lateFeeValue: s?.lateFeeValue != null ? Number(s.lateFeeValue) : null,
+            lateFeeValue: s?.lateFeeValue !== null && s?.lateFeeValue !== undefined ? Number(s.lateFeeValue) : null,
             lateFeeDays: s?.lateFeeDays ?? null,
         });
         setIsAdmin(settingsData.role === "OWNER" || settingsData.role === "ADMIN");

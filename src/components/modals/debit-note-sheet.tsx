@@ -135,7 +135,7 @@ export function DebitNoteSheet({ open, onClose, onSuccess, defaultCustomerId, de
                 });
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [open]);
 
     const totals = watchedItems.reduce(

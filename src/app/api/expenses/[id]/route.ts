@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { $Enums } from "@/generated/prisma";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
@@ -75,9 +77,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
                 ...rest,
                 ...(expenseDate ? { expenseDate: new Date(expenseDate) } : {}),
                 ...(paidAt ? { paidAt: new Date(paidAt) } : {}),
-                ...(paymentMethod ? { paymentMethod: paymentMethod as import("@/generated/prisma").$Enums.PaymentMethod } : {}),
-                ...(category ? { category: category as import("@/generated/prisma").$Enums.ExpenseCategory } : {}),
-                ...(vatTreatment ? { vatTreatment: vatTreatment as import("@/generated/prisma").$Enums.VatTreatment } : {}),
+                ...(paymentMethod ? { paymentMethod: paymentMethod as $Enums.PaymentMethod } : {}),
+                ...(category ? { category: category as $Enums.ExpenseCategory } : {}),
+                ...(vatTreatment ? { vatTreatment: vatTreatment as $Enums.VatTreatment } : {}),
                 vatAmount:
                     result.data.amount !== undefined || result.data.vatRate !== undefined || vatTreatment !== undefined
                         ? ((result.data.amount ?? Number(expense.amount)) * (

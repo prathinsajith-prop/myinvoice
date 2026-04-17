@@ -155,7 +155,6 @@ export default function BillDetailPage() {
     const canPay = !["PAID", "VOID"].includes(bill.status) && Number(bill.outstanding) > 0;
     const canReceive = bill.status === "DRAFT";
     const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
-    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
     const shareText = encodeURIComponent(
         `Bill ${bill.billNumber}\nAmount: ${bill.currency} ${Number(bill.total).toFixed(2)}\nOutstanding: ${bill.currency} ${Number(bill.outstanding).toFixed(2)}`
     );

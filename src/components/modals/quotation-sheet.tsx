@@ -151,7 +151,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                 });
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [open, editQuotationId]);
 
     const totals = watchedItems.reduce(

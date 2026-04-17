@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
     Truck, Package, MapPin, Hash, User, FileText,
@@ -206,8 +206,8 @@ export function DeliveryNoteDetailDrawer({ open, onClose, noteId, onUpdate }: Pr
                                                     <div key={step.key} className="flex items-center flex-1 last:flex-none">
                                                         <div className="flex flex-col items-center gap-1.5">
                                                             <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${isCompleted ? "border-primary bg-primary text-primary-foreground"
-                                                                    : isCurrent ? "border-primary bg-primary/10 text-primary"
-                                                                        : "border-border bg-background text-muted-foreground"
+                                                                : isCurrent ? "border-primary bg-primary/10 text-primary"
+                                                                    : "border-border bg-background text-muted-foreground"
                                                                 }`}>
                                                                 <StepIcon className="h-4 w-4" />
                                                             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Bell, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { SearchInput } from "@/components/search-input";
+
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -51,10 +51,8 @@ export default function PaymentRemindersPage() {
     const [tab, setTab] = useState<TabValue>("upcoming");
     const [records, setRecords] = useState<Reminder[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
-    const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
-    const deferredSearch = useDeferredValue(search);
 
     const statusParam = tab === "upcoming" ? "PENDING" : tab === "sent" ? "SENT" : undefined;
 
@@ -174,7 +172,7 @@ export default function PaymentRemindersPage() {
                 );
             },
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     ], [dateFormat, t, tc]);
 
     return (

@@ -3,7 +3,7 @@
  * These use getToken() which works in Edge/Node route handlers.
  */
 
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { UnauthorizedError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { hasRole, type MemberRole, hasPermission, type Permission } from "@/lib/rbac";

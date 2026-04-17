@@ -42,6 +42,7 @@ import { Separator } from "@/components/ui/separator";
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 import { UserProfileDropdown } from "@/components/user/user-profile-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
@@ -282,7 +283,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1920px] p-3 sm:p-4 lg:p-6 2xl:px-10">{children}</div>
+          <div className="mx-auto w-full max-w-[1920px] p-3 sm:p-4 lg:p-6 2xl:px-10">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </div>
         </main>
       </div>
     </div>

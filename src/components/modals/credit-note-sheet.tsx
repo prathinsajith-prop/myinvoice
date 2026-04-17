@@ -135,7 +135,7 @@ export function CreditNoteSheet({ open, onClose, onSuccess, defaultCustomerId, d
                 });
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [open]);
 
     const totals = watchedItems.reduce(

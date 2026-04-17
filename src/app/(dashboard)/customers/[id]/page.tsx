@@ -12,7 +12,6 @@ import {
     Globe,
     Receipt,
     FileCheck,
-    Loader2,
     Edit,
 } from "lucide-react";
 

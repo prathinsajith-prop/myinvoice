@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, RefreshCcw, Play, Pause, X, Eye } from "lucide-react";
+import { Plus, RefreshCcw, Play, Pause, X } from "lucide-react";
 import { toast } from "sonner";
 import { type ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
@@ -177,7 +177,7 @@ export default function RecurringInvoicesPage() {
                 );
             },
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     ], [dateFormat, t]);
 
     return (

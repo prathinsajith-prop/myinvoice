@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { MessageCircle, Loader2 } from "lucide-react";
-import { APP_URL } from "@/lib/constants/env.client";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";

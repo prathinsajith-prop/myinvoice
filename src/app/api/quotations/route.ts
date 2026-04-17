@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
+import { logApiAudit } from "@/lib/api/audit";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 import { notifyOrgMembers } from "@/lib/notifications/create";
@@ -153,6 +155,9 @@ export async function POST(req: NextRequest) {
                 customer: { select: { id: true, name: true, email: true } },
             },
         });
+
+        // Audit log
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Quotation", entityId: quotation.id, entityRef: quotation.quoteNumber, newData: { quoteNumber: quotation.quoteNumber }, req });
 
         // Notify org members about new quotation
         notifyOrgMembers({

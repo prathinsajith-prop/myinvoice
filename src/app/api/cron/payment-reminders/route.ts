@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { CRON_SECRET, APP_URL } from "@/lib/constants/env";
 import { sendEmail } from "@/lib/email";

@@ -274,7 +274,7 @@ export default function OrganizationSettingsPage() {
                 onKeyDown={(e) => { if (isAdmin && (e.key === "Enter" || e.key === " ")) fileInputRef.current?.click(); }}
               >
                 {logoPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={logoPreview} alt="Organization logo" className="h-full w-full object-contain p-1" />
                 ) : (
                   <ImageIcon className="h-8 w-8 text-muted-foreground" />

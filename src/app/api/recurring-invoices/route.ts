@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
@@ -30,19 +31,6 @@ const createSchema = z.object({
     autoSend: z.boolean().default(false),
     lineItems: z.array(lineItemSchema).min(1),
 });
-
-function computeNextRunDate(startDate: Date, frequency: string): Date {
-    const d = new Date(startDate);
-    switch (frequency) {
-        case "WEEKLY": d.setDate(d.getDate() + 7); break;
-        case "BIWEEKLY": d.setDate(d.getDate() + 14); break;
-        case "MONTHLY": d.setMonth(d.getMonth() + 1); break;
-        case "QUARTERLY": d.setMonth(d.getMonth() + 3); break;
-        case "SEMI_ANNUALLY": d.setMonth(d.getMonth() + 6); break;
-        case "ANNUALLY": d.setFullYear(d.getFullYear() + 1); break;
-    }
-    return d;
-}
 
 export async function GET(req: NextRequest) {
     try {

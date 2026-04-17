@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "node:crypto";
 import prisma from "@/lib/db/prisma";
@@ -6,7 +7,6 @@ import { updateOrganizationSchema } from "@/lib/validations/settings";
 import {
   resolveApiContext,
   resolveApiContextWithRole,
-  resolveApiContextWithPermission,
 } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { logAudit } from "@/lib/tenant/server";

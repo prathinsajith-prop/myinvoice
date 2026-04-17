@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import prisma from "@/lib/db/prisma";
 import { getStripeServer } from "@/lib/stripe/server";
 import { STRIPE_WEBHOOK_SECRET } from "@/lib/constants/env";
