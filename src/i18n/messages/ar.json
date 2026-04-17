@@ -128,6 +128,7 @@
     "suppliers": "الموردون",
     "products": "المنتجات والخدمات",
     "bills": "الفواتير المستحقة",
+    "purchaseOrders": "أوامر الشراء",
     "expenses": "المصروفات",
     "vatReturns": "إقرارات ضريبة القيمة المضافة",
     "reports": "التقارير",
@@ -302,7 +303,16 @@
     "exportTotal": "الإجمالي",
     "exportOutstanding": "المستحق",
     "exportStatus": "الحالة",
-    "exportTitle": "تقرير الفواتير"
+    "exportTitle": "تقرير الفواتير",
+    "bulkSelected": "{count} محدد",
+    "bulkVoidSelected": "إلغاء المحدد",
+    "bulkDeleteDrafts": "حذف المسودات",
+    "bulkClearSelection": "مسح",
+    "bulkVoidTitle": "إلغاء {count} فاتورة؟",
+    "bulkVoidDescription": "سيتم إلغاء الفواتير المحددة. لن يتمكن العملاء من دفعها.",
+    "bulkVoidReasonLabel": "سبب الإلغاء",
+    "bulkVoidReasonPlaceholder": "مثال: فاتورة مكررة...",
+    "bulkVoidConfirm": "إلغاء الفواتير"
   },
   "quotes": {
     "title": "عروض الأسعار",
@@ -496,6 +506,21 @@
     "exportOutstanding": "المستحق",
     "exportStatus": "الحالة",
     "exportTitle": "تقرير الفواتير المستحقة"
+  },
+  "purchaseOrders": {
+    "title": "أوامر الشراء",
+    "newPO": "أمر شراء جديد",
+    "editPO": "تعديل أمر الشراء",
+    "poNumber": "رقم أمر الشراء",
+    "expectedDate": "تاريخ التسليم المتوقع",
+    "manageDescription": "إدارة أوامر الشراء",
+    "searchPlaceholder": "البحث في أوامر الشراء...",
+    "noFound": "لم يتم العثور على أوامر شراء",
+    "createFirst": "أنشئ أول أمر شراء",
+    "totalLabel": "إجمالي الأوامر",
+    "totalValueShown": "القيمة الإجمالية (المعروضة)",
+    "pendingLabel": "معلقة",
+    "totalCount": "{total} أوامر شراء"
   },
   "expenses": {
     "title": "المصروفات",

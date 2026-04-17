@@ -3,7 +3,7 @@
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, FileText, AlertCircle } from "lucide-react";
+import { Plus, MoreHorizontal, FileText, AlertCircle, Trash2, XCircle, CheckSquare } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
@@ -17,6 +17,18 @@ import { ExportDropdown } from "@/components/export-dropdown";
 import { StatusBadge, StatusOption } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -72,6 +84,10 @@ export default function InvoicesPage() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkVoidOpen, setBulkVoidOpen] = useState(false);
+    const [bulkVoidReason, setBulkVoidReason] = useState("");
+    const [bulkLoading, setBulkLoading] = useState(false);
     const deferredSearch = useDeferredValue(search);
     const normalizedSearch = deferredSearch.trim();
 
@@ -113,9 +129,89 @@ export default function InvoicesPage() {
         setStatusFilter(value);
     };
 
+    const toggleSelect = (id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === invoices.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(invoices.map((i) => i.id)));
+        }
+    };
+
+    const clearSelection = () => setSelectedIds(new Set());
+
+    const handleBulkVoid = async () => {
+        if (!bulkVoidReason.trim()) return;
+        setBulkLoading(true);
+        try {
+            const res = await fetch("/api/invoices/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "void", ids: Array.from(selectedIds), reason: bulkVoidReason }),
+            });
+            if (res.ok) {
+                setBulkVoidOpen(false);
+                setBulkVoidReason("");
+                clearSelection();
+                await fetchInvoices();
+            }
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        setBulkLoading(true);
+        try {
+            const res = await fetch("/api/invoices/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "delete", ids: Array.from(selectedIds) }),
+            });
+            if (res.ok) {
+                clearSelection();
+                await fetchInvoices();
+            }
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
     const totalOutstanding = invoices.reduce((s, i) => s + Number(i.outstanding), 0);
 
+    const allSelected = invoices.length > 0 && selectedIds.size === invoices.length;
+    const someSelected = selectedIds.size > 0 && selectedIds.size < invoices.length;
+
     const columns = useMemo<ColumnDef<Invoice>[]>(() => [
+        {
+            id: "select",
+            header: () => (
+                <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <Checkbox
+                        checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all"
+                    />
+                </div>
+            ),
+            cell: ({ row }) => (
+                <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <Checkbox
+                        checked={selectedIds.has(row.original.id)}
+                        onCheckedChange={() => toggleSelect(row.original.id)}
+                        aria-label={`Select invoice ${row.original.invoiceNumber}`}
+                    />
+                </div>
+            ),
+            size: 40,
+        },
         {
             accessorKey: "invoiceNumber",
             header: t("invoiceNumber"),
@@ -198,7 +294,7 @@ export default function InvoicesPage() {
                 </div>
             ),
         },
-    ], [currency, dateFormat, t, tc]);
+    ], [currency, dateFormat, t, tc, allSelected, someSelected, selectedIds, toggleSelect, toggleSelectAll]);
 
     return (
         <div className="space-y-6">
@@ -230,6 +326,40 @@ export default function InvoicesPage() {
                     </>
                 }
             />
+
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+                <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-primary">
+                        {t("bulkSelected", { count: selectedIds.size })}
+                    </span>
+                    <div className="ml-auto flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setBulkVoidOpen(true)}
+                            className="gap-1.5"
+                        >
+                            <XCircle className="h-3.5 w-3.5" />
+                            {t("bulkVoidSelected")}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleBulkDelete}
+                            disabled={bulkLoading}
+                            className="gap-1.5 text-destructive hover:text-destructive"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t("bulkDeleteDrafts")}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={clearSelection}>
+                            {t("bulkClearSelection")}
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Stat cards */}
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
@@ -293,6 +423,35 @@ export default function InvoicesPage() {
                 onClose={() => setSheetOpen(false)}
                 onSuccess={() => { fetchInvoices(); setSheetOpen(false); }}
             />
+
+            {/* Bulk void dialog */}
+            <AlertDialog open={bulkVoidOpen} onOpenChange={setBulkVoidOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("bulkVoidTitle", { count: selectedIds.size, s: selectedIds.size !== 1 ? "s" : "" })}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t("bulkVoidDescription")}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-2">
+                        <Input
+                            placeholder={t("bulkVoidReasonPlaceholder")}
+                            value={bulkVoidReason}
+                            onChange={(e) => setBulkVoidReason(e.target.value)}
+                        />
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setBulkVoidReason("")}>{tc("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleBulkVoid}
+                            disabled={!bulkVoidReason.trim() || bulkLoading}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {bulkLoading ? tc("loading") : t("bulkVoidConfirm")}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

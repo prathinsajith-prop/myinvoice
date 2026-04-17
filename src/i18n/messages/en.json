@@ -128,6 +128,7 @@
     "suppliers": "Suppliers",
     "products": "Products & Services",
     "bills": "Bills",
+    "purchaseOrders": "Purchase Orders",
     "expenses": "Expenses",
     "vatReturns": "VAT Returns",
     "reports": "Reports",
@@ -302,7 +303,16 @@
     "exportTotal": "Total",
     "exportOutstanding": "Outstanding",
     "exportStatus": "Status",
-    "exportTitle": "Invoices Report"
+    "exportTitle": "Invoices Report",
+    "bulkSelected": "{count} selected",
+    "bulkVoidSelected": "Void Selected",
+    "bulkDeleteDrafts": "Delete Drafts",
+    "bulkClearSelection": "Clear",
+    "bulkVoidTitle": "Void {count} Invoice{s}?",
+    "bulkVoidDescription": "This will void the selected invoices. Customers will no longer be able to pay them.",
+    "bulkVoidReasonLabel": "Reason for voiding",
+    "bulkVoidReasonPlaceholder": "e.g. Duplicate invoice, entered in error...",
+    "bulkVoidConfirm": "Void Invoices"
   },
   "quotes": {
     "title": "Quotes",
@@ -496,6 +506,21 @@
     "exportOutstanding": "Outstanding",
     "exportStatus": "Status",
     "exportTitle": "Bills Report"
+  },
+  "purchaseOrders": {
+    "title": "Purchase Orders",
+    "newPO": "New Purchase Order",
+    "editPO": "Edit Purchase Order",
+    "poNumber": "PO Number",
+    "expectedDate": "Expected Date",
+    "manageDescription": "Manage your purchase orders",
+    "searchPlaceholder": "Search POs...",
+    "noFound": "No purchase orders found",
+    "createFirst": "Create your first purchase order",
+    "totalLabel": "Total POs",
+    "totalValueShown": "Total Value (shown)",
+    "pendingLabel": "Pending",
+    "totalCount": "{total} purchase orders"
   },
   "expenses": {
     "title": "Expenses",
