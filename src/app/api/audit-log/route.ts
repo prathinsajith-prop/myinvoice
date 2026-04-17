@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
         const action = searchParams.get("action");

@@ -11,6 +11,9 @@ import {
     Receipt,
     TrendingUp,
     Users,
+    Target,
+    Clock,
+    Percent,
 } from "lucide-react";
 import {
     BarChart,
@@ -116,6 +119,30 @@ type ReportResponse = {
         days31to60: number;
         days61to90: number;
         days90plus: number;
+    };
+    topCustomers?: Array<{
+        customerId: string;
+        name: string;
+        total: number;
+        count: number;
+    }>;
+    paymentPatterns?: {
+        onTime: number;
+        late: number;
+        veryLate: number;
+    };
+    financialHealth?: {
+        collectionRate: number;
+        profitMargin: number;
+        avgDaysToCollect: number;
+        revenueGrowth: number;
+        expenseRatio: number;
+    };
+    forecast?: {
+        nextMonthRevenue: number;
+        nextMonthExpenses: number;
+        next3MonthsRevenue: number;
+        next3MonthsExpenses: number;
     };
 };
 
@@ -578,8 +605,144 @@ export default function DashboardPage() {
                             )}
                         </div>
                     </div>
+
+                    {/* === Advanced Analytics Row === */}
+                    <div className="grid gap-6 lg:grid-cols-3">
+                        {/* Financial Health */}
+                        {report.financialHealth && (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Target className="h-4 w-4 text-muted-foreground" />
+                                        <CardTitle className="text-sm font-medium">{t("financialHealth")}</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    <HealthRow
+                                        label={t("collectionRate")}
+                                        value={`${report.financialHealth.collectionRate.toFixed(1)}%`}
+                                        pct={report.financialHealth.collectionRate}
+                                        color="bg-green-500"
+                                    />
+                                    <HealthRow
+                                        label={t("profitMargin")}
+                                        value={`${report.financialHealth.profitMargin.toFixed(1)}%`}
+                                        pct={Math.max(0, report.financialHealth.profitMargin)}
+                                        color="bg-blue-500"
+                                    />
+                                    <HealthRow
+                                        label={t("expenseRatio")}
+                                        value={`${report.financialHealth.expenseRatio.toFixed(1)}%`}
+                                        pct={Math.min(100, report.financialHealth.expenseRatio)}
+                                        color="bg-orange-500"
+                                    />
+                                    <div className="flex items-center justify-between pt-1">
+                                        <span className="text-muted-foreground flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {t("avgDaysToCollect")}
+                                        </span>
+                                        <span className="font-medium">{report.financialHealth.avgDaysToCollect} {t("days")}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">{t("revenueGrowth")}</span>
+                                        <span className={`font-medium flex items-center gap-1 ${report.financialHealth.revenueGrowth >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                            {report.financialHealth.revenueGrowth >= 0 ? (
+                                                <ArrowUpRight className="h-3 w-3" />
+                                            ) : (
+                                                <ArrowDownRight className="h-3 w-3" />
+                                            )}
+                                            {report.financialHealth.revenueGrowth.toFixed(1)}%
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Top Customers */}
+                        {report.topCustomers && report.topCustomers.length > 0 && (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                        <CardTitle className="text-sm font-medium">{t("topCustomers")}</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    {report.topCustomers.map((c, i) => (
+                                        <div key={c.customerId} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium">{i + 1}</span>
+                                                <span className="truncate max-w-[140px]">{c.name}</span>
+                                            </div>
+                                            <div className="text-end">
+                                                <span className="font-medium">{formatCurrency(c.total, currency)}</span>
+                                                <span className="ml-1 text-xs text-muted-foreground">({c.count})</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Payment Patterns + Forecast */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center gap-2">
+                                    <Percent className="h-4 w-4 text-muted-foreground" />
+                                    <CardTitle className="text-sm font-medium">{t("paymentPatterns")}</CardTitle>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                {report.paymentPatterns && (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-green-600">{t("onTime")}</span>
+                                            <span className="font-medium">{report.paymentPatterns.onTime}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-yellow-600">{t("late")}</span>
+                                            <span className="font-medium">{report.paymentPatterns.late}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-red-600">{t("veryLate")}</span>
+                                            <span className="font-medium">{report.paymentPatterns.veryLate}</span>
+                                        </div>
+                                    </>
+                                )}
+                                {report.forecast && (
+                                    <>
+                                        <div className="border-t pt-2 mt-2">
+                                            <p className="text-xs text-muted-foreground uppercase font-medium mb-2">{t("forecast")}</p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">{t("nextMonth")}</span>
+                                                <span className="font-medium text-green-600">{formatCurrency(report.forecast.nextMonthRevenue, currency)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-1">
+                                                <span className="text-muted-foreground">{t("next3Months")}</span>
+                                                <span className="font-medium text-green-600">{formatCurrency(report.forecast.next3MonthsRevenue, currency)}</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </>
             )}
+        </div>
+    );
+}
+
+function HealthRow({ label, value, pct, color }: { label: string; value: string; pct: number; color: string }) {
+    return (
+        <div className="space-y-1">
+            <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{label}</span>
+                <span className="font-medium">{value}</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
+            </div>
         </div>
     );
 }

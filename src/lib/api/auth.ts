@@ -3,7 +3,7 @@
  * These use getToken() which works in Edge/Node route handlers.
  */
 
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { UnauthorizedError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { hasRole, type MemberRole, hasPermission, type Permission } from "@/lib/rbac";
@@ -95,6 +95,29 @@ export async function resolveApiContextWithPermission(
   const ctx = await resolveApiContext(req);
 
   if (!hasPermission(ctx.role, permission)) {
+    throw new ForbiddenError();
+  }
+
+  return ctx;
+}
+
+/**
+ * Resolve context with automatic permission mapping based on HTTP method.
+ * GET → view, POST → create, PATCH/PUT → edit, DELETE → delete.
+ */
+const METHOD_PERMISSION: Record<string, Permission> = {
+  GET: "view",
+  POST: "create",
+  PATCH: "edit",
+  PUT: "edit",
+  DELETE: "delete",
+};
+
+export async function resolveRouteContext(req: NextRequest): Promise<ApiContext> {
+  const ctx = await resolveApiContext(req);
+  const permission = METHOD_PERMISSION[req.method.toUpperCase()];
+
+  if (permission && !hasPermission(ctx.role, permission)) {
     throw new ForbiddenError();
   }
 

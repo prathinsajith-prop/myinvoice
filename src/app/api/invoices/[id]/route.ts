@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 
@@ -21,7 +22,7 @@ const updateInvoiceSchema = z.object({
 
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const invoice = await prisma.invoice.findFirst({
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const body = await req.json();
 
@@ -114,7 +115,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 // DELETE = soft delete (only DRAFT invoices)
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const invoice = await prisma.invoice.findFirst({

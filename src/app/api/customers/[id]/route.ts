@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 
@@ -39,7 +40,7 @@ type Params = { params: Promise<{ id: string }> };
 // GET /api/customers/[id]
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const customer = await prisma.customer.findFirst({
@@ -95,7 +96,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 // PATCH /api/customers/[id]
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const body = await req.json();
 
@@ -128,7 +129,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 // DELETE /api/customers/[id] — soft delete
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const existing = await prisma.customer.findFirst({

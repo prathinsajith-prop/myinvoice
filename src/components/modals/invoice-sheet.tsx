@@ -124,7 +124,7 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                 });
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [open]);
 
     const totals = watchedItems.reduce(

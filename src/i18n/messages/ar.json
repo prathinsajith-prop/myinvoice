@@ -57,7 +57,10 @@
     "active": "نشط",
     "invoice": "فاتورة",
     "supplier": "المورد",
-    "customer": "العميل"
+      "customer": "العميل",
+      "selectCustomer": "اختر عميلاً...",
+      "selectSupplier": "اختر موردًا...",
+      "selectProduct": "اختر منتجًا..."
   },
   "currency": {
     "aed": "درهم",
@@ -139,7 +142,9 @@
       "catalog": "الكتالوج",
       "finance": "المالية",
       "administration": "الإدارة"
-    }
+    },
+    "recurringInvoices": "الفواتير المتكررة",
+    "paymentReminders": "تذكيرات الدفع"
   },
   "dashboard": {
     "welcome": "مرحباً بعودتك، {name}",
@@ -214,7 +219,33 @@
     "recentInvoicesTitle": "الفواتير الأخيرة",
     "chartRevenue": "الإيرادات",
     "chartExpenses": "المصروفات",
-    "showingPagination": "عرض {start}–{end} من {total}"
+    "showingPagination": "عرض {start}–{end} من {total}",
+    "topCustomers": "أفضل العملاء",
+    "customerName": "العميل",
+    "totalRevenue": "إجمالي الإيرادات",
+    "invoiceCount": "الفواتير",
+    "cashFlow": "توقعات التدفق النقدي",
+    "cashIn": "التدفق الداخل",
+    "cashOut": "التدفق الخارج",
+    "netCash": "صافي النقد",
+    "financialHealth": "الصحة المالية",
+    "collectionRate": "معدل التحصيل",
+    "profitMargin": "هامش الربح",
+    "avgDaysToCollect": "متوسط أيام التحصيل",
+    "revenueGrowth": "نمو الإيرادات",
+    "expenseRatio": "نسبة المصروفات",
+    "forecast": "التوقعات",
+    "projected": "المتوقع",
+    "actual": "الفعلي",
+    "forecastRevenue": "توقع الإيرادات",
+    "forecastExpenses": "توقع المصروفات",
+    "nextMonth": "الشهر القادم",
+    "next3Months": "الأشهر الثلاثة القادمة",
+    "paymentPatterns": "أنماط الدفع",
+    "onTime": "في الوقت",
+    "late": "متأخر",
+    "veryLate": "متأخر جداً (30+ يوم)",
+    "days": "يوم"
   },
   "invoices": {
     "title": "الفواتير",
@@ -1042,7 +1073,7 @@
   },
   "deliveryNotes": {
     "title": "إشعارات التسليم",
-    "description": "إدارة إشعارات التسليم للبضائع المشحونة إلى العملاء",
+    "description": "الوصف",
     "new": "إشعار تسليم جديد",
     "number": "رقم إشعار التسليم",
     "customer": "العميل",
@@ -1058,7 +1089,6 @@
     "trackingNumber": "رقم التتبع",
     "items": "العناصر",
     "addItem": "إضافة عنصر",
-    "description": "الوصف",
     "quantity": "الكمية",
     "unit": "الوحدة",
     "notes": "ملاحظات",
@@ -1073,7 +1103,33 @@
       "DELIVERED": "تم التسليم",
       "VOID": "ملغي"
     },
-    "allStatuses": "جميع الحالات"
+    "allStatuses": "جميع الحالات",
+    "details": "تفاصيل مذكرة التسليم",
+    "markDispatched": "تحديد كمُرسل",
+    "markDelivered": "تحديد كمُسلَّم",
+    "markVoid": "إلغاء",
+    "voidConfirm": "هل أنت متأكد من إلغاء مذكرة التسليم؟",
+    "dispatched": "تم إرسال مذكرة التسليم",
+    "delivered": "تم تسليم مذكرة التسليم",
+    "voided": "تم إلغاء مذكرة التسليم",
+    "deleted": "تم حذف مذكرة التسليم",
+    "deleteConfirm": "هل أنت متأكد من حذف مذكرة التسليم؟",
+    "lineItems": "بنود التسليم",
+    "dispatchedAt": "تاريخ الإرسال",
+    "deliveredAt": "تاريخ التسليم",
+    "internalNotes": "ملاحظات داخلية",
+    "linkedInvoice": "الفاتورة المرتبطة",
+    "noItems": "لا توجد بنود",
+    "unitOfMeasure": "الوحدة",
+    "itemDescription": "الوصف",
+    "voidReason": "سبب الإلغاء",
+    "voidReasonPlaceholder": "مثال: ألغى العميل الطلب...",
+    "statuses": {
+      "DRAFT": "مسودة",
+      "DISPATCHED": "تم الشحن",
+      "DELIVERED": "تم التسليم",
+      "VOID": "ملغي"
+    }
   },
   "auditLog": {
     "title": "سجل المراجعة",
@@ -1284,7 +1340,14 @@
     "inputVat": "ضريبة المدخلات",
     "netVat": "صافي الضريبة",
     "dueDate": "تاريخ الاستحقاق",
-    "vatSaved": "تم حفظ إقرار الضريبة"
+    "vatSaved": "تم حفظ إقرار الضريبة",
+    "exportPdf": "تصدير PDF",
+    "exportCsv": "تصدير CSV",
+    "exportExcel": "تصدير Excel",
+    "exporting": "جاري التصدير...",
+    "exported": "تم تصدير إقرار الضريبة",
+    "ftaFormat": "نموذج الهيئة الاتحادية",
+    "exportFailed": "فشل التصدير. يرجى المحاولة مرة أخرى."
   },
   "users": {
     "title": "المستخدمون",
@@ -1358,6 +1421,104 @@
       "newInvoice": "فاتورة جديدة",
       "newQuotation": "عرض سعر جديد",
       "newCustomer": "عميل جديد"
+    }
+  },
+  "recurringInvoices": {
+    "title": "الفواتير المتكررة",
+    "description": "الوصف",
+    "new": "فاتورة متكررة جديدة",
+    "edit": "تعديل فاتورة متكررة",
+    "templateName": "اسم القالب",
+    "customer": "العميل",
+    "frequency": "التكرار",
+    "startDate": "تاريخ البدء",
+    "endDate": "تاريخ الانتهاء",
+    "nextRun": "التشغيل التالي",
+    "lastRun": "آخر تشغيل",
+    "occurrences": "المتبقي",
+    "generated": "تم إنشاؤها",
+    "status": "الحالة",
+    "autoSend": "إرسال تلقائي",
+    "subtotal": "المجموع الفرعي",
+    "total": "الإجمالي",
+    "discount": "الخصم",
+    "vat": "ضريبة القيمة المضافة",
+    "notes": "ملاحظات",
+    "terms": "الشروط",
+    "lineItems": "البنود",
+    "addItem": "إضافة بند",
+    "quantity": "الكمية",
+    "unitPrice": "سعر الوحدة",
+    "vatRate": "نسبة الضريبة",
+    "amount": "المبلغ",
+    "save": "حفظ",
+    "create": "إنشاء",
+    "pause": "إيقاف مؤقت",
+    "resume": "استئناف",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "created": "تم إنشاء الفاتورة المتكررة",
+    "updated": "تم تحديث الفاتورة المتكررة",
+    "paused": "تم إيقاف الفاتورة المتكررة",
+    "resumed": "تم استئناف الفاتورة المتكررة",
+    "canceled": "تم إلغاء الفاتورة المتكررة",
+    "deleted": "تم حذف الفاتورة المتكررة",
+    "empty": "لا توجد فواتير متكررة",
+    "emptyDescription": "قم بإعداد الفوترة الآلية لعملائك المنتظمين.",
+    "searchPlaceholder": "البحث في الفواتير المتكررة...",
+    "frequencies": {
+      "WEEKLY": "أسبوعياً",
+      "BIWEEKLY": "كل أسبوعين",
+      "MONTHLY": "شهرياً",
+      "QUARTERLY": "ربع سنوي",
+      "SEMI_ANNUALLY": "نصف سنوي",
+      "ANNUALLY": "سنوياً"
+    },
+    "statuses": {
+      "ACTIVE": "نشط",
+      "PAUSED": "متوقف مؤقتاً",
+      "COMPLETED": "مكتمل",
+      "CANCELED": "ملغي"
+    }
+  },
+  "paymentReminders": {
+    "title": "تذكيرات الدفع",
+    "description": "تذكيرات آلية للفواتير المتأخرة.",
+    "schedule": "جدولة تذكير",
+    "upcoming": "التذكيرات القادمة",
+    "history": "سجل التذكيرات",
+    "scheduledAt": "مجدول في",
+    "scheduledFor": "مجدول في",
+    "sentAt": "أُرسل في",
+    "cancel": "إلغاء",
+    "deleted": "تم حذف التذكير",
+    "status": "الحالة",
+    "type": "النوع",
+    "channel": "القناة",
+    "subject": "الموضوع",
+    "recipient": "المستلم",
+    "invoice": "الفاتورة",
+    "customer": "العميل",
+    "scheduled": "تم جدولة التذكير",
+    "sent": "تم إرسال التذكير",
+    "canceled": "تم إلغاء التذكير",
+    "empty": "لا توجد تذكيرات",
+    "emptyDescription": "ستظهر تذكيرات الدفع هنا.",
+    "types": {
+      "BEFORE_DUE": "قبل الاستحقاق",
+      "ON_DUE": "يوم الاستحقاق",
+      "AFTER_DUE": "بعد الاستحقاق"
+    },
+    "channels": {
+      "EMAIL": "بريد إلكتروني",
+      "WHATSAPP": "واتساب",
+      "SMS": "رسالة نصية"
+    },
+    "reminderStatuses": {
+      "PENDING": "قيد الانتظار",
+      "SENT": "مُرسل",
+      "FAILED": "فشل",
+      "SKIPPED": "تم تخطيه"
     }
   }
 }

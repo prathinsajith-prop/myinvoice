@@ -48,3 +48,6 @@ export const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD?.replace(
 
 /** TOTP / 2FA issuer label */
 export const TOTP_ISSUER = process.env.TOTP_ISSUER || "myinvoice.ae";
+
+/** Secret for authenticating cron job endpoints */
+export const CRON_SECRET = process.env.CRON_SECRET;

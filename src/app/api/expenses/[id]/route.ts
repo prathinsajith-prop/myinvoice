@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { $Enums } from "@/generated/prisma";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 
@@ -30,7 +32,7 @@ const updateExpenseSchema = z.object({
 
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const expense = await prisma.expense.findFirst({
@@ -50,7 +52,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const body = await req.json();
 
@@ -75,9 +77,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
                 ...rest,
                 ...(expenseDate ? { expenseDate: new Date(expenseDate) } : {}),
                 ...(paidAt ? { paidAt: new Date(paidAt) } : {}),
-                ...(paymentMethod ? { paymentMethod: paymentMethod as import("@/generated/prisma").$Enums.PaymentMethod } : {}),
-                ...(category ? { category: category as import("@/generated/prisma").$Enums.ExpenseCategory } : {}),
-                ...(vatTreatment ? { vatTreatment: vatTreatment as import("@/generated/prisma").$Enums.VatTreatment } : {}),
+                ...(paymentMethod ? { paymentMethod: paymentMethod as $Enums.PaymentMethod } : {}),
+                ...(category ? { category: category as $Enums.ExpenseCategory } : {}),
+                ...(vatTreatment ? { vatTreatment: vatTreatment as $Enums.VatTreatment } : {}),
                 vatAmount:
                     result.data.amount !== undefined || result.data.vatRate !== undefined || vatTreatment !== undefined
                         ? ((result.data.amount ?? Number(expense.amount)) * (
@@ -109,7 +111,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const expense = await prisma.expense.findFirst({

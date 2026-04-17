@@ -154,7 +154,7 @@ export default function BrandingSettingsPage() {
                     <div className="flex items-center gap-6">
                         <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border bg-muted">
                             {logoPreview ? (
-                                // eslint-disable-next-line @next/next/no-img-element
+                                 
                                 <img
                                     src={logoPreview}
                                     alt="Organization logo"

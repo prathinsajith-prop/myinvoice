@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 
 const updateSchema = z.object({
@@ -10,6 +11,7 @@ const updateSchema = z.object({
     issueDate: z.string().optional(),
     deliveryDate: z.string().optional().nullable(),
     status: z.enum(["DRAFT", "DISPATCHED", "DELIVERED", "VOID"]).optional(),
+    voidReason: z.string().optional().nullable(),
     currency: z.string().optional(),
     shippingAddress: z.string().optional().nullable(),
     trackingNumber: z.string().optional().nullable(),
@@ -24,7 +26,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const deliveryNote = await prisma.deliveryNote.findFirst({
@@ -45,7 +47,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
         const body = await req.json();
 
@@ -67,6 +69,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         if (result.data.deliveryDate) data.deliveryDate = new Date(result.data.deliveryDate);
         if (result.data.status === "DISPATCHED") data.dispatchedAt = new Date();
         if (result.data.status === "DELIVERED") data.deliveredAt = new Date();
+        if (result.data.status === "VOID") data.voidedAt = new Date();
 
         const deliveryNote = await prisma.deliveryNote.update({
             where: { id },
@@ -85,7 +88,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { id } = await params;
 
         const existing = await prisma.deliveryNote.findFirst({

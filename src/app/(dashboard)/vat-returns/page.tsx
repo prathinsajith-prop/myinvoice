@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Calculator, Save } from "lucide-react";
+import { Loader2, Calculator, Save, Download, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
@@ -54,6 +54,7 @@ export default function VatReturnsPage() {
     const [computing, setComputing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [rows, setRows] = useState<VatReturn[]>([]);
+    const [exporting, setExporting] = useState<string | null>(null);
     const [preview, setPreview] = useState<Preview | null>(null);
 
     async function loadRows() {
@@ -95,6 +96,25 @@ export default function VatReturnsPage() {
         } finally {
             setComputing(false);
             setSaving(false);
+        }
+    }
+
+    async function exportReturn(id: string, format: "csv" | "pdf") {
+        setExporting(id + format);
+        try {
+            const res = await fetch(`/api/vat-returns/${id}/export?format=${format}`);
+            if (!res.ok) throw new Error("Export failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `vat-return-${id}.${format}`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            toast.error(t("exportFailed"));
+        } finally {
+            setExporting(null);
         }
     }
 
@@ -160,12 +180,35 @@ export default function VatReturnsPage() {
                     ) : (
                         <div className="space-y-2 text-sm">
                             {rows.map((r) => (
-                                <div key={r.id} className="grid grid-cols-5 gap-2 rounded border p-3">
-                                    <div>{formatDate(r.periodStart, dateFormat)} - {formatDate(r.periodEnd, dateFormat)}</div>
-                                    <div>{fmt(Number(r.outputVat))}</div>
-                                    <div>{fmt(Number(r.inputVat))}</div>
-                                    <div className="font-medium">{fmt(Number(r.netVat))}</div>
-                                    <div>{r.status}</div>
+                                <div key={r.id} className="rounded border p-3 flex items-center gap-3">
+                                    <div className="flex-1 grid grid-cols-4 gap-2">
+                                        <div className="text-muted-foreground text-xs">{formatDate(r.periodStart, dateFormat)} – {formatDate(r.periodEnd, dateFormat)}</div>
+                                        <div><span className="text-muted-foreground text-xs">{t("outputVat")}: </span>{fmt(Number(r.outputVat))}</div>
+                                        <div><span className="text-muted-foreground text-xs">{t("inputVat")}: </span>{fmt(Number(r.inputVat))}</div>
+                                        <div className="font-medium"><span className="text-muted-foreground text-xs">{t("netVat")}: </span>{fmt(Number(r.netVat))}</div>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            title={t("exportCsv")}
+                                            disabled={exporting === r.id + "csv"}
+                                            onClick={() => exportReturn(r.id, "csv")}
+                                        >
+                                            {exporting === r.id + "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            title={t("exportPdf")}
+                                            disabled={exporting === r.id + "pdf"}
+                                            onClick={() => exportReturn(r.id, "pdf")}
+                                        >
+                                            {exporting === r.id + "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

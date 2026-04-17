@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveApiContextWithPermission } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError, ForbiddenError } from "@/lib/errors";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 
@@ -93,7 +94,7 @@ async function recalculateInvoiceTotals(invoiceId: string) {
 // POST — Add a new line item
 export async function POST(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveApiContextWithPermission(req, "edit");
         const { id } = await params;
         const body = await req.json();
 
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 // PATCH — Update an existing line item
 export async function PATCH(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveApiContextWithPermission(req, "edit");
         const { id } = await params;
         const body = await req.json();
 
@@ -205,7 +206,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 // DELETE — Remove a line item
 export async function DELETE(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveApiContextWithPermission(req, "edit");
         const { id } = await params;
         const { searchParams } = new URL(req.url);
         const lineItemId = searchParams.get("lineItemId");

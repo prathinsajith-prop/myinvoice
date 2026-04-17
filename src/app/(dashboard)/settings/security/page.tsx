@@ -418,7 +418,7 @@ export default function SecuritySettingsPage() {
             {totpQr && !twoFactorEnabled && (
               <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
                 <p className="text-sm font-medium">{t("scanQrStep")}</p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                { }
                 <img src={totpQr} alt="2FA QR code" className="h-48 w-48 rounded border bg-white p-2" />
                 {totpSecret && (
                   <p className="text-xs text-muted-foreground break-all">Manual key: {totpSecret}</p>

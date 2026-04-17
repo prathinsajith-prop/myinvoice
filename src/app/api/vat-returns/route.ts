@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 
@@ -13,7 +14,7 @@ const computeSchema = z.object({
 
 export async function GET(req: NextRequest) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
 
         const rows = await prisma.vatReturn.findMany({
             where: { organizationId: ctx.organizationId },
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const payload = computeSchema.safeParse(await req.json());
 
         if (!payload.success) {

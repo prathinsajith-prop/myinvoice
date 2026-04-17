@@ -143,7 +143,7 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                 });
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [open, editBillId]);
 
     const totals = watchedItems.reduce(

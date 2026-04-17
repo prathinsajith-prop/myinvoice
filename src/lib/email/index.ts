@@ -15,13 +15,9 @@ import {
 } from "@/lib/constants/env";
 
 function logDevFallbackEmail(opts: SendEmailOptions) {
-  console.log("📧 [EMAIL - dev fallback]");
-  console.log(`  To: ${opts.to}`);
-  console.log(`  Subject: ${opts.subject}`);
-  if (opts.text) {
-    console.log(`  Text: ${opts.text}`);
-  }
-  console.log(`  Body preview: ${opts.html.slice(0, 200)}...`);
+  console.warn("[EMAIL - dev fallback] To:", opts.to, "Subject:", opts.subject);
+  if (opts.text) console.warn("[EMAIL] Text:", opts.text);
+  console.warn("[EMAIL] Body preview:", opts.html.slice(0, 200));
 }
 
 async function sendViaGmail(opts: SendEmailOptions): Promise<SendEmailResult> {

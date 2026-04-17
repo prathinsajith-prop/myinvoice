@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveApiContextWithPermission } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
 import { getStripeServer } from "@/lib/stripe/server";
 import { APP_URL, STRIPE_SECRET_KEY } from "@/lib/constants/env";
@@ -9,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveApiContextWithPermission(req, "edit");
         const { id } = await params;
 
         if (!STRIPE_SECRET_KEY) {

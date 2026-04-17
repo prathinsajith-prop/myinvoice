@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveRouteContext } from "@/lib/api/auth";
 import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { logApiAudit } from "@/lib/api/audit";
 import { toErrorResponse } from "@/lib/errors";
@@ -43,7 +44,7 @@ const createInvoiceSchema = z.object({
 
 export async function GET(req: NextRequest) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const ctx = await resolveApiContext(req);
+        const ctx = await resolveRouteContext(req);
 
         // Enforce plan invoice limit before creating
         await enforceInvoiceLimit(ctx.organizationId);

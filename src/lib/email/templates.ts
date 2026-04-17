@@ -284,3 +284,54 @@ export function invoiceEmail({
 
   return { subject, html, text };
 }
+
+export function paymentReminderEmail({
+  customerName,
+  organizationName,
+  invoiceNumber,
+  amount,
+  currency,
+  outstanding,
+  dueDate,
+  portalUrl,
+  reminderType,
+}: {
+  customerName: string;
+  organizationName: string;
+  invoiceNumber: string;
+  amount: number;
+  currency: string;
+  outstanding: number;
+  dueDate: string;
+  portalUrl: string;
+  reminderType: "BEFORE_DUE" | "ON_DUE" | "AFTER_DUE";
+}): { subject: string; html: string; text: string } {
+  const labels: Record<string, string> = {
+    BEFORE_DUE: "upcoming",
+    ON_DUE: "due today",
+    AFTER_DUE: "overdue",
+  };
+  const label = labels[reminderType] ?? "due";
+  const subject = `Payment reminder: Invoice ${invoiceNumber} is ${label}`;
+
+  const html = wrap(`
+    <span style="${LOGO}">myinvoice.ae</span>
+    <h1 style="${H1}">Payment Reminder</h1>
+    <p style="${P}">Hello ${customerName},</p>
+    <p style="${P}">
+      This is a friendly reminder that invoice <strong>${invoiceNumber}</strong>
+      from ${organizationName} for <strong>${currency} ${amount.toFixed(2)}</strong>
+      is <strong>${label}</strong>. Due date: <strong>${dueDate}</strong>.
+    </p>
+    ${outstanding !== amount ? `<p style="${P}">Outstanding balance: <strong>${currency} ${outstanding.toFixed(2)}</strong></p>` : ""}
+    <a href="${portalUrl}" style="${BTN}">View & Pay Invoice</a>
+    <div style="${FOOTER}">
+      myinvoice.ae — UAE E-Invoicing Platform<br>
+      View online: ${portalUrl}
+    </div>
+  `);
+
+  const text = `Payment Reminder\n\nInvoice ${invoiceNumber} from ${organizationName} for ${currency} ${amount.toFixed(2)} is ${label}.\nDue date: ${dueDate}\nOutstanding: ${currency} ${outstanding.toFixed(2)}\n\nView: ${portalUrl}`;
+
+  return { subject, html, text };
+}

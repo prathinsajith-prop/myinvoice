@@ -1,0 +1,11 @@
+# Prettier ignores
+.next/
+out/
+build/
+dist/
+node_modules/
+src/generated/
+pnpm-lock.yaml
+*.min.js
+*.min.css
+public/
