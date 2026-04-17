@@ -23,7 +23,11 @@ interface InvoicePdfData {
     organizationName: string;
     organizationTrn?: string | null;
     organizationLogo?: string | null;
+    organizationPhone?: string | null;
+    organizationWebsite?: string | null;
+    organizationAddress?: string | null;
     primaryColor?: string | null;
+    accentColor?: string | null;
     notes?: string | null;
     lineItems: InvoicePdfLineItem[];
     qrCodeData?: string | null;
@@ -130,7 +134,14 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
     page.drawLine({ start: { x: margin, y }, end: { x: 545, y }, thickness: 1, color: rgb(0.85, 0.85, 0.85) });
     y -= 14;
 
-    for (const item of data.lineItems.slice(0, 24)) {
+    for (let i = 0; i < data.lineItems.slice(0, 24).length; i++) {
+        const item = data.lineItems.slice(0, 24)[i];
+
+        // Alternating row background (light gray)
+        if (i % 2 === 0) {
+            page.drawRectangle({ x: margin - 2, y: y - 12, width: 515, height: 14, color: rgb(0.97, 0.97, 0.97) });
+        }
+
         page.drawText(item.description.slice(0, 52), { x: margin, y, size: 9, font });
         page.drawText(String(Number(item.quantity)), { x: 330, y, size: 9, font });
         page.drawText(Number(item.unitPrice).toFixed(2), { x: 380, y, size: 9, font });
@@ -143,13 +154,18 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
     y -= 6;
     page.drawLine({ start: { x: 340, y }, end: { x: 545, y }, thickness: 1, color: rgb(0.85, 0.85, 0.85) });
     y -= 18;
+
+    // Totals section with accent color highlight
+    const [ar, ag, ab] = hexToRgb(data.accentColor ?? data.primaryColor ?? "#1e3a8a");
+    page.drawRectangle({ x: 340, y: y - 60, width: 205, height: 58, color: rgb(ar * 0.95, ag * 0.95, ab * 0.95) });
+
     page.drawText(`Subtotal: ${money(data.subtotal, data.currency)}`, { x: 370, y, size: 10, font });
     y -= 14;
     page.drawText(`VAT: ${money(data.totalVat, data.currency)}`, { x: 370, y, size: 10, font });
     y -= 14;
-    page.drawText(`Total: ${money(data.total, data.currency)}`, { x: 370, y, size: 11, font: bold });
+    page.drawText(`Total: ${money(data.total, data.currency)}`, { x: 370, y, size: 11, font: bold, color: rgb(ar, ag, ab) });
     y -= 14;
-    page.drawText(`Outstanding: ${money(data.outstanding, data.currency)}`, { x: 370, y, size: 11, font: bold });
+    page.drawText(`Outstanding: ${money(data.outstanding, data.currency)}`, { x: 370, y, size: 11, font: bold, color: rgb(ar, ag, ab) });
 
     if (data.notes) {
         y -= 28;
@@ -174,6 +190,31 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Uint8Arr
             console.error("Failed to embed QR code:", error);
         }
     }
+
+    // Footer with organization details
+    page.drawLine({ start: { x: margin, y: 40 }, end: { x: 545, y: 40 }, thickness: 1, color: rgb(0.9, 0.9, 0.9) });
+
+    let footerX = margin;
+    const footerY = 25;
+    const footerLineHeight = 8;
+
+    if (data.organizationPhone) {
+        page.drawText(`Phone: ${data.organizationPhone}`, { x: footerX, y: footerY, size: 8, font, color: rgb(0.5, 0.5, 0.5) });
+        footerX += 150;
+    }
+
+    if (data.organizationWebsite) {
+        page.drawText(`Web: ${data.organizationWebsite}`, { x: footerX, y: footerY, size: 8, font, color: rgb(0.5, 0.5, 0.5) });
+        footerX += 150;
+    }
+
+    if (data.organizationAddress) {
+        const addressShort = data.organizationAddress.split(",").slice(0, 2).join(", ").slice(0, 40);
+        page.drawText(addressShort, { x: margin, y: footerY - footerLineHeight - 2, size: 8, font, color: rgb(0.5, 0.5, 0.5) });
+    }
+
+    // Page number at bottom right
+    page.drawText(`Generated: ${new Date().toLocaleDateString("en-AE")}`, { x: 380, y: footerY, size: 8, font, color: rgb(0.5, 0.5, 0.5) });
 
     return pdf.save();
 }

@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
@@ -15,7 +15,23 @@ export async function GET(req: NextRequest, { params }: Params) {
         const invoice = await prisma.invoice.findFirst({
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
             include: {
-                organization: { select: { name: true, legalName: true, trn: true, logo: true, primaryColor: true } },
+                organization: {
+                    select: {
+                        name: true,
+                        legalName: true,
+                        trn: true,
+                        logo: true,
+                        primaryColor: true,
+                        secondaryColor: true,
+                        phone: true,
+                        website: true,
+                        addressLine1: true,
+                        addressLine2: true,
+                        city: true,
+                        emirate: true,
+                        postalCode: true,
+                    }
+                },
                 customer: { select: { name: true, email: true } },
                 lineItems: { orderBy: { sortOrder: "asc" } },
             },
@@ -37,7 +53,19 @@ export async function GET(req: NextRequest, { params }: Params) {
             organizationName: invoice.organization.legalName || invoice.organization.name,
             organizationTrn: invoice.organization.trn,
             organizationLogo: invoice.organization.logo,
+            organizationPhone: invoice.organization.phone,
+            organizationWebsite: invoice.organization.website,
+            organizationAddress: [
+                invoice.organization.addressLine1,
+                invoice.organization.addressLine2,
+                invoice.organization.city,
+                invoice.organization.emirate,
+                invoice.organization.postalCode,
+            ]
+                .filter(Boolean)
+                .join(", "),
             primaryColor: invoice.organization.primaryColor,
+            accentColor: invoice.organization.secondaryColor,
             notes: invoice.notes,
             qrCodeData: invoice.qrCodeData,
             lineItems: invoice.lineItems.map((item) => ({
