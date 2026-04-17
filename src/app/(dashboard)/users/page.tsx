@@ -25,6 +25,7 @@ import { USER_ROLE_META } from "@/lib/constants/users";
 import { jsonFetcher } from "@/lib/fetcher";
 import { PageHeader } from "@/components/page-header";
 import { SearchInput } from "@/components/search-input";
+import { EmptyState } from "@/components/empty-state";
 import { useTranslations } from "next-intl";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { formatDate } from "@/lib/format";
@@ -302,9 +303,11 @@ export default function UsersPage() {
                             ))}
                         </div>
                     ) : filtered.length === 0 ? (
-                        <div className="rounded-lg border border-dashed py-14 text-center text-sm text-muted-foreground">
-                            {t("noUsersFound")}
-                        </div>
+                        <EmptyState
+                            icon={Users}
+                            title={t("noUsersFound")}
+                            description={t("noUsersFoundDesc")}
+                        />
                     ) : (
                         <>
                             <div className="space-y-3 md:hidden">

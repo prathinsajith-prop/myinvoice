@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/empty-state";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -192,9 +193,11 @@ export default function OrganizationsPage() {
                             ))}
                         </div>
                     ) : organizations.length === 0 ? (
-                        <div className="rounded-lg border border-dashed py-14 text-center text-sm text-muted-foreground">
-                            {t("noOrgsYet")}
-                        </div>
+                        <EmptyState
+                            icon={Building2}
+                            title={t("noOrgsYet")}
+                            description={t("noOrgsYetDesc")}
+                        />
                     ) : (
                         <div className="space-y-3">
                             {organizations.map((org) => (

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
+import { EmptyState } from "@/components/empty-state";
 
 interface VatReturn {
     id: string;
@@ -176,7 +177,11 @@ export default function VatReturnsPage() {
                     {loading ? (
                         <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
                     ) : rows.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">{t("noReturns")}</p>
+                        <EmptyState
+                            icon={Calculator}
+                            title={t("noReturns")}
+                            description={t("noReturnsDesc")}
+                        />
                     ) : (
                         <div className="space-y-2 text-sm">
                             {rows.map((r) => (

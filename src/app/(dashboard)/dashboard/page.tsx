@@ -46,6 +46,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { PayablesWidget } from "@/components/dashboard/payables-widget";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { jsonFetcher } from "@/lib/fetcher";
 import { useTranslations } from "next-intl";
@@ -482,6 +483,8 @@ export default function DashboardPage() {
                             </CardContent>
                         </Card>
                     </div>
+
+                    <PayablesWidget />
 
                     <div className="grid gap-6 lg:grid-cols-7">
                         <Card className="lg:col-span-4">

@@ -57,10 +57,10 @@
     "active": "Active",
     "invoice": "Invoice",
     "supplier": "Supplier",
-      "customer": "Customer",
-      "selectCustomer": "Select a customer...",
-      "selectSupplier": "Select a supplier...",
-      "selectProduct": "Select a product..."
+    "customer": "Customer",
+    "selectCustomer": "Select a customer...",
+    "selectSupplier": "Select a supplier...",
+    "selectProduct": "Select a product..."
   },
   "currency": {
     "aed": "AED",
@@ -245,7 +245,10 @@
     "onTime": "On Time",
     "late": "Late",
     "veryLate": "Very Late (30+ days)",
-    "days": "days"
+    "days": "days",
+    "payablesWidgetDesc": "View unpaid bills by urgency",
+    "allBillsPaid": "All Bills Paid!",
+    "noPendingPayables": "No outstanding payables. Great cash flow!"
   },
   "invoices": {
     "title": "Invoices",
@@ -1221,6 +1224,7 @@
     "orgListing": "Organization Listing",
     "orgListingDesc": "Switch between assigned organizations instantly",
     "noOrgsYet": "No organizations assigned yet.",
+    "noOrgsYetDesc": "Contact your administrator to be added to an organization.",
     "currentBadge": "Current",
     "inactive": "Inactive",
     "view": "View",
@@ -1336,6 +1340,7 @@
     "saveReturn": "Save Return",
     "savedReturns": "Saved Returns",
     "noReturns": "No returns saved yet.",
+    "noReturnsDesc": "Compute a VAT return for a period above and save it here.",
     "outputVat": "Output VAT",
     "inputVat": "Input VAT",
     "netVat": "Net VAT",
@@ -1370,6 +1375,7 @@
     "pending": "Pending",
     "unnamedUser": "Unnamed User",
     "noUsersFound": "No users found for this filter.",
+    "noUsersFoundDesc": "Try adjusting your search or invite a new team member.",
     "editProfile": "Edit Profile",
     "access": "Access",
     "name": "Name",

@@ -57,10 +57,10 @@
     "active": "نشط",
     "invoice": "فاتورة",
     "supplier": "المورد",
-      "customer": "العميل",
-      "selectCustomer": "اختر عميلاً...",
-      "selectSupplier": "اختر موردًا...",
-      "selectProduct": "اختر منتجًا..."
+    "customer": "العميل",
+    "selectCustomer": "اختر عميلاً...",
+    "selectSupplier": "اختر موردًا...",
+    "selectProduct": "اختر منتجًا..."
   },
   "currency": {
     "aed": "درهم",
@@ -245,7 +245,10 @@
     "onTime": "في الوقت",
     "late": "متأخر",
     "veryLate": "متأخر جداً (30+ يوم)",
-    "days": "يوم"
+    "days": "يوم",
+    "payablesWidgetDesc": "عرض الفواتير المستحقة حسب الأولوية",
+    "allBillsPaid": "تم دفع جميع الفواتير!",
+    "noPendingPayables": "لا توجد فواتير مستحقة. تدفق نقدي رائع!"
   },
   "invoices": {
     "title": "الفواتير",
@@ -1221,6 +1224,7 @@
     "orgListing": "قائمة المؤسسات",
     "orgListingDesc": "التبديل بين المؤسسات المسندة فوراً",
     "noOrgsYet": "لا توجد مؤسسات مسندة بعد.",
+    "noOrgsYetDesc": "تواصل مع المسؤول لإضافتك إلى مؤسسة.",
     "currentBadge": "الحالية",
     "inactive": "غير نشطة",
     "view": "عرض",
@@ -1336,6 +1340,7 @@
     "saveReturn": "حفظ الإقرار",
     "savedReturns": "الإقرارات المحفوظة",
     "noReturns": "لا توجد إقرارات محفوظة بعد.",
+    "noReturnsDesc": "احسب إقرار ضريبة القيمة المضافة لفترة ما في الأعلى واحفظه هنا.",
     "outputVat": "ضريبة المخرجات",
     "inputVat": "ضريبة المدخلات",
     "netVat": "صافي الضريبة",
@@ -1370,6 +1375,7 @@
     "pending": "قيد الانتظار",
     "unnamedUser": "مستخدم بدون اسم",
     "noUsersFound": "لم يتم العثور على مستخدمين لهذا الفلتر.",
+    "noUsersFoundDesc": "حاول تعديل بحثك أو قم بدعوة عضو جديد في الفريق.",
     "editProfile": "تعديل الملف الشخصي",
     "access": "الوصول",
     "name": "الاسم",
