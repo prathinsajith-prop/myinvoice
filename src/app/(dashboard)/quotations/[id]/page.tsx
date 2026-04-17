@@ -70,7 +70,7 @@ export default function QuotationDetailPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error ?? "Failed to convert");
             toast.success("Quotation converted to invoice");
-            router.push(`/invoices/${data.invoiceId}`);
+            router.push(`/invoices/${data.id}`);
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to convert");
         } finally {
@@ -268,14 +268,32 @@ export default function QuotationDetailPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Convert to Invoice?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will create a new invoice from {quotation.quoteNumber} and mark this quotation as converted.
+                            A new draft invoice will be created from this quotation and it will be marked as converted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="rounded-lg border bg-muted/40 p-4 text-sm space-y-2 mx-1">
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Quote</span>
+                            <span className="font-medium">{quotation.quoteNumber}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Customer</span>
+                            <span className="font-medium">{quotation.customer?.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Items</span>
+                            <span>{quotation.lineItems?.length ?? 0} line item{(quotation.lineItems?.length ?? 0) !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold border-t pt-2 mt-1">
+                            <span>Total</span>
+                            <span>{quotation.currency} {Number(quotation.total).toFixed(2)}</span>
+                        </div>
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={doConvert} disabled={acting}>
                             {acting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Convert to Invoice
+                            {acting ? "Converting…" : "Convert to Invoice"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

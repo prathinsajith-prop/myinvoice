@@ -74,6 +74,13 @@ interface ReportData {
         days61to90: number;
         days90plus: number;
     };
+    billAging?: {
+        current: number;
+        days1to30: number;
+        days31to60: number;
+        days61to90: number;
+        days90plus: number;
+    };
     monthlyTrend?: Array<{ month: string; revenue: number; expenses: number }>;
 }
 
@@ -274,8 +281,8 @@ export default function ReportsPage() {
                         </Card>
                     )}
 
-                    {/* VAT Summary */}
-                    <div className="grid gap-6 lg:grid-cols-2">
+                    {/* VAT Summary + Receivable Aging + Payable Aging */}
+                    <div className="grid gap-6 lg:grid-cols-3">
                         <Card>
                             <CardHeader><CardTitle className="text-base">{t("vatSummaryTitle")}</CardTitle></CardHeader>
                             <CardContent className="space-y-3 text-sm">
@@ -310,38 +317,51 @@ export default function ReportsPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Expenses by Category */}
-                        <Card className="lg:col-span-2">
-                            <CardHeader><CardTitle className="text-base">{t("expensesByCategoryTitle")}</CardTitle></CardHeader>
-                            <CardContent>
-                                {report.expensesByCategory && report.expensesByCategory.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={220}>
-                                        <BarChart
-                                            data={report.expensesByCategory.slice(0, 8).map((c) => ({
-                                                name: t(`categories.${c.category}`),
-
-                                                total: c.total,
-                                            }))}
-                                            layout="vertical"
-                                            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
-                                            <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
-                                            <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                            <Bar dataKey="total" name={t("chartAmount")} radius={[0, 4, 4, 0]}>
-                                                {report.expensesByCategory.slice(0, 8).map((entry, i) => (
-                                                    <Cell key={entry.category ?? i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">{t("noExpenses")}</p>
-                                )}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">{t("billAgingTitle")}</CardTitle>
+                                <CardDescription>{t("billAgingDesc")}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("agingCurrent")}</span><span className="font-medium">{fmt(report.billAging?.current ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging1to30")}</span><span className="font-medium">{fmt(report.billAging?.days1to30 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging31to60")}</span><span className="font-medium">{fmt(report.billAging?.days31to60 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging61to90")}</span><span className="font-medium">{fmt(report.billAging?.days61to90 ?? 0, currency)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">{t("aging90plus")}</span><span className="font-medium text-destructive">{fmt(report.billAging?.days90plus ?? 0, currency)}</span></div>
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* Expenses by Category */}
+                    <Card>
+                        <CardHeader><CardTitle className="text-base">{t("expensesByCategoryTitle")}</CardTitle></CardHeader>
+                        <CardContent>
+                            {report.expensesByCategory && report.expensesByCategory.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <BarChart
+                                        data={report.expensesByCategory.slice(0, 8).map((c) => ({
+                                            name: t(`categories.${c.category}`),
+                                            total: c.total,
+                                        }))}
+                                        layout="vertical"
+                                        margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                                        <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
+                                        <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
+                                        <Bar dataKey="total" name={t("chartAmount")} radius={[0, 4, 4, 0]}>
+                                            {report.expensesByCategory.slice(0, 8).map((entry, i) => (
+                                                <Cell key={entry.category ?? i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">{t("noExpenses")}</p>
+                            )}
+                        </CardContent>
+                    </Card>
 
                     {/* Invoice status chart + Bills by Status */}
                     <div className="grid gap-6 lg:grid-cols-2">

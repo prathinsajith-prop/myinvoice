@@ -22,6 +22,7 @@ import {
   LogOut,
   RefreshCcw,
   Bell,
+  ShoppingCart,
 } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
@@ -70,6 +71,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       label: t("sections.purchases"),
       items: [
         { name: t("bills"), href: "/bills", icon: Receipt },
+        { name: t("purchaseOrders"), href: "/purchase-orders", icon: ShoppingCart },
         { name: t("suppliers"), href: "/suppliers", icon: Building2 },
         { name: t("expenses"), href: "/expenses", icon: CreditCard },
       ],

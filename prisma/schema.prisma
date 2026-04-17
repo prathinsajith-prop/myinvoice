@@ -439,6 +439,7 @@ model Organization {
   documentRelations   DocumentRelation[]
   recurringInvoices   RecurringInvoice[]
   paymentReminders    PaymentReminder[]
+  purchaseOrders      PurchaseOrder[]
 
   @@index([slug])
   @@index([trn])
@@ -725,9 +726,10 @@ model Supplier {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  bills        Bill[]
-  paymentsOut  PaymentOut[]
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bills           Bill[]
+  paymentsOut     PaymentOut[]
+  purchaseOrders  PurchaseOrder[]
 
   @@unique([organizationId, email])
   @@index([organizationId, name])
@@ -776,6 +778,7 @@ model Product {
   billLineItems       BillLineItem[]
   expenses            Expense[]
   recurringLineItems  RecurringInvoiceLineItem[]
+  purchaseOrderLineItems PurchaseOrderLineItem[]
 
   @@unique([organizationId, sku])
   @@index([organizationId, name])
@@ -1877,6 +1880,93 @@ model PaymentReminder {
   @@index([organizationId, status])
   @@index([invoiceId])
   @@index([scheduledAt, status])
+}
+
+// =============================================================================
+// PURCHASE ORDERS
+// =============================================================================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id             String @id @default(cuid())
+  organizationId String
+  supplierId     String
+
+  poNumber    String
+  reference   String?
+  description String?
+
+  issueDate    DateTime  @default(now())
+  expectedDate DateTime?
+
+  status PurchaseOrderStatus @default(DRAFT)
+
+  currency     String  @default("AED")
+  exchangeRate Decimal @default(1) @db.Decimal(10, 6)
+
+  subtotal Decimal @db.Decimal(15, 2)
+  totalVat Decimal @db.Decimal(15, 2)
+  discount Decimal @default(0) @db.Decimal(15, 2)
+  total    Decimal @db.Decimal(15, 2)
+
+  notes           String?
+  terms           String?
+  internalNotes   String?
+  shippingAddress String?
+
+  sentAt      DateTime?
+  confirmedAt DateTime?
+  receivedAt  DateTime?
+
+  billId String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier                @relation(fields: [supplierId], references: [id])
+  lineItems    PurchaseOrderLineItem[]
+
+  @@unique([organizationId, poNumber])
+  @@index([organizationId, supplierId])
+  @@index([organizationId, status])
+  @@index([organizationId, issueDate])
+  @@index([organizationId, expectedDate])
+}
+
+model PurchaseOrderLineItem {
+  id              String  @id @default(cuid())
+  purchaseOrderId String
+  productId       String?
+  sortOrder       Int     @default(0)
+
+  description   String
+  quantity      Decimal      @db.Decimal(12, 3)
+  unitPrice     Decimal      @db.Decimal(12, 2)
+  unitOfMeasure String       @default("unit")
+  discount      Decimal      @default(0) @db.Decimal(5, 2)
+  vatTreatment  VatTreatment @default(STANDARD_RATED)
+  vatRate       Decimal      @default(5) @db.Decimal(5, 2)
+
+  subtotal  Decimal @db.Decimal(15, 2)
+  vatAmount Decimal @db.Decimal(15, 2)
+  total     Decimal @db.Decimal(15, 2)
+
+  receivedQty Decimal @default(0) @db.Decimal(12, 3)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product?      @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
 }
 
 // =============================================================================
