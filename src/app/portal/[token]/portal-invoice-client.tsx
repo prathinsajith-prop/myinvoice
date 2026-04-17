@@ -34,11 +34,15 @@ export interface InvoiceData {
 
 export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData; waText: string }) {
     const [creatingPaymentLink, setCreatingPaymentLink] = useState(false);
+    const [usePartialPayment, setUsePartialPayment] = useState(false);
+    const [partialAmount, setPartialAmount] = useState<string>(Number(invoice.outstanding).toFixed(2));
 
-    async function createStripeLink() {
+    async function createStripeLink(amount?: number) {
         setCreatingPaymentLink(true);
         try {
-            const res = await fetch(`/api/invoices/${invoice.id}/payment-link`, {
+            const paymentAmount = amount ?? Number(invoice.outstanding);
+            const params = new URLSearchParams({ token: invoice.publicToken, amount: String(paymentAmount) });
+            const res = await fetch(`/api/invoices/${invoice.id}/payment-link?${params}`, {
                 method: "POST",
             });
             const data = await res.json();
@@ -46,11 +50,23 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
             if (!data.url) throw new Error("No payment URL returned");
 
             window.open(data.url, "_blank", "noopener,noreferrer");
+            setUsePartialPayment(false);
+            setPartialAmount(Number(invoice.outstanding).toFixed(2));
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to create payment link");
         } finally {
             setCreatingPaymentLink(false);
         }
+    }
+
+    function handlePartialAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const value = e.target.value;
+        setPartialAmount(value);
+    }
+
+    function isValidPartialAmount(): boolean {
+        const amount = parseFloat(partialAmount);
+        return !isNaN(amount) && amount >= 0.01 && amount <= Number(invoice.outstanding);
     }
 
     return (
@@ -97,10 +113,18 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
                         <Link href={`/api/invoices/${invoice.id}/pdf`}>Download PDF</Link>
                     </Button>
                     {Number(invoice.outstanding) > 0 && (
-                        <Button onClick={createStripeLink} disabled={creatingPaymentLink}>
-                            {creatingPaymentLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Pay Now
-                        </Button>
+                        <>
+                            <Button onClick={() => createStripeLink()} disabled={creatingPaymentLink}>
+                                {creatingPaymentLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Pay Full Amount
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setUsePartialPayment(!usePartialPayment)}
+                            >
+                                Pay Partial
+                            </Button>
+                        </>
                     )}
                     <Button variant="outline" asChild>
                         <a href={`https://wa.me/?text=${waText}`} target="_blank" rel="noreferrer">
@@ -109,6 +133,63 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
                         </a>
                     </Button>
                 </div>
+
+                {usePartialPayment && Number(invoice.outstanding) > 0 && (
+                    <Card className="border-amber-200 bg-amber-50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Pay Partial Amount</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                You can pay any amount between {invoice.currency} 0.01 and {invoice.currency} {Number(invoice.outstanding).toFixed(2)}
+                            </p>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Amount to Pay</label>
+                                <div className="flex gap-2">
+                                    <div className="flex items-center">
+                                        <span className="text-sm font-medium mr-2">{invoice.currency}</span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        max={Number(invoice.outstanding).toFixed(2)}
+                                        value={partialAmount}
+                                        onChange={handlePartialAmountChange}
+                                        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        placeholder="Enter amount"
+                                    />
+                                </div>
+                                {!isValidPartialAmount() && partialAmount && (
+                                    <p className="text-xs text-red-600">
+                                        Amount must be between {invoice.currency} 0.01 and {invoice.currency} {Number(invoice.outstanding).toFixed(2)}
+                                    </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                    Remaining after payment: {invoice.currency} {(Number(invoice.outstanding) - (parseFloat(partialAmount) || 0)).toFixed(2)}
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={() => createStripeLink(parseFloat(partialAmount))}
+                                    disabled={creatingPaymentLink || !isValidPartialAmount()}
+                                >
+                                    {creatingPaymentLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Pay {invoice.currency} {partialAmount}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setUsePartialPayment(false);
+                                        setPartialAmount(Number(invoice.outstanding).toFixed(2));
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );
