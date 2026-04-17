@@ -26,6 +26,7 @@ interface TenantContextType {
   organizationId: string | null;
   organizationSlug: string | null;
   organizationName: string | null;
+  organizationLogo: string | null;
   role: MemberRole | null;
   organizations: Organization[];
   isLoading: boolean;
@@ -50,6 +51,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       if (!session) return;
       setIsSwitching(true);
       try {
+        // Client-side update sends POST to /api/auth/session
+        // The JWT callback handles trigger="update" and updates the token
+        // The browser processes the Set-Cookie header from the response
         await update({ organizationId });
       } finally {
         setIsSwitching(false);
@@ -69,6 +73,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     organizationId: session?.user.organizationId ?? null,
     organizationSlug: session?.user.organizationSlug ?? null,
     organizationName: currentOrg?.name ?? null,
+    organizationLogo: session?.user.organizationLogo ?? null,
     role,
     organizations: session?.user.organizations ?? [],
     isLoading: status === "loading" || isSwitching,

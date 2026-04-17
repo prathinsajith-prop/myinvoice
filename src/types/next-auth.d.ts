@@ -1,5 +1,4 @@
 import { type DefaultSession } from "next-auth";
-import { type MemberRole } from "@prisma/client";
 
 declare module "next-auth" {
   interface Session {
@@ -8,11 +7,13 @@ declare module "next-auth" {
       twoFactorEnabled: boolean;
       organizationId?: string;
       organizationSlug?: string;
+      organizationLogo?: string | null;
       role?: string;
       organizations: Array<{
         id: string;
         name: string;
         slug: string;
+        logo: string | null;
         role: string;
       }>;
     } & DefaultSession["user"];

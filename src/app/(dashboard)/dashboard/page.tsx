@@ -1,280 +1,751 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import useSWR from "swr";
+import Link from "next/link";
 import {
-  ArrowUpRight,
-  ArrowDownRight,
-  FileText,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Clock,
-  AlertCircle,
+    AlertCircle,
+    ArrowDownRight,
+    ArrowUpRight,
+    FileText,
+    Receipt,
+    TrendingUp,
+    Users,
+    Target,
+    Clock,
+    Percent,
 } from "lucide-react";
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+} from "recharts";
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { PayablesWidget } from "@/components/dashboard/payables-widget";
+import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { jsonFetcher } from "@/lib/fetcher";
+import { useTranslations } from "next-intl";
+import { formatDate } from "@/lib/format";
 
-// Stats data (placeholder)
-const stats = [
-  {
-    name: "Total Revenue",
-    value: "AED 124,500",
-    change: "+12.5%",
-    trend: "up",
-    icon: DollarSign,
-    description: "This month",
-  },
-  {
-    name: "Outstanding",
-    value: "AED 45,200",
-    change: "-8.1%",
-    trend: "down",
-    icon: Clock,
-    description: "Receivables",
-  },
-  {
-    name: "Total Invoices",
-    value: "156",
-    change: "+23",
-    trend: "up",
-    icon: FileText,
-    description: "This month",
-  },
-  {
-    name: "Active Customers",
-    value: "48",
-    change: "+5",
-    trend: "up",
-    icon: Users,
-    description: "Total",
-  },
-];
+type ReportResponse = {
+    revenue?: {
+        totalInvoiced: number;
+        totalCollected: number;
+        outstanding: number;
+        invoiceCount: number;
+        overdueCount: number;
+    };
+    quotations?: {
+        total: number;
+        count: number;
+    };
+    expenses?: {
+        total: number;
+        vatAmount: number;
+        count: number;
+    };
+    vat?: {
+        outputVat: number;
+        inputVat: number;
+        netVatPayable: number;
+    };
+    vatSummary?: {
+        outputVat: number;
+        inputVat: number;
+        netVatPayable: number;
+    };
+    invoiceStatusBreakdown?: Array<{
+        status: string;
+        count: number;
+        total: number;
+    }>;
+    invoicesByStatus?: Array<{
+        status: string;
+        count: number;
+        total: number;
+    }>;
+    recentInvoices?: Array<{
+        id: string;
+        invoiceNumber: string;
+        status: string;
+        total: number;
+        outstanding: number;
+        issueDate: string;
+        customer: {
+            id: string;
+            name: string;
+        };
+    }>;
+    monthlyTrend?: Array<{ month: string; revenue: number; expenses: number }>;
+    kpis?: {
+        totalRevenue: number;
+        outstandingReceivables: number;
+        outstandingPayables: number;
+        invoiceCount: number;
+        overdueInvoices: number;
+        overdueBills: number;
+        billCount: number;
+        quotationCount: number;
+        totalExpenses: number;
+        expenseCount: number;
+    };
+    receivableAging?: {
+        current: number;
+        days1to30: number;
+        days31to60: number;
+        days61to90: number;
+        days90plus: number;
+    };
+    topCustomers?: Array<{
+        customerId: string;
+        name: string;
+        total: number;
+        count: number;
+    }>;
+    paymentPatterns?: {
+        onTime: number;
+        late: number;
+        veryLate: number;
+    };
+    financialHealth?: {
+        collectionRate: number;
+        profitMargin: number;
+        avgDaysToCollect: number;
+        revenueGrowth: number;
+        expenseRatio: number;
+    };
+    forecast?: {
+        nextMonthRevenue: number;
+        nextMonthExpenses: number;
+        next3MonthsRevenue: number;
+        next3MonthsExpenses: number;
+    };
+};
 
-// Recent invoices (placeholder)
-const recentInvoices = [
-  {
-    id: "INV-001",
-    customer: "Dubai Tech Solutions",
-    amount: "AED 12,500",
-    status: "paid",
-    date: "2024-01-15",
-  },
-  {
-    id: "INV-002",
-    customer: "Emirates Trading Co",
-    amount: "AED 8,750",
-    status: "pending",
-    date: "2024-01-14",
-  },
-  {
-    id: "INV-003",
-    customer: "Abu Dhabi Consulting",
-    amount: "AED 25,000",
-    status: "overdue",
-    date: "2024-01-10",
-  },
-  {
-    id: "INV-004",
-    customer: "Sharjah Industries",
-    amount: "AED 5,200",
-    status: "paid",
-    date: "2024-01-08",
-  },
-  {
-    id: "INV-005",
-    customer: "Al Ain Services LLC",
-    amount: "AED 15,800",
-    status: "pending",
-    date: "2024-01-05",
-  },
-];
+type CustomerListResponse = {
+    pagination?: {
+        total: number;
+    };
+};
 
-// Quick actions
-const quickActions = [
-  { name: "Create Invoice", href: "/dashboard/invoices/new" },
-  { name: "Add Customer", href: "/dashboard/customers/new" },
-  { name: "New Quotation", href: "/dashboard/quotations/new" },
-  { name: "Record Expense", href: "/dashboard/expenses/new" },
-];
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "paid":
-      return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Paid</Badge>;
-    case "pending":
-      return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Pending</Badge>;
-    case "overdue":
-      return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Overdue</Badge>;
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
-  }
+function formatCurrency(amount: number, currency: string) {
+    return new Intl.NumberFormat("en-AE", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+    }).format(amount);
 }
 
+function getDashboardStatsData(report: ReportResponse) {
+    const revenue = report.revenue ?? {
+        totalInvoiced: report.kpis?.totalRevenue ?? 0,
+        totalCollected: 0,
+        outstanding: report.kpis?.outstandingReceivables ?? 0,
+        invoiceCount: report.kpis?.invoiceCount ?? 0,
+        overdueCount: report.kpis?.overdueInvoices ?? 0,
+    };
+
+    const quotations = report.quotations ?? {
+        total: 0,
+        count: report.kpis?.quotationCount ?? 0,
+    };
+
+    const expenses = report.expenses ?? {
+        total: report.kpis?.totalExpenses ?? 0,
+        vatAmount: 0,
+        count: report.kpis?.expenseCount ?? 0,
+    };
+
+    const vat = report.vat ?? report.vatSummary ?? {
+        outputVat: 0,
+        inputVat: 0,
+        netVatPayable: 0,
+    };
+
+    const invoiceStatusBreakdown = report.invoiceStatusBreakdown ?? report.invoicesByStatus ?? [];
+
+    return {
+        revenue,
+        quotations,
+        expenses,
+        vat,
+        invoiceStatusBreakdown,
+        recentInvoices: report.recentInvoices ?? [],
+    };
+}
+
+
+const STATUS_COLORS: Record<string, string> = {
+    DRAFT: "#94a3b8",
+    SENT: "#60a5fa",
+    PAID: "#34d399",
+    OVERDUE: "#f87171",
+    PARTIAL: "#fbbf24",
+    VOID: "#d1d5db",
+};
+
 export default function DashboardPage() {
-  return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Welcome back! 👋
-          </h2>
-          <p className="text-muted-foreground">
-            Here's what's happening with your business today.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button>
-            <FileText className="mr-2 h-4 w-4" />
-            New Invoice
-          </Button>
-        </div>
-      </div>
+    const t = useTranslations("dashboard");
+    const orgSettings = useOrgSettings();
+    const currency = orgSettings.defaultCurrency;
+    const dateFormat = orgSettings.dateFormat;
+    const [period, setPeriod] = useState("this_month");
+    const { data, isLoading: loading } = useSWR(
+        ["dashboard-overview", period],
+        async () => {
+            const reportData = await jsonFetcher<ReportResponse>(`/api/reports?period=${period}`);
+            const customerData = await jsonFetcher<CustomerListResponse>("/api/customers?page=1&limit=1").catch(() => null);
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.name}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.name}
-              </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                {stat.trend === "up" ? (
-                  <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
-                ) : (
-                  <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
-                )}
-                <span
-                  className={
-                    stat.trend === "up" ? "text-green-500" : "text-red-500"
-                  }
-                >
-                  {stat.change}
-                </span>
-                <span className="ml-1">{stat.description}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            return {
+                report: reportData,
+                customerTotal: customerData?.pagination?.total ?? 0,
+            };
+        },
+        {
+            revalidateOnFocus: false,
+            revalidateOnReconnect: false,
+        }
+    );
 
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-7">
-        {/* Recent Invoices */}
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Recent Invoices</CardTitle>
-            <CardDescription>
-              Your latest invoices and their status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentInvoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{invoice.customer}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {invoice.id} • {invoice.date}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-medium">{invoice.amount}</span>
-                    {getStatusBadge(invoice.status)}
-                  </div>
+    const report = data?.report ?? null;
+    const customerTotal = data?.customerTotal ?? 0;
+
+    const stats = useMemo(() => {
+        if (!report) return [];
+
+        const normalized = getDashboardStatsData(report);
+
+        return [
+            {
+                name: t("revenue.title"),
+                value: formatCurrency(normalized.revenue.totalInvoiced, currency),
+                description: t("collectedSub", { amount: formatCurrency(normalized.revenue.totalCollected, currency) }),
+                trend: normalized.revenue.totalInvoiced >= normalized.revenue.totalCollected ? "up" : "down",
+                delta: t("invoicesDelta", { count: normalized.revenue.invoiceCount }),
+                icon: TrendingUp,
+            },
+            {
+                name: t("receivables.title"),
+                value: formatCurrency(normalized.revenue.outstanding, currency),
+                description: t("overdueSub", { count: normalized.revenue.overdueCount }),
+                trend: normalized.revenue.overdueCount > 0 ? "down" : "up",
+                delta: normalized.revenue.overdueCount > 0 ? t("needsFollowUp") : t("underControl"),
+                icon: AlertCircle,
+            },
+            {
+                name: t("payables.title"),
+                value: formatCurrency(report.kpis?.outstandingPayables ?? 0, currency),
+                description: t("overdueBillsSub", { count: report.kpis?.overdueBills ?? 0 }),
+                trend: (report.kpis?.overdueBills ?? 0) > 0 ? "down" : "up",
+                delta: t("billsDelta", { count: report.kpis?.billCount ?? 0 }),
+                icon: Receipt,
+            },
+            {
+                name: t("totalInvoices"),
+                value: String(normalized.revenue.invoiceCount),
+                description: t("quotationsCreatedSub", { count: normalized.quotations.count }),
+                trend: normalized.revenue.invoiceCount > 0 ? "up" : "down",
+                delta: t("quotesDelta", { count: normalized.quotations.count }),
+                icon: FileText,
+            },
+            {
+                name: t("activeCustomers"),
+                value: String(customerTotal),
+                description: t("expensesRecordedSub", { count: normalized.expenses.count }),
+                trend: customerTotal > 0 ? "up" : "down",
+                delta: formatCurrency(normalized.expenses.total, currency),
+                icon: Users,
+            },
+        ];
+    }, [customerTotal, report, currency, t]);
+
+    const recentInvoices = useMemo(() => {
+        if (!report) return [];
+        return getDashboardStatsData(report).recentInvoices;
+    }, [report]);
+
+    const vatSummary = useMemo(() => {
+        if (!report) return { outputVat: 0, inputVat: 0, netVatPayable: 0 };
+        return getDashboardStatsData(report).vat;
+    }, [report]);
+
+    const invoiceStatusBreakdown = useMemo(() => {
+        if (!report) return [];
+        return getDashboardStatsData(report).invoiceStatusBreakdown;
+    }, [report]);
+
+    const monthlyTrend = useMemo(() => report?.monthlyTrend ?? [], [report]);
+
+    const receivableAging = useMemo(() => report?.receivableAging ?? null, [report]);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">{t("businessOverview")}</h2>
+                    <p className="text-muted-foreground">
+                        {t("liveNumbers")}
+                    </p>
                 </div>
-              ))}
+                <div className="flex gap-2">
+                    <Select value={period} onValueChange={setPeriod}>
+                        <SelectTrigger className="w-[160px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="this_month">{t("thisMonth")}</SelectItem>
+                            <SelectItem value="last_month">{t("lastMonth")}</SelectItem>
+                            <SelectItem value="this_quarter">{t("thisQuarter")}</SelectItem>
+                            <SelectItem value="last_quarter">{t("lastQuarter")}</SelectItem>
+                            <SelectItem value="this_year">{t("thisYear")}</SelectItem>
+                            <SelectItem value="last_year">{t("lastYear")}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button asChild>
+                        <Link href="/invoices?create=1">
+                            <FileText className="mr-2 h-4 w-4" />
+                            {t("createInvoice")}
+                        </Link>
+                    </Button>
+                </div>
             </div>
-            <Button variant="outline" className="mt-4 w-full">
-              View All Invoices
-            </Button>
-          </CardContent>
-        </Card>
 
-        {/* Right Sidebar */}
-        <div className="space-y-6 lg:col-span-3">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Common tasks at your fingertips</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {quickActions.map((action) => (
-                  <Button
-                    key={action.name}
-                    variant="outline"
-                    className="h-auto py-3"
-                    asChild
-                  >
-                    <a href={action.href}>{action.name}</a>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* VAT Compliance Alert */}
-          <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-orange-600" />
-                <CardTitle className="text-orange-600">VAT Return Due</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-orange-700 dark:text-orange-300">
-                Your Q4 2024 VAT return is due in 15 days. Make sure all
-                invoices are recorded and compliant.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 border-orange-300 text-orange-700 hover:bg-orange-100"
-              >
-                View VAT Summary
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Revenue Chart Placeholder */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue Overview</CardTitle>
-              <CardDescription>Monthly revenue trend</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex h-[200px] items-center justify-center rounded-lg border-2 border-dashed">
-                <div className="text-center">
-                  <TrendingUp className="mx-auto h-10 w-10 text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Revenue chart coming soon
-                  </p>
+            {loading ? (
+                <div className="space-y-4">
+                    {/* Stat card skeletons */}
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="rounded-lg border bg-card p-5 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Skeleton className="h-4 w-28" />
+                                    <Skeleton className="h-4 w-4 rounded" />
+                                </div>
+                                <Skeleton className="h-8 w-32" />
+                                <Skeleton className="h-3 w-24" />
+                            </div>
+                        ))}
+                    </div>
+                    {/* Chart skeleton */}
+                    <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+                        <div className="lg:col-span-2 rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-32" />
+                            <Skeleton className="h-[220px] w-full rounded-md" />
+                        </div>
+                        <div className="rounded-lg border bg-card p-5 space-y-3">
+                            <Skeleton className="h-5 w-32" />
+                            <Skeleton className="h-[220px] w-full rounded-md" />
+                        </div>
+                    </div>
+                    {/* Table skeleton */}
+                    <div className="rounded-lg border bg-card p-5 space-y-3">
+                        <Skeleton className="h-5 w-40" />
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-4">
+                                <Skeleton className="h-4 w-[30%] rounded" />
+                                <Skeleton className="h-4 w-[25%] rounded" />
+                                <Skeleton className="h-4 w-[20%] rounded" />
+                                <Skeleton className="h-4 w-[15%] rounded" />
+                            </div>
+                        ))}
+                    </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+            ) : !report ? (
+                <Card>
+                    <CardContent className="flex min-h-[18rem] flex-col items-center justify-center gap-3 text-center">
+                        <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                        <div>
+                            <p className="font-medium">{t("dataLoadError")}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {t("dataLoadErrorDesc")}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : (
+                <>
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                        {stats.map((stat) => (
+                            <Card key={stat.name}>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        {stat.name}
+                                    </CardTitle>
+                                    <stat.icon className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{stat.value}</div>
+                                    <div className="mt-1 flex items-center text-xs text-muted-foreground">
+                                        {stat.trend === "up" ? (
+                                            <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
+                                        ) : (
+                                            <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
+                                        )}
+                                        <span className={stat.trend === "up" ? "text-green-500" : "text-red-500"}>
+                                            {stat.delta}
+                                        </span>
+                                        <span className="ml-1">{stat.description}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-7">
+                        {/* Monthly Revenue vs Expenses */}
+                        <Card className="lg:col-span-4">
+                            <CardHeader>
+                                <CardTitle>{t("revenueVsExpenses")}</CardTitle>
+                                <CardDescription>{t("last12MonthsOverview")}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {monthlyTrend.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                        {t("noDataPeriod")}
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart data={monthlyTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                                            <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                            <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
+                                            <Bar dataKey="revenue" name={t("chartRevenue")} fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="expenses" name={t("chartExpenses")} fill="#f87171" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Invoice Status Donut */}
+                        <Card className="lg:col-span-3">
+                            <CardHeader>
+                                <CardTitle>{t("invoiceStatusTitle")}</CardTitle>
+                                <CardDescription>{t("invoiceStatusDesc")}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {invoiceStatusBreakdown.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                        {t("noInvoiceActivity")}
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <PieChart>
+                                            <Pie
+                                                data={invoiceStatusBreakdown}
+                                                dataKey="total"
+                                                nameKey="status"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={55}
+                                                outerRadius={85}
+                                                paddingAngle={3}
+                                            >
+                                                {invoiceStatusBreakdown.map((entry) => (
+                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#a5b4fc"} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
+                                            <Legend
+                                                formatter={(value) => value.replaceAll("_", " ")}
+                                                iconType="circle"
+                                                iconSize={8}
+                                                wrapperStyle={{ fontSize: 12 }}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <PayablesWidget />
+
+                    <div className="grid gap-6 lg:grid-cols-7">
+                        <Card className="lg:col-span-4">
+                            <CardHeader>
+                                <CardTitle>{t("recentInvoicesTitle")}</CardTitle>
+                                <CardDescription>{t("recentInvoicesDesc")}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {recentInvoices.length === 0 ? (
+                                        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                            {t("noInvoicesCreated")}
+                                        </div>
+                                    ) : (
+                                        recentInvoices.map((invoice) => (
+                                            <div
+                                                key={invoice.id}
+                                                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                                        <FileText className="h-5 w-5 text-muted-foreground" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium">{invoice.customer.name}</p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {invoice.invoiceNumber} • {formatDate(invoice.issueDate, dateFormat)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 sm:justify-end">
+                                                    <span className="font-medium">{formatCurrency(invoice.total, currency)}</span>
+                                                    <StatusBadge status={invoice.status} />
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <Button variant="outline" className="mt-4 w-full" asChild>
+                                    <Link href="/invoices">{t("viewAllInvoices")}</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        <div className="space-y-6 lg:col-span-3">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>{t("quickActions")}</CardTitle>
+                                    <CardDescription>{t("quickActionsDesc")}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <Button variant="outline" className="h-auto py-3" asChild>
+                                            <Link href="/invoices?create=1">{t("createInvoice")}</Link>
+                                        </Button>
+                                        <Button variant="outline" className="h-auto py-3" asChild>
+                                            <Link href="/customers?create=1">{t("addCustomer")}</Link>
+                                        </Button>
+                                        <Button variant="outline" className="h-auto py-3" asChild>
+                                            <Link href="/quotations?create=1">{t("newQuotation")}</Link>
+                                        </Button>
+                                        <Button variant="outline" className="h-auto py-3" asChild>
+                                            <Link href="/expenses?create=1">{t("recordExpense")}</Link>
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                                        <CardTitle className="text-orange-600">{t("vatSummary")}</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
+                                        <span>{t("outputVat")}</span>
+                                        <span>{formatCurrency(vatSummary.outputVat, currency)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
+                                        <span>{t("inputVat")}</span>
+                                        <span>{formatCurrency(vatSummary.inputVat, currency)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between font-medium text-orange-800 dark:text-orange-200">
+                                        <span>{t("netVatPayable")}</span>
+                                        <span>{formatCurrency(vatSummary.netVatPayable, currency)}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {receivableAging && (
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium">{t("receivableAging")}</CardTitle>
+                                        <CardDescription>{t("receivableAgingDesc")}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t("current")}</span>
+                                            <span className="font-medium text-green-600">{formatCurrency(receivableAging.current, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t("days1to30")}</span>
+                                            <span className="font-medium text-yellow-600">{formatCurrency(receivableAging.days1to30, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t("days31to60")}</span>
+                                            <span className="font-medium text-orange-600">{formatCurrency(receivableAging.days31to60, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t("days61to90")}</span>
+                                            <span className="font-medium text-red-500">{formatCurrency(receivableAging.days61to90, currency)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t("days90plus")}</span>
+                                            <span className="font-medium text-red-700">{formatCurrency(receivableAging.days90plus, currency)}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* === Advanced Analytics Row === */}
+                    <div className="grid gap-6 lg:grid-cols-3">
+                        {/* Financial Health */}
+                        {report.financialHealth && (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Target className="h-4 w-4 text-muted-foreground" />
+                                        <CardTitle className="text-sm font-medium">{t("financialHealth")}</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    <HealthRow
+                                        label={t("collectionRate")}
+                                        value={`${report.financialHealth.collectionRate.toFixed(1)}%`}
+                                        pct={report.financialHealth.collectionRate}
+                                        color="bg-green-500"
+                                    />
+                                    <HealthRow
+                                        label={t("profitMargin")}
+                                        value={`${report.financialHealth.profitMargin.toFixed(1)}%`}
+                                        pct={Math.max(0, report.financialHealth.profitMargin)}
+                                        color="bg-blue-500"
+                                    />
+                                    <HealthRow
+                                        label={t("expenseRatio")}
+                                        value={`${report.financialHealth.expenseRatio.toFixed(1)}%`}
+                                        pct={Math.min(100, report.financialHealth.expenseRatio)}
+                                        color="bg-orange-500"
+                                    />
+                                    <div className="flex items-center justify-between pt-1">
+                                        <span className="text-muted-foreground flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {t("avgDaysToCollect")}
+                                        </span>
+                                        <span className="font-medium">{report.financialHealth.avgDaysToCollect} {t("days")}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">{t("revenueGrowth")}</span>
+                                        <span className={`font-medium flex items-center gap-1 ${report.financialHealth.revenueGrowth >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                            {report.financialHealth.revenueGrowth >= 0 ? (
+                                                <ArrowUpRight className="h-3 w-3" />
+                                            ) : (
+                                                <ArrowDownRight className="h-3 w-3" />
+                                            )}
+                                            {report.financialHealth.revenueGrowth.toFixed(1)}%
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Top Customers */}
+                        {report.topCustomers && report.topCustomers.length > 0 && (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                        <CardTitle className="text-sm font-medium">{t("topCustomers")}</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    {report.topCustomers.map((c, i) => (
+                                        <div key={c.customerId} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium">{i + 1}</span>
+                                                <span className="truncate max-w-[140px]">{c.name}</span>
+                                            </div>
+                                            <div className="text-end">
+                                                <span className="font-medium">{formatCurrency(c.total, currency)}</span>
+                                                <span className="ml-1 text-xs text-muted-foreground">({c.count})</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Payment Patterns + Forecast */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center gap-2">
+                                    <Percent className="h-4 w-4 text-muted-foreground" />
+                                    <CardTitle className="text-sm font-medium">{t("paymentPatterns")}</CardTitle>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                {report.paymentPatterns && (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-green-600">{t("onTime")}</span>
+                                            <span className="font-medium">{report.paymentPatterns.onTime}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-yellow-600">{t("late")}</span>
+                                            <span className="font-medium">{report.paymentPatterns.late}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-red-600">{t("veryLate")}</span>
+                                            <span className="font-medium">{report.paymentPatterns.veryLate}</span>
+                                        </div>
+                                    </>
+                                )}
+                                {report.forecast && (
+                                    <>
+                                        <div className="border-t pt-2 mt-2">
+                                            <p className="text-xs text-muted-foreground uppercase font-medium mb-2">{t("forecast")}</p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">{t("nextMonth")}</span>
+                                                <span className="font-medium text-green-600">{formatCurrency(report.forecast.nextMonthRevenue, currency)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-1">
+                                                <span className="text-muted-foreground">{t("next3Months")}</span>
+                                                <span className="font-medium text-green-600">{formatCurrency(report.forecast.next3MonthsRevenue, currency)}</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </>
+            )}
         </div>
-      </div>
-    </div>
-  );
+    );
+}
+
+function HealthRow({ label, value, pct, color }: { label: string; value: string; pct: number; color: string }) {
+    return (
+        <div className="space-y-1">
+            <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{label}</span>
+                <span className="font-medium">{value}</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
+            </div>
+        </div>
+    );
 }

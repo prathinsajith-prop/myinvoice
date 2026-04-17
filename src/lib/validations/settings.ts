@@ -16,10 +16,15 @@ export const createNotificationSchema = z.object({
       "INVOICE_OVERDUE",
       "PAYMENT_RECEIVED",
       "PAYMENT_REMINDER",
+      "PAYMENT_PLAN_DUE",
       "QUOTE_ACCEPTED",
       "QUOTE_REJECTED",
+      "QUOTE_EXPIRED",
+      "BILL_DUE",
+      "CREDIT_NOTE_ISSUED",
       "CUSTOMER_ADDED",
       "TEAM_INVITE",
+      "SUBSCRIPTION_EXPIRING",
       "SYSTEM_UPDATE",
       "SECURITY_ALERT",
     ])
@@ -39,7 +44,7 @@ export const markNotificationReadSchema = z.object({
 export const updateProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100).optional(),
   phone: z.string().optional().nullable(),
-  image: z.string().url().optional().nullable(),
+  image: z.string().optional().nullable(),
 });
 
 export const updatePasswordSchema = z
@@ -93,19 +98,100 @@ export const updateOrganizationSchema = z.object({
   postalCode: z.string().optional().nullable(),
 
   // Branding
-  logo: z.string().url().optional().nullable(),
+  logo: z.string().optional().nullable(),
   primaryColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color")
+    .optional()
+    .nullable(),
+  secondaryColor: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color")
     .optional()
     .nullable(),
 
   // Invoice/Quote Settings
-  defaultCurrency: z.enum(["AED", "USD", "EUR", "GBP", "SAR"]).optional(),
+  defaultCurrency: z.enum(["AED", "USD", "EUR", "GBP", "SAR", "OMR", "QAR", "KWD", "BHD", "INR", "PKR", "EGP"]).optional(),
+
+  // Locale / Regional Settings (saved to OrganizationSettings)
+  dateFormat: z.string().max(20).optional(),
+  numberFormat: z.string().max(20).optional(),
+  language: z.enum(["en", "ar"]).optional(),
+  autoReminders: z.boolean().optional(),
+  reminderDaysBefore: z.array(z.number().int().min(1).max(90)).max(10).optional(),
+  reminderDaysAfter: z.array(z.number().int().min(1).max(365)).max(10).optional(),
+  lateFeeEnabled: z.boolean().optional(),
+  lateFeeType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+  lateFeeValue: z.number().nonnegative().optional().nullable(),
+  lateFeeDays: z.number().int().positive().optional().nullable(),
   fiscalYearStart: z.number().min(1).max(12).optional(),
   invoicePrefix: z.string().max(10).optional(),
+  proformaPrefix: z.string().max(10).optional(),
   quotePrefix: z.string().max(10).optional(),
+  creditNotePrefix: z.string().max(10).optional(),
+  debitNotePrefix: z.string().max(10).optional(),
+  billPrefix: z.string().max(10).optional(),
+  paymentPrefix: z.string().max(10).optional(),
   defaultPaymentTerms: z.number().min(0).max(365).optional(),
+  defaultDueDateDays: z.number().min(0).max(365).optional(),
+  defaultVatRate: z.number().min(0).max(100).optional(),
+  defaultNotes: z.string().max(2000).optional().nullable(),
+  defaultTerms: z.string().max(5000).optional().nullable(),
+});
+
+// ── Organisation Settings ─────────────────────────────────────────────────────
+
+export const updateOrganizationSettingsSchema = z.object({
+  // VAT
+  vatRegistered: z.boolean().optional(),
+  vatEffectiveDate: z.coerce.date().optional().nullable(),
+  reverseChargeEnabled: z.boolean().optional(),
+  simplifiedInvoiceThreshold: z.number().nonnegative().optional(),
+
+  // PDF Layout
+  showLogo: z.boolean().optional(),
+  showQrCode: z.boolean().optional(),
+  showBankDetails: z.boolean().optional(),
+  showSignature: z.boolean().optional(),
+  showStamp: z.boolean().optional(),
+  showWatermark: z.boolean().optional(),
+  watermarkText: z.string().max(100).optional().nullable(),
+  invoiceFooter: z.string().max(1000).optional().nullable(),
+
+  // Bank Details
+  bankName: z.string().max(100).optional().nullable(),
+  bankAccountName: z.string().max(200).optional().nullable(),
+  bankAccountNumber: z.string().max(50).optional().nullable(),
+  bankIban: z
+    .string()
+    .regex(/^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/, "Invalid IBAN format")
+    .optional()
+    .nullable(),
+  bankSwift: z.string().max(11).optional().nullable(),
+  bankBranch: z.string().max(100).optional().nullable(),
+
+  // Reminders
+  autoReminders: z.boolean().optional(),
+  reminderDaysBefore: z.array(z.number().int().min(1).max(90)).max(10).optional(),
+  reminderDaysAfter: z.array(z.number().int().min(1).max(365)).max(10).optional(),
+
+  // Late Fees
+  lateFeeEnabled: z.boolean().optional(),
+  lateFeeType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+  lateFeeValue: z.number().nonnegative().optional().nullable(),
+  lateFeeDays: z.number().int().positive().optional().nullable(),
+
+  // Locale
+  timezone: z.string().max(50).optional(),
+  dateFormat: z.string().max(20).optional(),
+  numberFormat: z.string().max(20).optional(),
+  language: z.enum(["en", "ar"]).optional(),
+});
+
+// ── Credit Note ───────────────────────────────────────────────────────────────
+
+export const updateTeamMemberSchema = z.object({
+  role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
 });
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -115,3 +201,5 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;
 export type UpdateNotificationPreferencesInput = z.infer<typeof updateNotificationPreferencesSchema>;
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
+export type UpdateOrganizationSettingsInput = z.infer<typeof updateOrganizationSettingsSchema>;
+export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>;

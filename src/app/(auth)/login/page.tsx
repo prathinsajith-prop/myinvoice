@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,20 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<"credentials" | "code">("credentials");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingPassword, setPendingPassword] = useState("");
+  const [expiresInMinutes, setExpiresInMinutes] = useState<number | null>(null);
+  const [hasAuthenticatorApp, setHasAuthenticatorApp] = useState(false);
+
+  const { isSigningIn, setSigningIn, setAuthError, clearAuthError } = useAuthStore();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -32,23 +39,50 @@ function LoginForm() {
   });
 
   const onSubmit = async (data: LoginInput) => {
-    setIsLoading(true);
+    setSigningIn(true);
+    clearAuthError();
     try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
+      if (step === "credentials") {
+        const response = await fetch("/api/auth/login-challenge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email, password: data.password }),
+        });
 
-      if (result?.error) {
-        toast.error("Invalid email or password");
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = payload.error || "Invalid email or password";
+          setAuthError(message);
+          toast.error(message);
+          return;
+        }
+
+        setPendingEmail(data.email);
+        setPendingPassword(data.password);
+        setExpiresInMinutes(payload.expiresInMinutes ?? 10);
+        setHasAuthenticatorApp(Boolean(payload.hasAuthenticatorApp));
+        setStep("code");
+        toast.success("Authentication code sent. Check your email to continue.");
       } else {
+        const result = await signIn("credentials", {
+          email: pendingEmail,
+          password: pendingPassword,
+          otp: data.otp,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          setAuthError("Invalid or expired authentication code");
+          toast.error("Invalid or expired authentication code");
+          return;
+        }
+
         window.location.href = callbackUrl;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
-      setIsLoading(false);
+      setSigningIn(false);
     }
   };
 
@@ -56,7 +90,7 @@ function LoginForm() {
     setIsGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl });
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
       setIsGoogleLoading(false);
     }
@@ -65,77 +99,141 @@ function LoginForm() {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {step === "credentials" ? "Welcome back" : "Enter your authentication code"}
+        </h1>
         <p className="text-muted-foreground">
-          Sign in to your account to continue
+          {step === "credentials"
+            ? "Sign in to your account to continue"
+            : `We sent a 6-digit code to ${pendingEmail}.`}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="name@company.ae"
-            autoComplete="email"
-            disabled={isLoading}
-            {...register("email")}
-          />
-          {errors.email && (
-            <p className="text-sm text-destructive">{errors.email.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              href="/forgot-password"
-              className="text-sm text-primary hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              disabled={isLoading}
-              className="pr-10"
-              {...register("password")}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-muted-foreground hover:text-foreground focus:outline-none"
-              tabIndex={-1}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
+        {step === "credentials" ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@company.ae"
+                autoComplete="email"
+                disabled={isSigningIn}
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
-            </button>
-          </div>
-          {errors.password && (
-            <p className="text-sm text-destructive">
-              {errors.password.message}
-            </p>
-          )}
-        </div>
+            </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  disabled={isSigningIn}
+                  className="pr-10"
+                  {...register("password")}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+              <div className="flex items-start gap-3">
+                <Mail className="mt-0.5 h-4 w-4 text-primary" />
+                <div className="space-y-1">
+                  <p className="font-medium">Email code required for every sign-in</p>
+                  <p className="text-muted-foreground">
+                    Enter the 6-digit code we sent to your email.
+                    {expiresInMinutes ? ` Code expires in ${expiresInMinutes} minutes.` : ""}
+                  </p>
+                  {hasAuthenticatorApp && (
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <ShieldCheck className="h-4 w-4" />
+                      You can also use your authenticator app code.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="otp">Authentication Code</Label>
+              <Input
+                id="otp"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                disabled={isSigningIn}
+                {...register("otp")}
+              />
+              {errors.otp && (
+                <p className="text-sm text-destructive">{errors.otp.message}</p>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="px-0"
+              onClick={() => {
+                setStep("credentials");
+                setPendingEmail("");
+                setPendingPassword("");
+                setExpiresInMinutes(null);
+                setHasAuthenticatorApp(false);
+              }}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to email and password
+            </Button>
+          </>
+        )}
+
+        <Button type="submit" className="w-full" disabled={isSigningIn}>
+          {isSigningIn ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Signing in...
             </>
           ) : (
-            "Sign in"
+            step === "credentials" ? "Continue" : "Verify and sign in"
           )}
         </Button>
       </form>

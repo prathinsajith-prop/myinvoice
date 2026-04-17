@@ -1,7 +1,14 @@
+import { type Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "MyInvoice AE — Smart Invoicing for UAE Businesses",
+  description: "Create VAT-compliant invoices, manage customers and expenses, and simplify your business finances with MyInvoice AE.",
+};
 import { FileText, Shield, Globe, Zap, ArrowRight, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 const features = [
   {
@@ -45,6 +52,9 @@ export default function Home() {
             <span className="text-xl font-bold">myinvoice.ae</span>
           </Link>
           <nav className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <Link href="/features" className="text-sm text-muted-foreground hover:text-foreground">Features</Link>
+            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">Pricing</Link>
             <Link href="/login">
               <Button variant="ghost">Sign In</Button>
             </Link>
@@ -65,7 +75,7 @@ export default function Home() {
           <span className="text-primary">UAE Businesses</span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-          Create FTA-compliant invoices, manage VAT, and get paid faster. 
+          Create FTA-compliant invoices, manage VAT, and get paid faster.
           The complete e-invoicing solution designed specifically for Dubai and UAE businesses.
         </p>
         <div className="mt-10 flex gap-4">
@@ -152,6 +162,10 @@ export default function Home() {
           <p className="text-sm text-muted-foreground">
             © 2024 myinvoice.ae. UAE E-Invoicing Platform.
           </p>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
+          </div>
         </div>
       </footer>
     </div>

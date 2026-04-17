@@ -3,17 +3,42 @@
  * These use getToken() which works in Edge/Node route handlers.
  */
 
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { UnauthorizedError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { hasRole, type MemberRole, hasPermission, type Permission } from "@/lib/rbac";
 import prisma from "@/lib/db/prisma";
 import { getTenantPrisma, type TenantPrismaClient } from "@/lib/db/tenant";
+import { NEXTAUTH_SECRET } from "@/lib/constants/env";
 
 export interface ApiContext {
   userId: string;
   organizationId: string;
   role: MemberRole;
+  email: string | null;
+}
+
+export interface ApiUserContext {
+  userId: string;
+}
+
+/**
+ * Resolve user-only auth context (no org required).
+ * Use this for profile, password, and other user-scoped endpoints.
+ */
+export async function resolveUserContext(req: NextRequest): Promise<ApiUserContext> {
+  let token;
+  try {
+    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+  } catch {
+    throw new UnauthorizedError();
+  }
+
+  if (!token?.sub) {
+    throw new UnauthorizedError();
+  }
+
+  return { userId: token.sub };
 }
 
 /**
@@ -21,7 +46,12 @@ export interface ApiContext {
  * Throws typed errors rather than returning null.
  */
 export async function resolveApiContext(req: NextRequest): Promise<ApiContext> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  let token;
+  try {
+    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+  } catch {
+    throw new UnauthorizedError();
+  }
 
   if (!token?.sub) {
     throw new UnauthorizedError();
@@ -35,6 +65,7 @@ export async function resolveApiContext(req: NextRequest): Promise<ApiContext> {
     userId: token.sub,
     organizationId: token.organizationId as string,
     role: token.role as MemberRole,
+    email: (token.email as string) ?? null,
   };
 }
 
@@ -64,6 +95,29 @@ export async function resolveApiContextWithPermission(
   const ctx = await resolveApiContext(req);
 
   if (!hasPermission(ctx.role, permission)) {
+    throw new ForbiddenError();
+  }
+
+  return ctx;
+}
+
+/**
+ * Resolve context with automatic permission mapping based on HTTP method.
+ * GET → view, POST → create, PATCH/PUT → edit, DELETE → delete.
+ */
+const METHOD_PERMISSION: Record<string, Permission> = {
+  GET: "view",
+  POST: "create",
+  PATCH: "edit",
+  PUT: "edit",
+  DELETE: "delete",
+};
+
+export async function resolveRouteContext(req: NextRequest): Promise<ApiContext> {
+  const ctx = await resolveApiContext(req);
+  const permission = METHOD_PERMISSION[req.method.toUpperCase()];
+
+  if (permission && !hasPermission(ctx.role, permission)) {
     throw new ForbiddenError();
   }
 

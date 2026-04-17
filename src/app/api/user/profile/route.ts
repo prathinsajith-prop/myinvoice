@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { updateProfileSchema } from "@/lib/validations/settings";
-import { resolveApiContext } from "@/lib/api/auth";
+import { resolveUserContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 
 // GET /api/user/profile
 export async function GET(req: NextRequest) {
   try {
-    const ctx = await resolveApiContext(req);
+    const ctx = await resolveUserContext(req);
 
     const user = await prisma.user.findUnique({
       where: { id: ctx.userId },
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
 // PATCH /api/user/profile
 export async function PATCH(req: NextRequest) {
   try {
-    const ctx = await resolveApiContext(req);
+    const ctx = await resolveUserContext(req);
     const body = await req.json();
 
     const result = updateProfileSchema.safeParse(body);

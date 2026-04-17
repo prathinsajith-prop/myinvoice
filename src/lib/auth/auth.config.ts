@@ -1,13 +1,23 @@
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { compare } from "bcryptjs";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+import { seedNewOrganization } from "@/lib/db/seed-org";
+import { verifyTotpCode } from "@/lib/security/totp";
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from "@/lib/constants/env";
+import {
+  finalizeSuccessfulLoginWithMetadata,
+  recordSecondFactorFailure,
+  validatePrimaryCredentials,
+  verifyLoginChallenge,
+} from "@/lib/auth/login-challenge";
+import { getRequestMetadataFromHeaders } from "@/lib/security/request-metadata";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  otp: z.string().regex(/^\d{6}$/).optional(),
 });
 
 export const authConfig: NextAuthConfig = {
@@ -18,39 +28,49 @@ export const authConfig: NextAuthConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { email, password, otp } = parsed.data;
+        const requestMetadata = getRequestMetadataFromHeaders(request?.headers);
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
+        const primaryResult = await validatePrimaryCredentials(email, password, requestMetadata);
+        if (!primaryResult.ok) return null;
 
-        if (!user?.password) return null;
+        if (!otp) {
+          await recordSecondFactorFailure(primaryResult.user.id, "Authentication code missing", requestMetadata);
+          return null;
+        }
 
-        const valid = await compare(password, user.password);
-        if (!valid) return null;
+        const user = primaryResult.user;
+        const challengeValid = await verifyLoginChallenge(user.id, otp);
+        const authenticatorValid = Boolean(
+          user.twoFactorEnabled &&
+          user.twoFactorSecret &&
+          verifyTotpCode(user.twoFactorSecret, otp),
+        );
 
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
+        if (!challengeValid && !authenticatorValid) {
+          await recordSecondFactorFailure(primaryResult.user.id, "Invalid or expired authentication code", requestMetadata);
+          return null;
+        }
+
+        await finalizeSuccessfulLoginWithMetadata(user.id, requestMetadata);
 
         return {
           id: user.id,
           name: user.name,
           email: user.email,
-          image: user.image,
+          image: null,           // Never store base64 images in JWT – session callback fetches fresh from DB
           twoFactorEnabled: user.twoFactorEnabled,
         };
       },
     }),
 
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
     }),
   ],
@@ -74,6 +94,9 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         token.id = user.id;
         token.twoFactorEnabled = user.twoFactorEnabled ?? false;
+        // Remove image fields auto-merged by NextAuth to keep JWT small
+        delete token.image;
+        delete token.picture;
 
         const memberships = await prisma.organizationMembership.findMany({
           where: { userId: user.id!, isActive: true },
@@ -98,16 +121,43 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
+      // ── Fallback: re-hydrate org data when token is stale/incomplete ─────────────
+      if ((!token.organizationId || !token.organizations || token.organizations.length === 0) && (token.id || token.sub)) {
+        const uid = (token.id ?? token.sub) as string;
+        const memberships = await prisma.organizationMembership.findMany({
+          where: { userId: uid, isActive: true },
+          include: {
+            organization: { select: { id: true, name: true, slug: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        });
+
+        token.organizations = memberships.map((m) => ({
+          id: m.organization.id,
+          name: m.organization.name,
+          slug: m.organization.slug,
+          role: m.role,
+        }));
+
+        if (!token.organizationId && memberships.length > 0) {
+          const first = memberships[0];
+          token.organizationId = first.organization.id;
+          token.organizationSlug = first.organization.slug;
+          token.role = first.role;
+        }
+      }
+
       // ── Organization switch ──────────────────────────────────────────────
       if (trigger === "update" && session?.organizationId) {
+        const userId = (token.id ?? token.sub) as string;
         const membership = await prisma.organizationMembership.findFirst({
           where: {
-            userId: token.id as string,
+            userId,
             organizationId: session.organizationId,
             isActive: true,
           },
           include: {
-            organization: { select: { id: true, name: true, slug: true } },
+            organization: { select: { id: true, name: true, slug: true, logo: true } },
           },
         });
 
@@ -118,7 +168,7 @@ export const authConfig: NextAuthConfig = {
 
           // Refresh orgs list so newly joined orgs appear immediately
           const allMemberships = await prisma.organizationMembership.findMany({
-            where: { userId: token.id as string, isActive: true },
+            where: { userId, isActive: true },
             include: {
               organization: { select: { id: true, name: true, slug: true } },
             },
@@ -143,12 +193,55 @@ export const authConfig: NextAuthConfig = {
       session.user.organizationId = token.organizationId as string | undefined;
       session.user.organizationSlug = token.organizationSlug as string | undefined;
       session.user.role = token.role as string | undefined;
-      session.user.organizations = (token.organizations ?? []) as Array<{
+
+      // Token stores orgs WITHOUT logos (to keep JWT small).
+      // Fetch fresh data from DB including logos.
+      const uid = (token.id ?? token.sub) as string | undefined;
+      const tokenOrgs = (token.organizations ?? []) as Array<{
         id: string;
         name: string;
         slug: string;
         role: string;
       }>;
+
+      if (uid) {
+        const orgIds = tokenOrgs.map((o) => o.id);
+
+        const [freshUser, freshOrgs] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: uid },
+            select: { name: true, image: true },
+          }),
+          orgIds.length > 0
+            ? prisma.organization.findMany({
+              where: { id: { in: orgIds } },
+              select: { id: true, name: true, logo: true },
+            })
+            : [],
+        ]);
+
+        if (freshUser) {
+          session.user.name = freshUser.name ?? session.user.name;
+          session.user.image = freshUser.image ?? null;
+        }
+
+        const orgMap = new Map(freshOrgs.map((o) => [o.id, o]));
+        session.user.organizations = tokenOrgs.map((o) => ({
+          ...o,
+          name: orgMap.get(o.id)?.name ?? o.name,
+          logo: orgMap.get(o.id)?.logo ?? null,
+        }));
+
+        session.user.organizationLogo =
+          orgMap.get(token.organizationId as string)?.logo ?? null;
+      } else {
+        session.user.organizations = tokenOrgs.map((o) => ({
+          ...o,
+          logo: null,
+        }));
+        session.user.organizationLogo = null;
+      }
+
       return session;
     },
   },
@@ -176,6 +269,9 @@ export const authConfig: NextAuthConfig = {
           acceptedAt: new Date(),
         },
       });
+
+      // Seed subscription, settings, and document sequences
+      await seedNewOrganization(org.id);
     },
   },
 

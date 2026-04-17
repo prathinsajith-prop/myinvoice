@@ -1,0 +1,250 @@
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import prisma from "@/lib/db/prisma";
+import { resolveRouteContext } from "@/lib/api/auth";
+import { normalizeDocumentBody } from "@/lib/api/normalize";
+import { logApiAudit } from "@/lib/api/audit";
+import { toErrorResponse } from "@/lib/errors";
+import { getNextDocumentNumber } from "@/lib/services/numbering";
+import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { notifyOrgMembers } from "@/lib/notifications/create";
+import { enforceInvoiceLimit } from "@/lib/plans.server";
+import { generateFtaQrPayload } from "@/lib/services/fta-qr";
+import { generatePublicToken } from "@/lib/crypto/token";
+
+const lineItemSchema = z.object({
+    productId: z.string().optional().nullable(),
+    description: z.string().min(1),
+    quantity: z.coerce.number().positive(),
+    unitPrice: z.coerce.number().min(0),
+    unitOfMeasure: z.string().default("unit"),
+    discount: z.coerce.number().min(0).max(100).default(0),
+    vatTreatment: z
+        .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "REVERSE_CHARGE", "OUT_OF_SCOPE"])
+        .default("STANDARD_RATED"),
+    vatRate: z.coerce.number().min(0).max(100).default(5),
+    sortOrder: z.coerce.number().int().default(0),
+});
+
+const createInvoiceSchema = z.object({
+    customerId: z.string(),
+    invoiceType: z.enum(["TAX_INVOICE", "SIMPLIFIED_TAX", "PROFORMA"]).default("TAX_INVOICE"),
+    reference: z.string().optional().nullable(),
+    poNumber: z.string().optional().nullable(),
+    issueDate: z.string().optional(),
+    dueDate: z.string(),
+    currency: z.string().default("AED"),
+    exchangeRate: z.coerce.number().default(1),
+    notes: z.string().optional().nullable(),
+    terms: z.string().optional().nullable(),
+    internalNotes: z.string().optional().nullable(),
+    lineItems: z.array(lineItemSchema).min(1),
+});
+
+export async function GET(req: NextRequest) {
+    try {
+        const ctx = await resolveRouteContext(req);
+        const { searchParams } = new URL(req.url);
+        const search = searchParams.get("search") ?? "";
+        const status = searchParams.get("status");
+        const customerId = searchParams.get("customerId");
+        const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
+        const skip = (page - 1) * limit;
+
+        const where = {
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+            ...(status ? { status: status as never } : {}),
+            ...(customerId ? { customerId } : {}),
+            ...(search
+                ? {
+                    OR: [
+                        { invoiceNumber: { contains: search, mode: "insensitive" as const } },
+                        { reference: { contains: search, mode: "insensitive" as const } },
+                        { customer: { name: { contains: search, mode: "insensitive" as const } } },
+                    ],
+                }
+                : {}),
+        };
+
+        const [invoices, total] = await Promise.all([
+            prisma.invoice.findMany({
+                where,
+                orderBy: { issueDate: "desc" },
+                skip,
+                take: limit,
+                select: {
+                    id: true,
+                    invoiceNumber: true,
+                    invoiceType: true,
+                    status: true,
+                    issueDate: true,
+                    dueDate: true,
+                    currency: true,
+                    subtotal: true,
+                    totalVat: true,
+                    total: true,
+                    outstanding: true,
+                    amountPaid: true,
+                    customer: { select: { id: true, name: true, email: true } },
+                },
+            }),
+            prisma.invoice.count({ where }),
+        ]);
+
+        return NextResponse.json({ data: invoices, pagination: { total, page, limit, pages: Math.ceil(total / limit) } });
+    } catch (error) {
+        return toErrorResponse(error);
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const ctx = await resolveRouteContext(req);
+
+        // Enforce plan invoice limit before creating
+        await enforceInvoiceLimit(ctx.organizationId);
+
+        const raw = await req.json();
+        const body = normalizeDocumentBody(raw);
+
+        const result = createInvoiceSchema.safeParse(body);
+        if (!result.success) {
+            return NextResponse.json(
+                { error: "Validation failed", details: result.error.flatten() },
+                { status: 400 }
+            );
+        }
+
+        const { lineItems: lineItemsInput, issueDate, dueDate, ...invoiceData } = result.data;
+
+        // Calculate line items
+        const calculatedItems = lineItemsInput.map((item) => {
+            const calc = calculateLineItem({
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discount: item.discount,
+                vatTreatment: item.vatTreatment,
+                vatRate: item.vatRate,
+            });
+            return { ...item, ...calc };
+        });
+        const totals = calculateDocumentTotals(calculatedItems);
+
+        const documentType =
+            invoiceData.invoiceType === "PROFORMA" ? "PROFORMA" : "INVOICE";
+
+        const invoiceNumber = await getNextDocumentNumber(ctx.organizationId, documentType);
+
+        const organization = await prisma.organization.findUnique({
+            where: { id: ctx.organizationId },
+            select: { name: true, legalName: true, trn: true },
+        });
+
+        // Resolve customer TRN for FTA compliance (buyerTrn required on B2B invoices > AED 10,000)
+        const customerRecord = await prisma.customer.findUnique({
+            where: { id: invoiceData.customerId },
+            select: { trn: true, type: true, email: true },
+        });
+
+        // FTA Compliance: B2B invoices over AED 10,000 MUST have buyerTrn
+        if (
+            customerRecord?.type === "BUSINESS" &&
+            totals.total > 10000 &&
+            !customerRecord?.trn
+        ) {
+            return NextResponse.json(
+                {
+                    error: "FTA Compliance Error",
+                    message: "B2B invoices over AED 10,000 require the customer's Tax Registration Number (TRN). Please add the customer's TRN and try again.",
+                    code: "FTA_B2B_TRN_REQUIRED",
+                },
+                { status: 400 }
+            );
+        }
+
+        const issueDateValue = issueDate ? new Date(issueDate) : new Date();
+
+        const qrCodeData = organization?.trn
+            ? generateFtaQrPayload({
+                sellerName: organization.legalName || organization.name,
+                trn: organization.trn,
+                timestampIso: issueDateValue.toISOString(),
+                invoiceTotal: totals.total,
+                vatTotal: totals.totalVat,
+            })
+            : null;
+
+        const invoice = await prisma.invoice.create({
+            data: {
+                ...invoiceData,
+                organizationId: ctx.organizationId,
+                invoiceNumber,
+                issueDate: issueDateValue,
+                dueDate: new Date(dueDate),
+                publicToken: generatePublicToken(),
+                qrCodeData,
+                ftaCompliant: Boolean(organization?.trn && qrCodeData),
+                sellerTrn: organization?.trn ?? null,
+                buyerTrn: customerRecord?.trn ?? null,
+                subtotal: totals.subtotal,
+                totalVat: totals.totalVat,
+                discount: totals.discount,
+                total: totals.total,
+                outstanding: totals.total,
+                lineItems: {
+                    create: calculatedItems.map((item, i) => ({
+                        productId: item.productId ?? null,
+                        description: item.description,
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        unitOfMeasure: item.unitOfMeasure ?? "unit",
+                        discount: item.discount ?? 0,
+                        vatTreatment: item.vatTreatment ?? "STANDARD_RATED",
+                        vatRate: item.effectiveVatRate,
+                        subtotal: item.subtotal,
+                        vatAmount: item.vatAmount,
+                        total: item.total,
+                        sortOrder: item.sortOrder ?? i,
+                    })),
+                },
+            },
+            include: {
+                lineItems: true,
+                customer: { select: { id: true, name: true, email: true, trn: true } },
+            },
+        });
+
+        // Update customer denormalized stats
+        prisma.customer.update({
+            where: { id: invoice.customerId },
+            data: {
+                invoiceCount: { increment: 1 },
+                totalInvoiced: { increment: totals.total },
+                totalOutstanding: { increment: totals.total },
+                lastInvoiceDate: issueDateValue,
+            },
+        }).catch(() => { }); // fire-and-forget, non-critical
+
+        // Audit log — feeds enforceInvoiceLimit counter
+        logApiAudit({ organizationId: ctx.organizationId, userId: ctx.userId, userEmail: ctx.email, action: "CREATE", entityType: "Invoice", entityId: invoice.id, entityRef: invoice.invoiceNumber, newData: { invoiceNumber: invoice.invoiceNumber }, req });
+
+        // Notify org members about new invoice
+        notifyOrgMembers({
+            organizationId: ctx.organizationId,
+            excludeUserId: ctx.userId,
+            title: "New Invoice Created",
+            message: `Invoice ${invoice.invoiceNumber} has been created`,
+            type: "INVOICE_CREATED",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            actionUrl: `/invoices/${invoice.id}`,
+        }).catch(() => { }); // fire-and-forget
+
+        return NextResponse.json(invoice, { status: 201 });
+    } catch (error) {
+        return toErrorResponse(error);
+    }
+}
