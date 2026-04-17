@@ -4,11 +4,16 @@ export interface CountryOption {
     value: string;   // ISO alpha2 e.g. "AE"
     label: string;   // "United Arab Emirates"
     flag: string;    // emoji "🇦🇪"
+    flagImage: string; // SVG data URI from country-atlas
     currency: string; // "AED"
     currencySymbol: string; // "د.إ"
     currencyName: string; // "UAE Dirham"
     callingCode: string; // "+971"
     timezones: string[]; // ["Asia/Dubai"]
+}
+
+function toSvgDataUri(svg: string): string {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 // IANA timezone → country ISO2 mapping (covers ~180 countries)
@@ -127,6 +132,7 @@ export function getCountryOptions(): CountryOption[] {
             value: c.iso.alpha2,
             label: c.name,
             flag: c.flag?.emoji ?? "",
+            flagImage: c.flag?.svg ? toSvgDataUri(c.flag.svg) : "",
             currency: c.currency?.code ?? "USD",
             currencySymbol: c.currency?.symbol ?? c.currency?.code ?? "",
             currencyName: c.currency?.name ?? "",
@@ -167,6 +173,13 @@ export function formatTimezone(tz: string): string {
     } catch {
         return tz;
     }
+}
+
+/** Get the default currency code for a country ISO2 code */
+export function getCurrencyForCountry(iso2: string): string {
+    const countries = getCountryOptions();
+    const country = countries.find((c) => c.value === iso2);
+    return country?.currency ?? "USD";
 }
 
 export const UAE_EMIRATES = [

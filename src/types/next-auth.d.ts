@@ -1,5 +1,4 @@
 import { type DefaultSession } from "next-auth";
-import { type MemberRole } from "@/generated/prisma";
 
 declare module "next-auth" {
   interface Session {
@@ -14,6 +13,7 @@ declare module "next-auth" {
         id: string;
         name: string;
         slug: string;
+        logo: string | null;
         role: string;
       }>;
     } & DefaultSession["user"];

@@ -51,6 +51,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       if (!session) return;
       setIsSwitching(true);
       try {
+        // Client-side update sends POST to /api/auth/session
+        // The JWT callback handles trigger="update" and updates the token
+        // The browser processes the Set-Cookie header from the response
         await update({ organizationId });
       } finally {
         setIsSwitching(false);
