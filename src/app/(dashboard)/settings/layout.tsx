@@ -83,6 +83,7 @@ function SettingsSidebar() {
         },
       ],
     },
+
   ];
 
   return (

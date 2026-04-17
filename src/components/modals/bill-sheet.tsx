@@ -78,8 +78,13 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
     );
     const suppliers = suppliersData?.data ?? [];
     const [submitting, setSubmitting] = useState(false);
-    const [_loadingBill, setLoadingBill] = useState(false);
     const orgSettings = useOrgSettings();
+
+    // Fetch edit data via SWR (conditional key)
+    const { data: editBillData } = useSWR(
+        open && editBillId ? `/api/bills/${editBillId}` : null,
+        jsonFetcher
+    );
 
     const today = new Date().toISOString().split("T")[0];
     const dueDate = new Date(Date.now() + orgSettings.defaultDueDateDays * 86400000).toISOString().split("T")[0];
@@ -104,31 +109,24 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
 
     useEffect(() => {
         if (open) {
-            if (editBillId) {
-                setLoadingBill(true);
-                fetch(`/api/bills/${editBillId}`)
-                    .then(res => res.ok ? res.json() : null)
-                    .then(bill => {
-                        if (bill) {
-                            form.reset({
-                                supplierId: bill.supplier.id,
-                                billDate: bill.issueDate.split('T')[0],
-                                dueDate: bill.dueDate.split('T')[0],
-                                supplierReference: bill.reference || "",
-                                currency: bill.currency,
-                                notes: bill.notes || "",
-                                lineItems: bill.lineItems.map((item: Record<string, unknown>) => ({
-                                    description: item.description,
-                                    quantity: item.quantity,
-                                    unitPrice: item.unitPrice,
-                                    discountPercent: item.discount,
-                                    vatTreatment: item.vatTreatment,
-                                })),
-                            });
-                        }
-                    })
-                    .finally(() => setLoadingBill(false));
-            } else {
+            if (editBillId && editBillData) {
+                const bill = editBillData as Record<string, unknown> & { supplier: { id: string }; lineItems: Record<string, unknown>[] };
+                form.reset({
+                    supplierId: bill.supplier.id,
+                    billDate: (bill.issueDate as string).split('T')[0],
+                    dueDate: (bill.dueDate as string).split('T')[0],
+                    supplierReference: (bill.reference as string) || "",
+                    currency: bill.currency as string,
+                    notes: (bill.notes as string) || "",
+                    lineItems: bill.lineItems.map((item: Record<string, unknown>) => ({
+                        description: item.description as string,
+                        quantity: item.quantity as number,
+                        unitPrice: item.unitPrice as number,
+                        discountPercent: item.discount as number,
+                        vatTreatment: item.vatTreatment as string,
+                    })),
+                });
+            } else if (!editBillId) {
                 loadOrgSettings().then((s) => {
                     const due = new Date(Date.now() + s.defaultDueDateDays * 86400000).toISOString().split("T")[0];
                     form.reset({
@@ -143,8 +141,8 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                 });
             }
         }
-         
-    }, [open, editBillId]);
+
+    }, [open, editBillId, editBillData]);
 
     const totals = watchedItems.reduce(
         (acc, item) => {

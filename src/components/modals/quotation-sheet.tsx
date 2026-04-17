@@ -85,8 +85,13 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
     const customers = customersData?.data ?? [];
     const products = productsData?.data ?? [];
     const [submitting, setSubmitting] = useState(false);
-    const [_loadingQuotation, setLoadingQuotation] = useState(false);
     const orgSettings = useOrgSettings();
+
+    // Fetch edit data via SWR (conditional key)
+    const { data: editQuotationData } = useSWR(
+        open && editQuotationId ? `/api/quotations/${editQuotationId}` : null,
+        jsonFetcher
+    );
 
     const today = new Date().toISOString().split("T")[0];
     const validUntil = new Date(Date.now() + orgSettings.defaultDueDateDays * 86400000).toISOString().split("T")[0];
@@ -111,32 +116,25 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
 
     useEffect(() => {
         if (open) {
-            if (editQuotationId) {
-                setLoadingQuotation(true);
-                fetch(`/api/quotations/${editQuotationId}`)
-                    .then(res => res.ok ? res.json() : null)
-                    .then(quotation => {
-                        if (quotation) {
-                            form.reset({
-                                customerId: quotation.customer.id,
-                                issueDate: quotation.issueDate.split('T')[0],
-                                validUntil: quotation.validUntil.split('T')[0],
-                                currency: quotation.currency,
-                                notes: quotation.notes || "",
-                                termsAndConditions: quotation.terms || "",
-                                lineItems: quotation.lineItems.map((item: Record<string, unknown>) => ({
-                                    description: item.description,
-                                    quantity: item.quantity,
-                                    unitPrice: item.unitPrice,
-                                    discountPercent: item.discount,
-                                    vatTreatment: item.vatTreatment,
-                                    productId: item.productId,
-                                })),
-                            });
-                        }
-                    })
-                    .finally(() => setLoadingQuotation(false));
-            } else {
+            if (editQuotationId && editQuotationData) {
+                const quotation = editQuotationData as Record<string, unknown> & { customer: { id: string }; lineItems: Record<string, unknown>[] };
+                form.reset({
+                    customerId: quotation.customer.id,
+                    issueDate: (quotation.issueDate as string).split('T')[0],
+                    validUntil: (quotation.validUntil as string).split('T')[0],
+                    currency: quotation.currency as string,
+                    notes: (quotation.notes as string) || "",
+                    termsAndConditions: (quotation.terms as string) || "",
+                    lineItems: quotation.lineItems.map((item: Record<string, unknown>) => ({
+                        description: item.description as string,
+                        quantity: item.quantity as number,
+                        unitPrice: item.unitPrice as number,
+                        discountPercent: item.discount as number,
+                        vatTreatment: item.vatTreatment as string,
+                        productId: item.productId as string,
+                    })),
+                });
+            } else if (!editQuotationId) {
                 loadOrgSettings().then((s) => {
                     const validUntilDate = new Date(Date.now() + s.defaultDueDateDays * 86400000).toISOString().split("T")[0];
                     form.reset({
@@ -151,8 +149,8 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                 });
             }
         }
-         
-    }, [open, editQuotationId]);
+
+    }, [open, editQuotationId, editQuotationData]);
 
     const totals = watchedItems.reduce(
         (acc, item) => {

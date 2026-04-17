@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
             orderBy: {
                 dueDate: "asc",
             },
+            take: 500,
         });
 
         // Categorize by urgency

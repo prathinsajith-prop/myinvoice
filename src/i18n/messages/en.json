@@ -114,7 +114,8 @@
     "selectOrganization": "Select organization",
     "newOrganization": "New organization",
     "noOrganizations": "No organizations",
-    "switchedOrganization": "Switched organization"
+    "switchedOrganization": "Switched organization",
+    "connectedApps": "Connected Apps"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -142,10 +143,12 @@
       "purchases": "Purchases",
       "catalog": "Catalog",
       "finance": "Finance",
-      "administration": "Administration"
+      "administration": "Administration",
+      "developer": "Developer"
     },
     "recurringInvoices": "Recurring Invoices",
-    "paymentReminders": "Payment Reminders"
+    "paymentReminders": "Payment Reminders",
+    "connectedApps": "Connected Apps"
   },
   "dashboard": {
     "welcome": "Welcome back, {name}",
@@ -693,7 +696,10 @@
       "auditLogDesc": "Track all organization activity",
       "billing": "Billing",
       "subscriptionName": "Subscription",
-      "subscriptionDesc": "Manage your subscription and billing"
+      "subscriptionDesc": "Manage your subscription and billing",
+      "developer": "Developer",
+      "appsName": "Connected Apps",
+      "appsDesc": "Manage API keys and webhook integrations"
     },
     "organization": {
       "title": "Organization",
@@ -1045,6 +1051,61 @@
       "verified": "Verified",
       "notVerified": "Not verified",
       "recently": "Recently"
+    },
+    "apps": {
+      "title": "Connected Apps",
+      "description": "Manage API keys, scopes, and webhook integrations for external services.",
+      "createApp": "Create App",
+      "noApps": "No connected apps yet",
+      "noAppsDesc": "Create an API key to integrate external services with your organization.",
+      "name": "App Name",
+      "namePlaceholder": "e.g. My ERP Integration",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "What does this app do?",
+
+      "scopes": "Scopes",
+      "scopesDesc": "Select the permissions this app should have.",
+      "allowedMethods": "Allowed HTTP Methods",
+      "allowedMethodsDesc": "Restrict which HTTP methods this key can use. Leave empty for all.",
+      "allowedModules": "Allowed Modules",
+      "allowedModulesDesc": "Restrict which modules this key can access. Leave empty for all scoped modules.",
+      "ipWhitelist": "IP / URL Whitelist",
+      "ipWhitelistPlaceholder": "e.g. 203.0.113.0/24, example.com, https://app.example.com",
+      "ipWhitelistDesc": "Restrict access to specific IPs, CIDR ranges, or domains. Leave empty for unrestricted.",
+
+      "status": "Status",
+      "active": "Active",
+      "revoked": "Revoked",
+      "lastUsed": "Last Used",
+      "never": "Never",
+      "requestCount": "Request Count",
+      "createdAt": "Created",
+      "revokedAt": "Revoked At",
+      "actions": "Actions",
+      "viewDetails": "View Details",
+      "editApp": "Edit App",
+      "revokeApp": "Revoke App",
+      "revokeConfirm": "Are you sure you want to revoke this app? This cannot be undone.",
+      "revokeTitle": "Revoke App",
+      "regenerateSecret": "Regenerate API Key",
+      "regenerateSecretConfirm": "This will invalidate the current API key. The new key will only be shown once.",
+      "secretWarning": "Copy these credentials now — they won't be shown again.",
+      "secretsTitle": "Your API Credentials",
+      "appKey": "API Secret",
+      "copied": "Copied to clipboard",
+      "save": "Create App",
+      "saving": "Creating...",
+      "update": "Update App",
+      "updating": "Updating...",
+      "created": "App created successfully",
+      "updated": "App updated successfully",
+      "revokedSuccess": "App revoked successfully",
+      "secretRegenerated": "API key regenerated",
+      "readScope": "Read",
+      "writeScope": "Write",
+      "deleteScope": "Delete",
+      "allMethods": "All Methods",
+      "allModules": "All Scoped Modules"
     }
   },
   "onboarding": {

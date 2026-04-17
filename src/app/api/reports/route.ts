@@ -61,11 +61,13 @@ export async function GET(req: NextRequest) {
             invoiceStatusCounts,
             billStatusCounts,
             expenseCategoryCounts,
-            monthlyInvoices,
-            monthlyExpenses,
+            monthlyRevenue,
+            monthlyExpenseAmts,
             recentInvoices,
-            receivableAgingInvoices,
-            payableAgingBills,
+            receivableAging,
+            payableAging,
+            topCustomers,
+            paymentPatterns,
         ] = await Promise.all([
             prisma.invoice.aggregate({
                 where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: from, lte: to } },
@@ -132,16 +134,26 @@ export async function GET(req: NextRequest) {
                 orderBy: { _sum: { total: "desc" } },
             }),
 
-            // monthly trend — last 12 months
-            prisma.invoice.findMany({
-                where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: new Date(now.getFullYear(), now.getMonth() - 11, 1) } },
-                select: { issueDate: true, total: true },
-            }),
+            // monthly revenue trend — raw SQL aggregation (replaces fetching all rows)
+            prisma.$queryRaw<{ month: string; total: number }[]>`
+                SELECT to_char(date_trunc('month', "issueDate"), 'YYYY-MM') AS month,
+                       SUM("total")::float AS total
+                FROM "Invoice"
+                WHERE "organizationId" = ${orgId} AND "deletedAt" IS NULL
+                    AND "status" != 'VOID'
+                    AND "issueDate" >= ${new Date(now.getFullYear(), now.getMonth() - 11, 1)}
+                GROUP BY 1 ORDER BY 1
+            `,
 
-            prisma.expense.findMany({
-                where: { organizationId: orgId, deletedAt: null, expenseDate: { gte: new Date(now.getFullYear(), now.getMonth() - 11, 1) } },
-                select: { expenseDate: true, total: true },
-            }),
+            // monthly expenses trend — raw SQL aggregation
+            prisma.$queryRaw<{ month: string; total: number }[]>`
+                SELECT to_char(date_trunc('month', "expenseDate"), 'YYYY-MM') AS month,
+                       SUM("total")::float AS total
+                FROM "Expense"
+                WHERE "organizationId" = ${orgId} AND "deletedAt" IS NULL
+                    AND "expenseDate" >= ${new Date(now.getFullYear(), now.getMonth() - 11, 1)}
+                GROUP BY 1 ORDER BY 1
+            `,
 
             // recent invoices for dashboard
             prisma.invoice.findMany({
@@ -159,26 +171,61 @@ export async function GET(req: NextRequest) {
                 },
             }),
 
-            prisma.invoice.findMany({
-                where: {
-                    organizationId: orgId,
-                    deletedAt: null,
-                    status: { notIn: ["VOID", "PAID", "CREDITED"] },
-                    outstanding: { gt: 0 },
-                },
-                select: { dueDate: true, outstanding: true },
-            }),
+            // Receivable aging — SQL aggregation (replaces fetching all outstanding invoices)
+            prisma.$queryRaw<[{ current_amt: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number }]>`
+                SELECT
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" >= NOW()), 0)::float AS current_amt,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() AND "dueDate" >= NOW() - INTERVAL '30 days'), 0)::float AS d1_30,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() - INTERVAL '30 days' AND "dueDate" >= NOW() - INTERVAL '60 days'), 0)::float AS d31_60,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() - INTERVAL '60 days' AND "dueDate" >= NOW() - INTERVAL '90 days'), 0)::float AS d61_90,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() - INTERVAL '90 days'), 0)::float AS d90_plus
+                FROM "Invoice"
+                WHERE "organizationId" = ${orgId} AND "deletedAt" IS NULL
+                    AND "status" NOT IN ('VOID', 'PAID', 'CREDITED')
+                    AND "outstanding" > 0
+            `,
 
-            // AP aging — outstanding bills
-            prisma.bill.findMany({
-                where: {
-                    organizationId: orgId,
-                    deletedAt: null,
-                    status: { notIn: ["VOID", "PAID"] },
-                    outstanding: { gt: 0 },
-                },
-                select: { dueDate: true, outstanding: true },
-            }),
+            // Payable aging — SQL aggregation (replaces fetching all outstanding bills)
+            prisma.$queryRaw<[{ current_amt: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number }]>`
+                SELECT
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" >= NOW()), 0)::float AS current_amt,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() AND "dueDate" >= NOW() - INTERVAL '30 days'), 0)::float AS d1_30,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() - INTERVAL '30 days' AND "dueDate" >= NOW() - INTERVAL '60 days'), 0)::float AS d31_60,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() - INTERVAL '60 days' AND "dueDate" >= NOW() - INTERVAL '90 days'), 0)::float AS d61_90,
+                    COALESCE(SUM("outstanding") FILTER (WHERE "dueDate" < NOW() - INTERVAL '90 days'), 0)::float AS d90_plus
+                FROM "Bill"
+                WHERE "organizationId" = ${orgId} AND "deletedAt" IS NULL
+                    AND "status" NOT IN ('VOID', 'PAID')
+                    AND "outstanding" > 0
+            `,
+
+            // Top 5 customers — single JOIN query (replaces 2 sequential queries)
+            prisma.$queryRaw<{ customer_id: string; name: string; total: number; count: number }[]>`
+                SELECT i."customerId" AS customer_id, c."name",
+                       SUM(i."total")::float AS total, COUNT(*)::int AS count
+                FROM "Invoice" i
+                JOIN "Customer" c ON c."id" = i."customerId"
+                WHERE i."organizationId" = ${orgId} AND i."deletedAt" IS NULL
+                    AND i."status" != 'VOID'
+                    AND i."issueDate" >= ${from} AND i."issueDate" <= ${to}
+                GROUP BY i."customerId", c."name"
+                ORDER BY total DESC
+                LIMIT 5
+            `,
+
+            // Payment patterns — SQL aggregation (replaces fetching all paid invoices)
+            prisma.$queryRaw<[{ on_time: number; late: number; very_late: number; avg_days: number }]>`
+                SELECT
+                    COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM ("updatedAt" - "dueDate")) / 86400 <= 0)::int AS on_time,
+                    COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM ("updatedAt" - "dueDate")) / 86400 > 0
+                        AND EXTRACT(EPOCH FROM ("updatedAt" - "dueDate")) / 86400 <= 30)::int AS late,
+                    COUNT(*) FILTER (WHERE EXTRACT(EPOCH FROM ("updatedAt" - "dueDate")) / 86400 > 30)::int AS very_late,
+                    COALESCE(ROUND(AVG(GREATEST(0, EXTRACT(EPOCH FROM ("updatedAt" - "dueDate")) / 86400)))::int, 0) AS avg_days
+                FROM "Invoice"
+                WHERE "organizationId" = ${orgId} AND "deletedAt" IS NULL
+                    AND "status" = 'PAID'
+                    AND "issueDate" >= ${from} AND "issueDate" <= ${to}
+            `,
         ]);
 
         const totalRevenue = Number(invoiceSummary._sum.total ?? 0);
@@ -196,24 +243,18 @@ export async function GET(req: NextRequest) {
         const inputVat = Number(billSummary._sum.inputVatAmount ?? 0) + Number(expenseSummary._sum.vatAmount ?? 0);
         const netVatPayable = outputVat - inputVat;
 
-        // Build monthly trend (last 12 months)
+        // Build monthly trend from pre-aggregated SQL results (at most 12 + 12 rows)
         const monthlyMap: Record<string, { revenue: number; expenses: number }> = {};
         for (let i = 11; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            const label = d.toLocaleString("en", { month: "short", year: "numeric" });
             monthlyMap[key] = { revenue: 0, expenses: 0 };
-            void label;
         }
-        for (const inv of monthlyInvoices) {
-            const d = new Date(inv.issueDate);
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            if (monthlyMap[key]) monthlyMap[key].revenue += Number(inv.total ?? 0);
+        for (const r of monthlyRevenue) {
+            if (monthlyMap[r.month]) monthlyMap[r.month].revenue = r.total;
         }
-        for (const exp of monthlyExpenses) {
-            const d = new Date(exp.expenseDate);
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            if (monthlyMap[key]) monthlyMap[key].expenses += Number(exp.total ?? 0);
+        for (const e of monthlyExpenseAmts) {
+            if (monthlyMap[e.month]) monthlyMap[e.month].expenses = e.total;
         }
         const monthlyTrend = Object.entries(monthlyMap).map(([key, vals]) => {
             const [y, m] = key.split("-");
@@ -221,101 +262,34 @@ export async function GET(req: NextRequest) {
             return { month: d.toLocaleString("en", { month: "short", year: "numeric" }), ...vals };
         });
 
+        // Aging — read directly from SQL aggregation (no in-memory bucketing)
         const aging = {
-            current: 0,
-            days1to30: 0,
-            days31to60: 0,
-            days61to90: 0,
-            days90plus: 0,
+            current: receivableAging[0].current_amt,
+            days1to30: receivableAging[0].d1_30,
+            days31to60: receivableAging[0].d31_60,
+            days61to90: receivableAging[0].d61_90,
+            days90plus: receivableAging[0].d90_plus,
         };
 
-        for (const inv of receivableAgingInvoices) {
-            const outstanding = Number(inv.outstanding || 0);
-            const diffMs = now.getTime() - new Date(inv.dueDate).getTime();
-            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-            if (days <= 0) aging.current += outstanding;
-            else if (days <= 30) aging.days1to30 += outstanding;
-            else if (days <= 60) aging.days31to60 += outstanding;
-            else if (days <= 90) aging.days61to90 += outstanding;
-            else aging.days90plus += outstanding;
-        }
-
-        const billAging = {
-            current: 0,
-            days1to30: 0,
-            days31to60: 0,
-            days61to90: 0,
-            days90plus: 0,
+        const billAgingResult = {
+            current: payableAging[0].current_amt,
+            days1to30: payableAging[0].d1_30,
+            days31to60: payableAging[0].d31_60,
+            days61to90: payableAging[0].d61_90,
+            days90plus: payableAging[0].d90_plus,
         };
 
-        for (const bill of payableAgingBills) {
-            const outstanding = Number(bill.outstanding || 0);
-            const diffMs = now.getTime() - new Date(bill.dueDate).getTime();
-            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-            if (days <= 0) billAging.current += outstanding;
-            else if (days <= 30) billAging.days1to30 += outstanding;
-            else if (days <= 60) billAging.days31to60 += outstanding;
-            else if (days <= 90) billAging.days61to90 += outstanding;
-            else billAging.days90plus += outstanding;
-        }
-
-        // === Advanced Analytics ===
-
-        // Top 5 customers by revenue
-        const topCustomersRaw = await prisma.invoice.groupBy({
-            by: ["customerId"],
-            where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: from, lte: to } },
-            _sum: { total: true },
-            _count: { _all: true },
-            orderBy: { _sum: { total: "desc" } },
-            take: 5,
-        });
-
-        const topCustomerIds = topCustomersRaw.map((c) => c.customerId);
-        const topCustomerNames = topCustomerIds.length > 0
-            ? await prisma.customer.findMany({
-                where: { id: { in: topCustomerIds } },
-                select: { id: true, name: true },
-            })
-            : [];
-        const customerNameMap = new Map(topCustomerNames.map((c) => [c.id, c.name]));
-
-        const topCustomers = topCustomersRaw.map((c) => ({
-            customerId: c.customerId,
-            name: customerNameMap.get(c.customerId) ?? "Unknown",
-            total: Number(c._sum.total ?? 0),
-            count: c._count._all,
+        // Top customers — already aggregated with customer names from SQL JOIN
+        const topCustomersResult = topCustomers.map((c) => ({
+            customerId: c.customer_id,
+            name: c.name,
+            total: c.total,
+            count: c.count,
         }));
 
-        // Payment patterns: on-time vs late vs very late
-        const paidInvoices = await prisma.invoice.findMany({
-            where: {
-                organizationId: orgId,
-                deletedAt: null,
-                status: "PAID",
-                issueDate: { gte: from, lte: to },
-            },
-            select: { dueDate: true, updatedAt: true },
-        });
-
-        let onTimeCount = 0;
-        let lateCount = 0;
-        let veryLateCount = 0;
-        let totalDaysToCollect = 0;
-
-        for (const inv of paidInvoices) {
-            const daysDiff = Math.floor(
-                (new Date(inv.updatedAt).getTime() - new Date(inv.dueDate).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            totalDaysToCollect += Math.max(0, daysDiff);
-            if (daysDiff <= 0) onTimeCount++;
-            else if (daysDiff <= 30) lateCount++;
-            else veryLateCount++;
-        }
-
-        const avgDaysToCollect = paidInvoices.length > 0 ? Math.round(totalDaysToCollect / paidInvoices.length) : 0;
+        // Payment patterns — read from SQL aggregation
+        const pp = paymentPatterns[0];
+        const avgDaysToCollect = pp.avg_days;
         const collectionRate = invoiceCount > 0 ? (paidInvoiceCount / invoiceCount) * 100 : 0;
 
         // Revenue forecast (simple linear projection from monthly trend)
@@ -374,7 +348,7 @@ export async function GET(req: NextRequest) {
             })),
             vatSummary: { outputVat, inputVat, netVatPayable },
             receivableAging: aging,
-            billAging,
+            billAging: billAgingResult,
             monthlyTrend,
             recentInvoices: recentInvoices.map((inv) => ({
                 id: inv.id,
@@ -386,11 +360,11 @@ export async function GET(req: NextRequest) {
                 customer: inv.customer,
             })),
             // Advanced analytics
-            topCustomers,
+            topCustomers: topCustomersResult,
             paymentPatterns: {
-                onTime: onTimeCount,
-                late: lateCount,
-                veryLate: veryLateCount,
+                onTime: pp.on_time,
+                late: pp.late,
+                veryLate: pp.very_late,
             },
             financialHealth: {
                 collectionRate,

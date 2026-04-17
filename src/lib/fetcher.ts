@@ -1,5 +1,5 @@
 export async function jsonFetcher<T>(input: string): Promise<T> {
-    const response = await fetch(input, { cache: "no-store" });
+    const response = await fetch(input);
     const text = await response.text();
 
     let payload: unknown = null;

@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -54,6 +54,11 @@ export async function GET(req: NextRequest) {
         const [products, total] = await Promise.all([
             prisma.product.findMany({
                 where,
+                select: {
+                    id: true, name: true, sku: true, type: true, unitPrice: true,
+                    currency: true, vatTreatment: true, vatRate: true, unitOfMeasure: true,
+                    category: true, stockQuantity: true, isActive: true,
+                },
                 orderBy: { name: "asc" },
                 skip,
                 take: limit,

@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -62,9 +62,7 @@ export async function GET(req: NextRequest) {
                 where,
                 include: {
                     customer: { select: { id: true, name: true, email: true } },
-                    allocations: {
-                        include: { invoice: { select: { id: true, invoiceNumber: true } } },
-                    },
+                    _count: { select: { allocations: true } },
                 },
                 orderBy: { paymentDate: "desc" },
                 skip,
@@ -135,28 +133,35 @@ export async function POST(req: NextRequest) {
                 },
             });
 
-            // Update invoice outstanding amounts for each allocation
-            for (const alloc of data.allocations) {
-                const invoice = await tx.invoice.findUnique({
-                    where: { id: alloc.invoiceId },
-                    select: { outstanding: true, status: true },
+            // Update invoice outstanding amounts — batch fetch then parallel update
+            if (data.allocations.length > 0) {
+                const invoiceIds = data.allocations.map((a) => a.invoiceId);
+                const invoices = await tx.invoice.findMany({
+                    where: { id: { in: invoiceIds } },
+                    select: { id: true, outstanding: true, status: true },
                 });
-                if (invoice) {
-                    const newOutstanding = Math.max(0, Number(invoice.outstanding) - alloc.amount);
-                    await tx.invoice.update({
-                        where: { id: alloc.invoiceId },
-                        data: {
-                            outstanding: newOutstanding,
-                            amountPaid: { increment: alloc.amount },
-                            status:
-                                newOutstanding <= 0.01
-                                    ? "PAID"
-                                    : newOutstanding < Number(invoice.outstanding)
-                                        ? "PARTIALLY_PAID"
-                                        : invoice.status,
-                        },
-                    });
-                }
+                const invoiceMap = new Map(invoices.map((i) => [i.id, i]));
+
+                await Promise.all(
+                    data.allocations.map((alloc) => {
+                        const invoice = invoiceMap.get(alloc.invoiceId);
+                        if (!invoice) return Promise.resolve();
+                        const newOutstanding = Math.max(0, Number(invoice.outstanding) - alloc.amount);
+                        return tx.invoice.update({
+                            where: { id: alloc.invoiceId },
+                            data: {
+                                outstanding: newOutstanding,
+                                amountPaid: { increment: alloc.amount },
+                                status:
+                                    newOutstanding <= 0.01
+                                        ? "PAID"
+                                        : newOutstanding < Number(invoice.outstanding)
+                                            ? "PARTIALLY_PAID"
+                                            : invoice.status,
+                            },
+                        });
+                    })
+                );
             }
 
             return pay;
