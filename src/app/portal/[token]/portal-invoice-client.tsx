@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircle, Loader2 } from "lucide-react";
+import { MessageCircle, Loader2, CheckCircle2, Mail, Phone, Globe } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -17,18 +17,34 @@ export interface InvoiceData {
     dueDate: Date;
     currency: string;
     subtotal: number;
+    discount: number;
     totalVat: number;
     total: number;
+    amountPaid: number;
     outstanding: number;
+    notes: string | null;
+    terms: string | null;
     publicToken: string;
     customer: { name: string; email: string | null };
-    organization: { legalName?: string; name: string };
+    organization: {
+        legalName?: string;
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+        website?: string | null;
+    };
     lineItems: Array<{
         id: string;
         description: string;
         quantity: number;
         unitPrice: number;
         total: number;
+    }>;
+    payments: Array<{
+        paymentNumber: string;
+        paymentDate: Date;
+        amount: number;
+        method: string;
     }>;
 }
 
@@ -75,7 +91,24 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
                 <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">{invoice.invoiceNumber}</h1>
-                        <p className="text-muted-foreground text-sm">{invoice.organization.legalName || invoice.organization.name}</p>
+                        <p className="text-muted-foreground text-sm font-medium">{invoice.organization.legalName || invoice.organization.name}</p>
+                        <div className="flex flex-wrap gap-3 mt-1">
+                            {invoice.organization.email && (
+                                <a href={`mailto:${invoice.organization.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                                    <Mail className="h-3 w-3" />{invoice.organization.email}
+                                </a>
+                            )}
+                            {invoice.organization.phone && (
+                                <a href={`tel:${invoice.organization.phone}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                                    <Phone className="h-3 w-3" />{invoice.organization.phone}
+                                </a>
+                            )}
+                            {invoice.organization.website && (
+                                <a href={invoice.organization.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                                    <Globe className="h-3 w-3" />{invoice.organization.website.replace(/^https?:\/\//, "")}
+                                </a>
+                            )}
+                        </div>
                     </div>
                     <Badge>{invoice.status.replaceAll("_", " ")}</Badge>
                 </div>
@@ -87,9 +120,15 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
                         <div className="flex justify-between"><span className="text-muted-foreground">Issue date</span><span>{new Date(invoice.issueDate).toLocaleDateString("en-AE")}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Due date</span><span>{new Date(invoice.dueDate).toLocaleDateString("en-AE")}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{invoice.currency} {Number(invoice.subtotal).toFixed(2)}</span></div>
+                        {Number(invoice.discount) > 0 && (
+                            <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-green-600">− {invoice.currency} {Number(invoice.discount).toFixed(2)}</span></div>
+                        )}
                         <div className="flex justify-between"><span className="text-muted-foreground">VAT</span><span>{invoice.currency} {Number(invoice.totalVat).toFixed(2)}</span></div>
                         <Separator />
                         <div className="flex justify-between font-semibold"><span>Total</span><span>{invoice.currency} {Number(invoice.total).toFixed(2)}</span></div>
+                        {Number(invoice.amountPaid) > 0 && (
+                            <div className="flex justify-between text-green-600"><span>Amount Paid</span><span>− {invoice.currency} {Number(invoice.amountPaid).toFixed(2)}</span></div>
+                        )}
                         <div className="flex justify-between text-amber-600 font-medium"><span>Outstanding</span><span>{invoice.currency} {Number(invoice.outstanding).toFixed(2)}</span></div>
                     </CardContent>
                 </Card>
@@ -126,6 +165,12 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
                             </Button>
                         </>
                     )}
+                    {Number(invoice.outstanding) <= 0 && (
+                        <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-sm font-medium text-green-700">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Paid in Full — Thank you!
+                        </div>
+                    )}
                     <Button variant="outline" asChild>
                         <a href={`https://wa.me/?text=${waText}`} target="_blank" rel="noreferrer">
                             <MessageCircle className="mr-2 h-4 w-4" />
@@ -133,6 +178,43 @@ export function PortalInvoiceClient({ invoice, waText }: { invoice: InvoiceData;
                         </a>
                     </Button>
                 </div>
+
+                {invoice.payments.length > 0 && (
+                    <Card>
+                        <CardHeader><CardTitle className="text-base">Payment History</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                            {invoice.payments.map((p) => (
+                                <div key={p.paymentNumber} className="flex items-center justify-between text-sm border-b pb-2 last:border-b-0 last:pb-0">
+                                    <div>
+                                        <p className="font-medium">{p.paymentNumber}</p>
+                                        <p className="text-xs text-muted-foreground">{new Date(p.paymentDate).toLocaleDateString("en-AE")} · {p.method.replace(/_/g, " ")}</p>
+                                    </div>
+                                    <span className="font-semibold text-green-700">{invoice.currency} {Number(p.amount).toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {(invoice.notes || invoice.terms) && (
+                    <Card>
+                        <CardHeader><CardTitle className="text-base">Notes & Terms</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            {invoice.notes && (
+                                <div>
+                                    <p className="font-medium mb-1">Notes</p>
+                                    <p className="text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
+                                </div>
+                            )}
+                            {invoice.terms && (
+                                <div>
+                                    <p className="font-medium mb-1">Terms & Conditions</p>
+                                    <p className="text-muted-foreground whitespace-pre-wrap">{invoice.terms}</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
 
                 {usePartialPayment && Number(invoice.outstanding) > 0 && (
                     <Card className="border-amber-200 bg-amber-50">

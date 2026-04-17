@@ -587,6 +587,8 @@
     "vatSummaryTitle": "VAT Summary",
     "invoiceAgingTitle": "Invoice Aging (Outstanding)",
     "invoiceAgingDesc": "Receivables by age bucket",
+    "billAgingTitle": "Bill Aging (Payables)",
+    "billAgingDesc": "Unpaid bills by days overdue",
     "expensesByCategoryTitle": "Expenses by Category",
     "revExpTrend": "Revenue vs Expenses Trend",
     "last12Months": "Last 12 months",

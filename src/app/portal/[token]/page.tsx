@@ -14,6 +14,11 @@ async function PortalInvoiceContent({ token }: { token: string }) {
             organization: { select: { name: true, legalName: true, email: true, phone: true, website: true } },
             customer: { select: { name: true, email: true } },
             lineItems: { orderBy: { sortOrder: "asc" } },
+            payments: {
+                include: {
+                    payment: { select: { paymentNumber: true, paymentDate: true, amount: true, method: true } },
+                },
+            },
         },
     });
 
@@ -42,14 +47,21 @@ async function PortalInvoiceContent({ token }: { token: string }) {
                 dueDate: invoice.dueDate,
                 currency: invoice.currency,
                 subtotal: Number(invoice.subtotal),
+                discount: Number(invoice.discount),
                 totalVat: Number(invoice.totalVat),
                 total: Number(invoice.total),
+                amountPaid: Number(invoice.amountPaid),
                 outstanding: Number(invoice.outstanding),
+                notes: invoice.notes ?? null,
+                terms: invoice.terms ?? null,
                 publicToken: invoice.publicToken ?? "",
                 customer: invoice.customer,
                 organization: {
                     name: invoice.organization.name,
                     legalName: invoice.organization.legalName ?? undefined,
+                    email: invoice.organization.email ?? null,
+                    phone: invoice.organization.phone ?? null,
+                    website: invoice.organization.website ?? null,
                 },
                 lineItems: invoice.lineItems.map((li) => ({
                     id: li.id,
@@ -57,6 +69,12 @@ async function PortalInvoiceContent({ token }: { token: string }) {
                     quantity: Number(li.quantity),
                     unitPrice: Number(li.unitPrice),
                     total: Number(li.total),
+                })),
+                payments: invoice.payments.map((a) => ({
+                    paymentNumber: a.payment.paymentNumber,
+                    paymentDate: a.payment.paymentDate,
+                    amount: Number(a.amount),
+                    method: a.payment.method as string,
                 })),
             }}
             waText={waText}

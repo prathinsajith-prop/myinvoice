@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
             monthlyExpenses,
             recentInvoices,
             receivableAgingInvoices,
+            payableAgingBills,
         ] = await Promise.all([
             prisma.invoice.aggregate({
                 where: { organizationId: orgId, deletedAt: null, status: { not: "VOID" }, issueDate: { gte: from, lte: to } },
@@ -167,6 +168,17 @@ export async function GET(req: NextRequest) {
                 },
                 select: { dueDate: true, outstanding: true },
             }),
+
+            // AP aging — outstanding bills
+            prisma.bill.findMany({
+                where: {
+                    organizationId: orgId,
+                    deletedAt: null,
+                    status: { notIn: ["VOID", "PAID"] },
+                    outstanding: { gt: 0 },
+                },
+                select: { dueDate: true, outstanding: true },
+            }),
         ]);
 
         const totalRevenue = Number(invoiceSummary._sum.total ?? 0);
@@ -227,6 +239,26 @@ export async function GET(req: NextRequest) {
             else if (days <= 60) aging.days31to60 += outstanding;
             else if (days <= 90) aging.days61to90 += outstanding;
             else aging.days90plus += outstanding;
+        }
+
+        const billAging = {
+            current: 0,
+            days1to30: 0,
+            days31to60: 0,
+            days61to90: 0,
+            days90plus: 0,
+        };
+
+        for (const bill of payableAgingBills) {
+            const outstanding = Number(bill.outstanding || 0);
+            const diffMs = now.getTime() - new Date(bill.dueDate).getTime();
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (days <= 0) billAging.current += outstanding;
+            else if (days <= 30) billAging.days1to30 += outstanding;
+            else if (days <= 60) billAging.days31to60 += outstanding;
+            else if (days <= 90) billAging.days61to90 += outstanding;
+            else billAging.days90plus += outstanding;
         }
 
         // === Advanced Analytics ===
@@ -342,6 +374,7 @@ export async function GET(req: NextRequest) {
             })),
             vatSummary: { outputVat, inputVat, netVatPayable },
             receivableAging: aging,
+            billAging,
             monthlyTrend,
             recentInvoices: recentInvoices.map((inv) => ({
                 id: inv.id,

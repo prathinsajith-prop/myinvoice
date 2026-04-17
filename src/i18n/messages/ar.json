@@ -587,6 +587,8 @@
     "vatSummaryTitle": "ملخص الضريبة",
     "invoiceAgingTitle": "تقادم الفواتير (المستحقة)",
     "invoiceAgingDesc": "المستحقات حسب الفئة الزمنية",
+    "billAgingTitle": "تقادم الفواتير (المستحقات)",
+    "billAgingDesc": "الفواتير غير المدفوعة حسب الأيام المتأخرة",
     "expensesByCategoryTitle": "المصروفات حسب الفئة",
     "revExpTrend": "اتجاه الإيرادات مقابل المصروفات",
     "last12Months": "آخر 12 شهراً",
