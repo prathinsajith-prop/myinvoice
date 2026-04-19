@@ -2,9 +2,9 @@
 
 on:
     push:
-        branches: [main, staging, develop]
+        branches: [main, staging, development]
     pull_request:
-        branches: [main, staging, develop]
+        branches: [main, staging, development]
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
