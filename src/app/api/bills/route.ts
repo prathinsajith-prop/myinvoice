@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
                     status: true,
                     currency: true,
                     subtotal: true,
-                    vatAmount: true,
+                    totalVat: true,
                     total: true,
                     amountPaid: true,
                     issueDate: true,

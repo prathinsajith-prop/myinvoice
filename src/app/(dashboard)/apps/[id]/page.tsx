@@ -44,6 +44,7 @@ import {
     Line,
 } from "recharts";
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -260,6 +261,7 @@ function KpiCard({
 export default function AppReportPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
+    const t = useTranslations("settings.apps");
 
     const { data, isLoading, error, mutate } = useSWR<{ data: AppReport }>(
         `/api/apps/${id}/report`,
@@ -418,7 +420,7 @@ export default function AppReportPage() {
                 {newSecret && (
                     <div className="rounded-lg border border-yellow-400/60 bg-yellow-50 dark:bg-yellow-950/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Save your API secret — it won&apos;t be shown again</p>
+                            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">{t("secretBannerTitle")}</p>
                             <p className="font-mono text-xs mt-1 break-all text-yellow-900 dark:text-yellow-200 select-all">{newSecret}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -433,7 +435,7 @@ export default function AppReportPage() {
                                 }}
                             >
                                 {newSecretCopied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
-                                {newSecretCopied ? "Copied" : "Copy"}
+                                {newSecretCopied ? t("copied") : t("copy")}
                             </Button>
                             <Button
                                 size="sm"
@@ -441,7 +443,7 @@ export default function AppReportPage() {
                                 className="text-yellow-700 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900"
                                 onClick={() => setNewSecret(null)}
                             >
-                                Dismiss
+                                {t("dismiss")}
                             </Button>
                         </div>
                     </div>
@@ -458,18 +460,18 @@ export default function AppReportPage() {
                             <Badge variant={statusBadgeVariant(app.status)}>{app.status}</Badge>
                         </div>
                         <p className="text-muted-foreground text-sm truncate">
-                            {app.description || "API usage report and analytics"}
+                            {app.description || t("defaultDescription")}
                         </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <Button variant="outline" size="sm" onClick={() => mutate()}>
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            Refresh
+                            {t("refresh")}
                         </Button>
                         {app.status === "ACTIVE" && (
                             <Button variant="outline" size="sm" onClick={openEditDialog}>
                                 <Pencil className="h-4 w-4 mr-2" />
-                                Edit
+                                {t("edit")}
                             </Button>
                         )}
                         {app.status === "ACTIVE" && (
@@ -480,7 +482,7 @@ export default function AppReportPage() {
                                     onClick={() => setRegenOpen(true)}
                                 >
                                     <KeyRound className="h-4 w-4 mr-2" />
-                                    Regenerate Secret
+                                    {t("regenerateSecret")}
                                 </Button>
                                 <Button
                                     variant="outline"
@@ -489,7 +491,7 @@ export default function AppReportPage() {
                                     onClick={() => setRevokeOpen(true)}
                                 >
                                     <Trash2 className="h-4 w-4 mr-2" />
-                                    Revoke
+                                    {t("revoke")}
                                 </Button>
                             </>
                         )}
@@ -501,14 +503,14 @@ export default function AppReportPage() {
                     <CardContent className="py-4">
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
                             <div>
-                                <span className="text-muted-foreground text-xs uppercase tracking-wider">App ID</span>
+                                <span className="text-muted-foreground text-xs uppercase tracking-wider">{t("appId")}</span>
                                 <div className="flex items-center gap-1.5 font-mono font-medium text-sm mt-0.5">
                                     <span className="truncate">{app.id}</span>
                                     <CopyButton text={app.id} />
                                 </div>
                             </div>
                             <div>
-                                <span className="text-muted-foreground text-xs uppercase tracking-wider">Status</span>
+                                <span className="text-muted-foreground text-xs uppercase tracking-wider">{t("status")}</span>
                                 <div className="font-medium mt-0.5">
                                     <Badge variant={statusBadgeVariant(app.status)} className="text-xs">
                                         {app.status}
@@ -516,22 +518,22 @@ export default function AppReportPage() {
                                 </div>
                             </div>
                             <div>
-                                <span className="text-muted-foreground text-xs uppercase tracking-wider">Created</span>
+                                <span className="text-muted-foreground text-xs uppercase tracking-wider">{t("createdAt")}</span>
                                 <div className="font-medium mt-0.5">
                                     {format(new Date(app.createdAt), "MMM d, yyyy")}
                                 </div>
                             </div>
                             <div>
-                                <span className="text-muted-foreground text-xs uppercase tracking-wider">Last Active</span>
+                                <span className="text-muted-foreground text-xs uppercase tracking-wider">{t("lastActive")}</span>
                                 <div className="font-medium mt-0.5">
                                     {app.lastUsedAt
                                         ? formatDistanceToNow(new Date(app.lastUsedAt), { addSuffix: true })
-                                        : "Never"}
+                                        : t("never")}
                                 </div>
                             </div>
                             <div>
-                                <span className="text-muted-foreground text-xs uppercase tracking-wider">Modules</span>
-                                <div className="font-medium mt-0.5">{getEnabledModules(app.scopes).length} active</div>
+                                <span className="text-muted-foreground text-xs uppercase tracking-wider">{t("modules")}</span>
+                                <div className="font-medium mt-0.5">{t("activeCount", { count: getEnabledModules(app.scopes).length })}</div>
                             </div>
                         </div>
                     </CardContent>
@@ -540,39 +542,39 @@ export default function AppReportPage() {
                 {/* KPI Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     <KpiCard
-                        label="Total Requests"
+                        label={t("totalRequests")}
                         value={stats.totalRequests.toLocaleString()}
-                        subValue={`${stats.last7d.toLocaleString()} last 7d`}
+                        subValue={t("last7dLabel", { count: stats.last7d.toLocaleString() })}
                         icon={Activity}
                         iconColor="bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
                     />
                     <KpiCard
-                        label="Last 24 Hours"
+                        label={t("last24h")}
                         value={stats.last24h.toLocaleString()}
-                        subValue={trendPct !== 0 ? `${trendPct > 0 ? "+" : ""}${trendPct}% vs avg` : "Stable"}
+                        subValue={trendPct !== 0 ? t("vsAvgPct", { pct: `${trendPct > 0 ? "+" : ""}${trendPct}` }) : t("stable")}
                         icon={TrendingUp}
                         iconColor="bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400"
                         trend={trendPct > 0 ? "up" : trendPct < 0 ? "down" : "neutral"}
                     />
                     <KpiCard
-                        label="Success Rate"
+                        label={t("successRate")}
                         value={`${stats.successRate}%`}
-                        subValue={`${stats.successCount.toLocaleString()} successful`}
+                        subValue={t("successfulCount", { count: stats.successCount.toLocaleString() })}
                         icon={CheckCircle2}
                         iconColor={stats.successRate >= 95 ? "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"}
                         trend={stats.successRate >= 95 ? "up" : "down"}
                     />
                     <KpiCard
-                        label="Errors"
+                        label={t("totalErrors")}
                         value={stats.errorCount.toLocaleString()}
-                        subValue={stats.totalRequests > 0 ? `${(100 - stats.successRate).toFixed(1)}% error rate` : "No traffic"}
+                        subValue={stats.totalRequests > 0 ? t("errorRateValue", { pct: (100 - stats.successRate).toFixed(1) }) : t("noTraffic")}
                         icon={AlertTriangle}
                         iconColor={stats.errorCount > 0 ? "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400" : "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400"}
                     />
                     <KpiCard
-                        label="Avg Latency"
+                        label={t("avgLatency")}
                         value={`${stats.avgLatencyMs}ms`}
-                        subValue={`${stats.minLatencyMs}ms – ${stats.maxLatencyMs}ms range`}
+                        subValue={t("latencyRange", { min: stats.minLatencyMs, max: stats.maxLatencyMs })}
                         icon={Zap}
                         iconColor="bg-yellow-100 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400"
                     />
@@ -581,11 +583,11 @@ export default function AppReportPage() {
                 {/* Tabs */}
                 <Tabs defaultValue="overview">
                     <TabsList className="grid w-full grid-cols-5">
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="api-usage">API Docs</TabsTrigger>
-                        <TabsTrigger value="logs">Request Logs</TabsTrigger>
-                        <TabsTrigger value="errors">Errors</TabsTrigger>
-                        <TabsTrigger value="config">Configuration</TabsTrigger>
+                        <TabsTrigger value="overview">{t("tabOverview")}</TabsTrigger>
+                        <TabsTrigger value="api-usage">{t("tabApiDocs")}</TabsTrigger>
+                        <TabsTrigger value="logs">{t("tabLogs")}</TabsTrigger>
+                        <TabsTrigger value="errors">{t("tabErrors")}</TabsTrigger>
+                        <TabsTrigger value="config">{t("tabConfig")}</TabsTrigger>
                     </TabsList>
 
                     {/* ── Overview Tab ── */}
@@ -597,15 +599,15 @@ export default function AppReportPage() {
                                     <div>
                                         <CardTitle className="text-base flex items-center gap-2">
                                             <BarChart3 className="h-4 w-4" />
-                                            Traffic Over Time
+                                            {t("trafficOverTime")}
                                         </CardTitle>
-                                        <CardDescription>Daily request volume (last 30 days)</CardDescription>
+                                        <CardDescription>{t("dailyVolumeDesc")}</CardDescription>
                                     </div>
                                 </div>
                             </CardHeader>
                             <CardContent>
                                 {report.dailyVolume.length === 0 ? (
-                                    <p className="text-muted-foreground text-sm py-12 text-center">No data yet — make some API calls to see traffic trends.</p>
+                                    <p className="text-muted-foreground text-sm py-12 text-center">{t("noDataYet")}</p>
                                 ) : (
                                     <ResponsiveContainer width="100%" height={300}>
                                         <AreaChart data={report.dailyVolume}>
@@ -644,12 +646,12 @@ export default function AppReportPage() {
                             {/* Hourly Requests */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">Hourly Requests (7d)</CardTitle>
-                                    <CardDescription>Requests per hour over the last 7 days</CardDescription>
+                                    <CardTitle className="text-base">{t("hourlyRequests")}</CardTitle>
+                                    <CardDescription>{t("hourlyRequestsDesc")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {report.hourlyVolume.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>
+                                        <p className="text-muted-foreground text-sm py-8 text-center">{t("noDataShort")}</p>
                                     ) : (
                                         <ResponsiveContainer width="100%" height={240}>
                                             <BarChart data={report.hourlyVolume}>
@@ -675,12 +677,12 @@ export default function AppReportPage() {
                             {/* Daily Latency */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">Avg Latency Trend (30d)</CardTitle>
-                                    <CardDescription>Average response time per day</CardDescription>
+                                    <CardTitle className="text-base">{t("latencyTrend")}</CardTitle>
+                                    <CardDescription>{t("latencyTrendDesc")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {report.dailyVolume.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>
+                                        <p className="text-muted-foreground text-sm py-8 text-center">{t("noDataShort")}</p>
                                     ) : (
                                         <ResponsiveContainer width="100%" height={240}>
                                             <LineChart data={report.dailyVolume}>
@@ -708,7 +710,7 @@ export default function AppReportPage() {
                             {/* Module Breakdown */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">By Module</CardTitle>
+                                    <CardTitle className="text-base">{t("byModule")}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     {report.moduleBreakdown.length === 0 ? (
@@ -748,7 +750,7 @@ export default function AppReportPage() {
                             {/* Method Breakdown */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">By Method</CardTitle>
+                                    <CardTitle className="text-base">{t("byMethod")}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     {report.methodBreakdown.length === 0 ? (
@@ -797,7 +799,7 @@ export default function AppReportPage() {
                             {/* Status Code Breakdown */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">Status Codes</CardTitle>
+                                    <CardTitle className="text-base">{t("statusCodesLabel")}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     {report.statusBreakdown.length === 0 ? (
@@ -840,33 +842,33 @@ export default function AppReportPage() {
                         {/* Performance Summary */}
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Performance Summary</CardTitle>
+                                <CardTitle className="text-base">{t("performanceSummary")}</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
                                     <div className="text-center p-3 rounded-lg bg-muted/50">
                                         <p className="text-2xl font-bold text-green-600">{stats.minLatencyMs}ms</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Min Latency</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t("minLatency")}</p>
                                     </div>
                                     <div className="text-center p-3 rounded-lg bg-muted/50">
                                         <p className="text-2xl font-bold text-blue-600">{stats.avgLatencyMs}ms</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Avg Latency</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t("avgLatency")}</p>
                                     </div>
                                     <div className="text-center p-3 rounded-lg bg-muted/50">
                                         <p className="text-2xl font-bold text-orange-600">{stats.maxLatencyMs}ms</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Max Latency</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t("maxLatency")}</p>
                                     </div>
                                     <div className="text-center p-3 rounded-lg bg-muted/50">
                                         <p className="text-2xl font-bold">{stats.last24h.toLocaleString()}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Last 24h</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t("last24hShort")}</p>
                                     </div>
                                     <div className="text-center p-3 rounded-lg bg-muted/50">
                                         <p className="text-2xl font-bold">{stats.last7d.toLocaleString()}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Last 7 Days</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t("last7dShort")}</p>
                                     </div>
                                     <div className="text-center p-3 rounded-lg bg-muted/50">
                                         <p className="text-2xl font-bold">{stats.totalRequests.toLocaleString()}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">All Time</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t("allTime")}</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -880,9 +882,9 @@ export default function AppReportPage() {
                             <CardHeader>
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <ShieldAlert className="h-4 w-4" />
-                                    Authentication
+                                    {t("authentication")}
                                 </CardTitle>
-                                <CardDescription>How to authenticate your API requests</CardDescription>
+                                <CardDescription>{t("authDesc")}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="rounded-lg border bg-muted/30 p-4 space-y-3 text-sm text-muted-foreground">
@@ -916,7 +918,7 @@ export default function AppReportPage() {
                             <CardHeader>
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <Code className="h-4 w-4" />
-                                    cURL Examples
+                                    {t("curlExamples")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -992,14 +994,14 @@ const { data, pagination } = await response.json();`}
                         {/* Enabled Endpoints */}
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Enabled Endpoints</CardTitle>
+                                <CardTitle className="text-base">{t("enabledEndpoints")}</CardTitle>
                                 <CardDescription>
                                     Base URL: <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">https://myinvoice.ae/api/ext/{app.id}</code>
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {deriveEndpoints(app.scopes).length === 0 ? (
-                                    <p className="text-sm text-muted-foreground italic">No scopes configured.</p>
+                                    <p className="text-sm text-muted-foreground italic">{t("noScopes")}</p>
                                 ) : (
                                     <div className="rounded-lg border">
                                         <table className="w-full text-sm">
@@ -1044,10 +1046,10 @@ const { data, pagination } = await response.json();`}
                             <CardHeader>
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <CardTitle className="text-base">Recent Requests</CardTitle>
-                                        <CardDescription>Last 50 API requests</CardDescription>
+                                        <CardTitle className="text-base">{t("recentRequests")}</CardTitle>
+                                        <CardDescription>{t("recentRequestsDesc")}</CardDescription>
                                     </div>
-                                    <Badge variant="outline">{report.recentLogs.length} entries</Badge>
+                                    <Badge variant="outline">{t("entriesCount", { count: report.recentLogs.length })}</Badge>
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -1055,7 +1057,7 @@ const { data, pagination } = await response.json();`}
                                     <div className="flex flex-col items-center py-12 gap-2">
                                         <Activity className="h-8 w-8 text-muted-foreground/50" />
                                         <p className="text-muted-foreground text-sm">
-                                            No requests logged yet — make your first API call to see logs here.
+                                            {t("noLogsYet")}
                                         </p>
                                     </div>
                                 ) : (
@@ -1063,13 +1065,13 @@ const { data, pagination } = await response.json();`}
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr className="border-b text-left text-muted-foreground">
-                                                    <th className="pb-2 pr-4 font-medium">Time</th>
-                                                    <th className="pb-2 pr-4 font-medium">Method</th>
-                                                    <th className="pb-2 pr-4 font-medium">Module</th>
-                                                    <th className="pb-2 pr-4 font-medium">Status</th>
-                                                    <th className="pb-2 pr-4 font-medium">Latency</th>
-                                                    <th className="pb-2 pr-4 font-medium">IP</th>
-                                                    <th className="pb-2 font-medium">Error</th>
+                                                    <th className="pb-2 pr-4 font-medium">{t("timeHeader")}</th>
+                                                    <th className="pb-2 pr-4 font-medium">{t("methodHeader")}</th>
+                                                    <th className="pb-2 pr-4 font-medium">{t("moduleHeader")}</th>
+                                                    <th className="pb-2 pr-4 font-medium">{t("status")}</th>
+                                                    <th className="pb-2 pr-4 font-medium">{t("latencyHeader")}</th>
+                                                    <th className="pb-2 pr-4 font-medium">{t("ipHeader")}</th>
+                                                    <th className="pb-2 font-medium">{t("errorHeader")}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1118,19 +1120,19 @@ const { data, pagination } = await response.json();`}
                             {/* Error Summary Stats */}
                             <div className="grid grid-cols-3 gap-4">
                                 <KpiCard
-                                    label="Total Errors"
+                                    label={t("totalErrors")}
                                     value={stats.errorCount.toLocaleString()}
                                     icon={XCircle}
                                     iconColor="bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
                                 />
                                 <KpiCard
-                                    label="Error Rate"
+                                    label={t("errorRateLabel")}
                                     value={`${stats.totalRequests > 0 ? (100 - stats.successRate).toFixed(2) : 0}%`}
                                     icon={AlertTriangle}
                                     iconColor="bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
                                 />
                                 <KpiCard
-                                    label="Unique Errors"
+                                    label={t("uniqueErrors")}
                                     value={report.topErrors.length}
                                     icon={BarChart3}
                                     iconColor="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
@@ -1140,14 +1142,14 @@ const { data, pagination } = await response.json();`}
                             {/* Top Errors */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">Top Errors</CardTitle>
-                                    <CardDescription>Most frequent error messages</CardDescription>
+                                    <CardTitle className="text-base">{t("topErrorsList")}</CardTitle>
+                                    <CardDescription>{t("topErrorsDesc")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {report.topErrors.length === 0 ? (
                                         <div className="flex flex-col items-center py-12 gap-2">
                                             <CheckCircle2 className="h-8 w-8 text-green-500" />
-                                            <p className="text-muted-foreground text-sm">No errors recorded — your API is running clean!</p>
+                                            <p className="text-muted-foreground text-sm">{t("noErrors")}</p>
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
@@ -1184,8 +1186,8 @@ const { data, pagination } = await response.json();`}
                             {/* Scopes */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">Scopes</CardTitle>
-                                    <CardDescription>Permitted module:action pairs</CardDescription>
+                                    <CardTitle className="text-base">{t("scopes")}</CardTitle>
+                                    <CardDescription>{t("scopesPermittedDesc")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex flex-wrap gap-2">
@@ -1201,7 +1203,7 @@ const { data, pagination } = await response.json();`}
                             {/* IP Whitelist */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">IP Whitelist</CardTitle>
+                                    <CardTitle className="text-base">{t("ipWhitelist")}</CardTitle>
                                     <CardDescription>Only these IPs can access the API</CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -1217,7 +1219,7 @@ const { data, pagination } = await response.json();`}
                                     ) : (
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                             <Shield className="h-4 w-4" />
-                                            All IPs allowed (no whitelist configured)
+                                            {t("allIpsAllowed")}
                                         </div>
                                     )}
                                 </CardContent>
@@ -1227,12 +1229,12 @@ const { data, pagination } = await response.json();`}
                             {app.revokedAt && (
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle className="text-base">Revocation</CardTitle>
+                                        <CardTitle className="text-base">{t("revocation")}</CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
                                             <p className="text-sm text-red-600 font-medium">
-                                                Revoked {formatDistanceToNow(new Date(app.revokedAt), { addSuffix: true })}
+                                                {t("revokedTimeAgo", { time: formatDistanceToNow(new Date(app.revokedAt), { addSuffix: true }) })}
                                             </p>
                                         </div>
                                     </CardContent>
@@ -1248,18 +1250,17 @@ const { data, pagination } = await response.json();`}
                         <AlertDialogHeader>
                             <AlertDialogTitle className="flex items-center gap-2">
                                 <KeyRound className="h-5 w-5" />
-                                Regenerate API Secret
+                                {t("regenerateSecret")}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                                This will invalidate the current API secret. Any applications using
-                                the old secret will stop working immediately. This action cannot be undone.
+                                {t("regenerateSecretFullDesc")}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
                             <AlertDialogAction onClick={handleRegenerate} disabled={regenerating}>
                                 {regenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Regenerate
+                                {t("regenerate")}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
@@ -1271,22 +1272,21 @@ const { data, pagination } = await response.json();`}
                         <AlertDialogHeader>
                             <AlertDialogTitle className="flex items-center gap-2">
                                 <ShieldAlert className="h-5 w-5 text-destructive" />
-                                Revoke Application
+                                {t("revokeTitle")}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                                This will permanently revoke access for &quot;{app.name}&quot;.
-                                All API requests using this app&apos;s credentials will be rejected.
+                                {t("revokeConfirmFull", { name: app.name })}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
                             <AlertDialogAction
                                 onClick={handleRevoke}
                                 disabled={revoking}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                                 {revoking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Revoke App
+                                {t("revokeApp")}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
@@ -1298,16 +1298,16 @@ const { data, pagination } = await response.json();`}
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <KeyRound className="h-5 w-5" />
-                                New API Secret
+                                {t("newApiSecretTitle")}
                             </DialogTitle>
                             <DialogDescription>
-                                Copy your new API secret now. You won&apos;t be able to see it again.
+                                {t("newApiSecretDesc")}
                             </DialogDescription>
                         </DialogHeader>
                         {secretDialog?.apiSecret && (
                             <div className="space-y-2">
                                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                                    API Secret (X-Api-Secret header)
+                                    {t("apiSecretLabel")}
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <code className="flex-1 truncate rounded border bg-muted/50 px-3 py-2 text-sm font-mono">
@@ -1323,37 +1323,37 @@ const { data, pagination } = await response.json();`}
                 <Dialog open={editOpen} onOpenChange={setEditOpen}>
                     <DialogContent className="max-w-3xl p-0 gap-0">
                         <DialogHeader className="px-6 pt-6 pb-4 border-b">
-                            <DialogTitle>Edit Application</DialogTitle>
+                            <DialogTitle>{t("editAppTitle")}</DialogTitle>
                             <DialogDescription>
-                                Update app name, description, permissions and IP restrictions.
+                                {t("editAppDesc")}
                             </DialogDescription>
                         </DialogHeader>
                         <ScrollArea className="max-h-[70vh]">
                             <div className="px-6 py-5 space-y-6">
                                 <div className="grid gap-4">
                                     <div className="space-y-1.5">
-                                        <Label htmlFor="app-name">App Name</Label>
+                                        <Label htmlFor="app-name">{t("name")}</Label>
                                         <Input
                                             id="app-name"
                                             value={editName}
                                             onChange={(e) => setEditName(e.target.value)}
-                                            placeholder="My Integration App"
+                                            placeholder={t("namePlaceholder")}
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label htmlFor="app-description">Description</Label>
+                                        <Label htmlFor="app-description">{t("descriptionLabel")}</Label>
                                         <Textarea
                                             id="app-description"
                                             rows={3}
                                             value={editDescription}
                                             onChange={(e) => setEditDescription(e.target.value)}
-                                            placeholder="What this app does"
+                                            placeholder={t("descriptionPlaceholder")}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="text-sm font-medium">Permissions</p>
+                                    <p className="text-sm font-medium">{t("permissions")}</p>
                                     <div className="rounded-md border divide-y">
                                         {APP_MODULES.map((module) => (
                                             <div key={module} className="p-3 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
@@ -1379,26 +1379,26 @@ const { data, pagination } = await response.json();`}
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="app-ip-whitelist">IP Whitelist</Label>
+                                    <Label htmlFor="app-ip-whitelist">{t("ipWhitelist")}</Label>
                                     <Input
                                         id="app-ip-whitelist"
                                         value={editIpWhitelist}
                                         onChange={(e) => setEditIpWhitelist(e.target.value)}
-                                        placeholder="203.0.113.10, 198.51.100.0/24"
+                                        placeholder={t("ipWhitelistPlaceholder")}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        Comma-separated IP addresses or CIDR ranges. Leave empty to allow all.
+                                        {t("ipWhitelistEditDesc")}
                                     </p>
                                 </div>
                             </div>
                         </ScrollArea>
                         <div className="px-6 py-4 border-t flex justify-end gap-2">
                             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={updating}>
-                                Cancel
+                                {t("cancel")}
                             </Button>
                             <Button onClick={handleSaveEdit} disabled={updating}>
                                 {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save Changes
+                                {t("saveChanges")}
                             </Button>
                         </div>
                     </DialogContent>
