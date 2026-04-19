@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
 import { jsonFetcher } from "@/lib/fetcher";
+import { calcLine, reduceTotals, DEFAULT_LINE_ITEM, lineItemSchema as sharedLineItemSchema, numericKeyDown } from "@/lib/utils/document";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,14 +33,6 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatePicker } from "@/components/ui/date-picker";
 
-const lineItemSchema = z.object({
-    description: z.string().min(1, "Description required"),
-    quantity: z.coerce.number().positive("Must be > 0"),
-    unitPrice: z.coerce.number().min(0),
-    discountPercent: z.coerce.number().min(0).max(100).default(0),
-    vatTreatment: z.string().default("STANDARD_RATED"),
-});
-
 const schema = z.object({
     supplierId: z.string().min(1, "Supplier required"),
     billDate: z.string().min(1, "Bill date required"),
@@ -47,21 +40,11 @@ const schema = z.object({
     supplierReference: z.string().optional().or(z.literal("")),
     currency: z.string().min(1),
     notes: z.string().optional(),
-    lineItems: z.array(lineItemSchema).min(1, "At least one line item required"),
+    lineItems: z.array(sharedLineItemSchema).min(1, "At least one line item required"),
 });
 
 type FormValues = z.infer<typeof schema>;
 interface Supplier { id: string; name: string }
-
-const VAT_RATES: Record<string, number> = { STANDARD_RATED: 0.05, STANDARD: 0.05, EXEMPT: 0, ZERO_RATED: 0, OUT_OF_SCOPE: 0, REVERSE_CHARGE: 0 };
-
-function calcLine(qty: number, price: number, disc: number, vat: string) {
-    const sub = qty * price;
-    const discAmt = sub * (disc / 100);
-    const taxable = sub - discAmt;
-    const vatAmt = taxable * (VAT_RATES[vat] ?? 0.05);
-    return { subtotal: sub, discountAmt: discAmt, vatAmt, lineTotal: taxable + vatAmt };
-}
 
 interface BillSheetProps {
     open: boolean;
@@ -78,8 +61,13 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
     );
     const suppliers = suppliersData?.data ?? [];
     const [submitting, setSubmitting] = useState(false);
-    const [_loadingBill, setLoadingBill] = useState(false);
     const orgSettings = useOrgSettings();
+
+    // Fetch edit data via SWR (conditional key)
+    const { data: editBillData } = useSWR(
+        open && editBillId ? `/api/bills/${editBillId}` : null,
+        jsonFetcher
+    );
 
     const today = new Date().toISOString().split("T")[0];
     const dueDate = new Date(Date.now() + orgSettings.defaultDueDateDays * 86400000).toISOString().split("T")[0];
@@ -94,7 +82,7 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
             supplierReference: "",
             currency: orgSettings.defaultCurrency,
             notes: "",
-            lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" }],
+            lineItems: [DEFAULT_LINE_ITEM],
         },
     });
 
@@ -104,31 +92,24 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
 
     useEffect(() => {
         if (open) {
-            if (editBillId) {
-                setLoadingBill(true);
-                fetch(`/api/bills/${editBillId}`)
-                    .then(res => res.ok ? res.json() : null)
-                    .then(bill => {
-                        if (bill) {
-                            form.reset({
-                                supplierId: bill.supplier.id,
-                                billDate: bill.issueDate.split('T')[0],
-                                dueDate: bill.dueDate.split('T')[0],
-                                supplierReference: bill.reference || "",
-                                currency: bill.currency,
-                                notes: bill.notes || "",
-                                lineItems: bill.lineItems.map((item: Record<string, unknown>) => ({
-                                    description: item.description,
-                                    quantity: item.quantity,
-                                    unitPrice: item.unitPrice,
-                                    discountPercent: item.discount,
-                                    vatTreatment: item.vatTreatment,
-                                })),
-                            });
-                        }
-                    })
-                    .finally(() => setLoadingBill(false));
-            } else {
+            if (editBillId && editBillData) {
+                const bill = editBillData as Record<string, unknown> & { supplier: { id: string }; lineItems: Record<string, unknown>[] };
+                form.reset({
+                    supplierId: bill.supplier.id,
+                    billDate: (bill.issueDate as string).split('T')[0],
+                    dueDate: (bill.dueDate as string).split('T')[0],
+                    supplierReference: (bill.reference as string) || "",
+                    currency: bill.currency as string,
+                    notes: (bill.notes as string) || "",
+                    lineItems: bill.lineItems.map((item: Record<string, unknown>) => ({
+                        description: item.description as string,
+                        quantity: item.quantity as number,
+                        unitPrice: item.unitPrice as number,
+                        discountPercent: item.discount as number,
+                        vatTreatment: item.vatTreatment as string,
+                    })),
+                });
+            } else if (!editBillId) {
                 loadOrgSettings().then((s) => {
                     const due = new Date(Date.now() + s.defaultDueDateDays * 86400000).toISOString().split("T")[0];
                     form.reset({
@@ -138,21 +119,15 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                         supplierReference: "",
                         currency: s.defaultCurrency,
                         notes: "",
-                        lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" }],
+                        lineItems: [DEFAULT_LINE_ITEM],
                     });
                 });
             }
         }
-         
-    }, [open, editBillId]);
 
-    const totals = watchedItems.reduce(
-        (acc, item) => {
-            const r = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD_RATED");
-            return { subtotal: acc.subtotal + r.subtotal, discount: acc.discount + r.discountAmt, vat: acc.vat + r.vatAmt, total: acc.total + r.lineTotal };
-        },
-        { subtotal: 0, discount: 0, vat: 0, total: 0 }
-    );
+    }, [open, editBillId, editBillData]);
+
+    const totals = reduceTotals(watchedItems);
 
     async function onSubmit(values: FormValues) {
         setSubmitting(true);
@@ -275,15 +250,15 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Qty</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={numericKeyDown} />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Price ({currency})</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={numericKeyDown} />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Disc %</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={numericKeyDown} />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">VAT</Label>
@@ -312,7 +287,7 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                                 variant="ghost"
                                 size="sm"
                                 className="mt-2 w-full border border-dashed text-muted-foreground hover:text-foreground"
-                                onClick={() => append({ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" })}
+                                onClick={() => append(DEFAULT_LINE_ITEM)}
                             >
                                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Line Item
                             </Button>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
+import { parsePagination } from "@/lib/utils";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -36,8 +37,7 @@ export async function GET(req: NextRequest) {
     try {
         const ctx = await resolveRouteContext(req);
         const { searchParams } = new URL(req.url);
-        const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-        const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 20)));
+        const { page, limit, skip } = parsePagination(searchParams);
         const status = searchParams.get("status");
         const search = searchParams.get("search")?.trim();
 
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
                     _count: { select: { generatedInvoices: true } },
                 },
                 orderBy: { createdAt: "desc" },
-                skip: (page - 1) * limit,
+                skip,
                 take: limit,
             }),
             prisma.recurringInvoice.count({ where }),
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

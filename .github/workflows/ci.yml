@@ -2,9 +2,9 @@
 
 on:
     push:
-        branches: [main, develop]
+        branches: [main, staging, development]
     pull_request:
-        branches: [main, develop]
+        branches: [main, staging, development]
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -49,12 +49,51 @@ jobs:
               run: pnpm typecheck
 
     # ─────────────────────────────────────────────────────────────────────────────
+    # Unit & integration tests
+    # ─────────────────────────────────────────────────────────────────────────────
+    test:
+        name: Tests
+        runs-on: ubuntu-latest
+        needs: quality
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: ${{ env.PNPM_VERSION }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Generate Prisma client
+              run: pnpm prisma generate
+
+            - name: Run tests with coverage
+              run: pnpm test:ci
+
+            - name: Upload coverage report
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: coverage-${{ github.sha }}
+                  path: coverage/
+                  retention-days: 7
+
+    # ─────────────────────────────────────────────────────────────────────────────
     # Build verification
     # ─────────────────────────────────────────────────────────────────────────────
     build:
         name: Build
         runs-on: ubuntu-latest
-        needs: quality
+        needs: [quality, test]
         env:
             # Minimal env required for Next.js build (no real DB connection needed)
             DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/myinvoice_ci"
@@ -130,7 +169,7 @@ jobs:
               continue-on-error: true
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # Deploy to Vercel — preview on PR, production on main
+    # Deploy to Vercel — preview on PR, staging on staging branch, production on main
     # ─────────────────────────────────────────────────────────────────────────────
     deploy-preview:
         name: Deploy Preview
@@ -150,6 +189,23 @@ jobs:
                   vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
                   github-comment: true
 
+    deploy-staging:
+        name: Deploy Staging
+        runs-on: ubuntu-latest
+        needs: build
+        if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+        environment: staging
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Deploy to Vercel (staging)
+              uses: amondnet/vercel-action@v25
+              with:
+                  vercel-token: ${{ secrets.VERCEL_TOKEN }}
+                  vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+                  vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+
     deploy-production:
         name: Deploy Production
         runs-on: ubuntu-latest
@@ -167,3 +223,4 @@ jobs:
                   vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
                   vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
                   vercel-args: "--prod"
+

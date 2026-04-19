@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -6,6 +6,7 @@ import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { notifyOrgMembers } from "@/lib/notifications/create";
 import { logApiAudit } from "@/lib/api/audit";
+import { parsePagination } from "@/lib/utils";
 
 const createSupplierSchema = z.object({
     name: z.string().min(1).max(255),
@@ -39,9 +40,7 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const type = searchParams.get("type") ?? "";
         const status = searchParams.get("status") ?? "";
-        const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -97,7 +96,7 @@ export async function POST(req: NextRequest) {
         const result = createSupplierSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

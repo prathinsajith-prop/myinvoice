@@ -234,6 +234,14 @@ enum AuditAction {
   PASSWORD_CHANGE
   TWO_FACTOR_ENABLED
   TWO_FACTOR_DISABLED
+  ACCESS_DENIED
+  REGENERATE_SECRET
+  REVOKE
+}
+
+enum AppStatus {
+  ACTIVE
+  REVOKED
 }
 
 // =============================================================================
@@ -440,6 +448,7 @@ model Organization {
   recurringInvoices   RecurringInvoice[]
   paymentReminders    PaymentReminder[]
   purchaseOrders      PurchaseOrder[]
+  connectedApps       ConnectedApp[]
 
   @@index([slug])
   @@index([trn])
@@ -514,6 +523,7 @@ model OrganizationMembership {
   @@index([organizationId, role])
   @@index([organizationId, isActive])
   @@index([organizationId, inviteStatus])
+  @@index([userId, isActive])
 }
 
 // =============================================================================
@@ -673,6 +683,8 @@ model Customer {
   @@index([organizationId, isActive])
   @@index([organizationId, createdAt])
   @@index([portalToken])
+  @@index([organizationId, deletedAt, name])
+  @@index([organizationId, deletedAt, isActive])
 }
 
 // =============================================================================
@@ -736,6 +748,8 @@ model Supplier {
   @@index([organizationId, trn])
   @@index([organizationId, isActive])
   @@index([organizationId, createdAt])
+  @@index([organizationId, deletedAt, name])
+  @@index([organizationId, deletedAt, isActive])
 }
 
 // =============================================================================
@@ -785,6 +799,7 @@ model Product {
   @@index([organizationId, type])
   @@index([organizationId, category])
   @@index([organizationId, isActive])
+  @@index([organizationId, deletedAt, isActive, name])
 }
 
 // =============================================================================
@@ -836,6 +851,8 @@ model Quotation {
   @@index([organizationId, status])
   @@index([organizationId, issueDate])
   @@index([organizationId, validUntil])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([customerId])
 }
 
 model QuotationLineItem {
@@ -960,6 +977,10 @@ model Invoice {
   @@index([organizationId, dueDate])
   @@index([organizationId, status, dueDate])
   @@index([publicToken])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([organizationId, deletedAt, dueDate])
+  @@index([customerId])
+  @@index([recurringInvoiceId])
 }
 
 model InvoiceLineItem {
@@ -1032,6 +1053,9 @@ model CreditNote {
   @@index([organizationId, invoiceId])
   @@index([organizationId, status])
   @@index([organizationId, issueDate])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([customerId])
+  @@index([invoiceId])
 }
 
 model CreditNoteLineItem {
@@ -1103,6 +1127,9 @@ model DebitNote {
   @@index([organizationId, invoiceId])
   @@index([organizationId, status])
   @@index([organizationId, issueDate])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([customerId])
+  @@index([invoiceId])
 }
 
 model DebitNoteLineItem {
@@ -1184,6 +1211,9 @@ model Bill {
   @@index([organizationId, issueDate])
   @@index([organizationId, dueDate])
   @@index([organizationId, status, dueDate])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([organizationId, deletedAt, dueDate])
+  @@index([supplierId])
 }
 
 model BillLineItem {
@@ -1248,6 +1278,7 @@ model Payment {
   @@index([organizationId, customerId])
   @@index([organizationId, paymentDate])
   @@index([organizationId, status])
+  @@index([customerId])
 }
 
 model PaymentAllocation {
@@ -1300,6 +1331,7 @@ model PaymentOut {
   @@index([organizationId, supplierId])
   @@index([organizationId, paymentDate])
   @@index([organizationId, status])
+  @@index([supplierId])
 }
 
 model PaymentOutAllocation {
@@ -1407,6 +1439,8 @@ model Expense {
   @@index([organizationId, expenseDate])
   @@index([organizationId, category])
   @@index([organizationId, createdAt])
+  @@index([organizationId, deletedAt, expenseDate])
+  @@index([organizationId, deletedAt, category])
 }
 
 // =============================================================================
@@ -1524,12 +1558,18 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appId String?
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  app          ConnectedApp? @relation(fields: [appId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
   @@index([organizationId, entityType, entityId])
   @@index([organizationId, userId])
   @@index([organizationId, action])
+  @@index([appId])
+  @@index([organizationId, action, createdAt])
+  @@index([organizationId, entityType, createdAt])
 }
 
 // =============================================================================
@@ -1667,6 +1707,9 @@ model DeliveryNote {
   @@index([organizationId, invoiceId])
   @@index([organizationId, status])
   @@index([organizationId, issueDate])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([customerId])
+  @@index([invoiceId])
 }
 
 model DeliveryNoteLineItem {
@@ -1810,6 +1853,8 @@ model RecurringInvoice {
   @@index([organizationId, status])
   @@index([organizationId, nextRunDate])
   @@index([customerId])
+  @@index([organizationId, deletedAt, status])
+  @@index([organizationId, deletedAt, createdAt])
 }
 
 model RecurringInvoiceLineItem {
@@ -1941,6 +1986,8 @@ model PurchaseOrder {
   @@index([organizationId, status])
   @@index([organizationId, issueDate])
   @@index([organizationId, expectedDate])
+  @@index([organizationId, deletedAt, status, issueDate])
+  @@index([supplierId])
 }
 
 model PurchaseOrderLineItem {
@@ -1967,6 +2014,65 @@ model PurchaseOrderLineItem {
   product       Product?      @relation(fields: [productId], references: [id])
 
   @@index([purchaseOrderId])
+}
+
+// =============================================================================
+// SYSTEM: CONNECTED APPS (API keys + HMAC webhook auth)
+// =============================================================================
+
+model ConnectedApp {
+  id             String @id // e.g. "app_7Bx9kQ3m" — short prefixed, globally unique
+  organizationId String
+
+  name        String
+  description String?
+
+  appSecret     String  // hex, compared with timingSafeEqual
+
+  status AppStatus @default(ACTIVE)
+
+  // Granular permissions: ["invoices:read", "invoices:write", "customers:read", ...]
+  scopes         String[]
+  // IP / URL whitelist: ["203.0.113.0/24", "example.com"] — empty = all allowed
+  ipWhitelist    String[]
+
+  lastUsedAt   DateTime?
+  requestCount Int       @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  revokedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
+  requestLogs  ApiRequestLog[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+}
+
+// Per-request log for external API calls — used for analytics & debugging
+model ApiRequestLog {
+  id    String @id @default(cuid())
+  appId String
+
+  method     String  // GET, POST, PATCH, DELETE
+  path       String  // /api/ext/{appId}/invoices
+  module     String  // invoices, customers, etc.
+  statusCode Int     // HTTP response status
+  duration   Int     // milliseconds
+  ipAddress  String?
+  userAgent  String?
+  error      String? // error message if failed
+
+  createdAt DateTime @default(now())
+
+  app ConnectedApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([appId, createdAt])
+  @@index([appId, module])
+  @@index([appId, statusCode])
+  @@index([appId, error])
 }
 
 // =============================================================================

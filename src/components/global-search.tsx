@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import {
     Search,
     FileText,
+    FileCheck,
     Users,
     Package,
     Receipt,
     Building2,
+    CreditCard,
     Loader2,
 } from "lucide-react";
 
@@ -33,12 +35,12 @@ interface SearchResult {
 
 const TYPE_ICONS: Record<string, typeof FileText> = {
     invoice: FileText,
-    quotation: FileText,
+    quotation: FileCheck,
     customer: Users,
     product: Package,
     bill: Receipt,
     supplier: Building2,
-    expense: Receipt,
+    expense: CreditCard,
 };
 
 // QUICK_LINKS and TYPE_LABELS are now generated inside the component with translations

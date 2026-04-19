@@ -4,9 +4,14 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/index.ts");
 
+const isDevelopment = process.env.NODE_ENV === "development";
+const scriptSrc = isDevelopment
+  ? "'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com"
+  : "'self' 'unsafe-inline' https://js.stripe.com";
+
 const ContentSecurityPolicy = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com;
+  script-src ${scriptSrc};
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https:;
   font-src 'self';

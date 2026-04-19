@@ -90,6 +90,12 @@ export function PurchaseOrderSheet({
     const [submitting, setSubmitting] = useState(false);
     const orgSettings = useOrgSettings();
 
+    // Fetch edit data via SWR (conditional key)
+    const { data: editPoData } = useSWR(
+        open && purchaseOrderId ? `/api/purchase-orders/${purchaseOrderId}` : null,
+        jsonFetcher
+    );
+
     const today = new Date().toISOString().split("T")[0];
 
     const form = useForm<FormValues>({
@@ -114,31 +120,26 @@ export function PurchaseOrderSheet({
 
     useEffect(() => {
         if (!open) return;
-        if (purchaseOrderId) {
-            fetch(`/api/purchase-orders/${purchaseOrderId}`)
-                .then((r) => r.ok ? r.json() : null)
-                .then((po) => {
-                    if (po) {
-                        form.reset({
-                            supplierId: po.supplier.id,
-                            issueDate: po.issueDate.split("T")[0],
-                            expectedDate: po.expectedDate ? po.expectedDate.split("T")[0] : "",
-                            reference: po.reference ?? "",
-                            currency: po.currency,
-                            notes: po.notes ?? "",
-                            terms: po.terms ?? "",
-                            shippingAddress: po.shippingAddress ?? "",
-                            lineItems: po.lineItems.map((item: Record<string, unknown>) => ({
-                                description: item.description,
-                                quantity: item.quantity,
-                                unitPrice: item.unitPrice,
-                                discountPercent: item.discount,
-                                vatTreatment: item.vatTreatment,
-                            })),
-                        });
-                    }
-                });
-        } else {
+        if (purchaseOrderId && editPoData) {
+            const po = editPoData as Record<string, unknown> & { supplier: { id: string }; lineItems: Record<string, unknown>[] };
+            form.reset({
+                supplierId: po.supplier.id,
+                issueDate: (po.issueDate as string).split("T")[0],
+                expectedDate: po.expectedDate ? (po.expectedDate as string).split("T")[0] : "",
+                reference: (po.reference as string) ?? "",
+                currency: po.currency as string,
+                notes: (po.notes as string) ?? "",
+                terms: (po.terms as string) ?? "",
+                shippingAddress: (po.shippingAddress as string) ?? "",
+                lineItems: po.lineItems.map((item: Record<string, unknown>) => ({
+                    description: item.description as string,
+                    quantity: item.quantity as number,
+                    unitPrice: item.unitPrice as number,
+                    discountPercent: item.discount as number,
+                    vatTreatment: item.vatTreatment as string,
+                })),
+            });
+        } else if (!purchaseOrderId) {
             loadOrgSettings().then((s) => {
                 form.reset({
                     supplierId: defaultSupplierId ?? "",
@@ -153,7 +154,7 @@ export function PurchaseOrderSheet({
                 });
             });
         }
-    }, [open, purchaseOrderId]);
+    }, [open, purchaseOrderId, editPoData]);
 
     const totals = watchedItems.reduce(
         (acc, item) => {

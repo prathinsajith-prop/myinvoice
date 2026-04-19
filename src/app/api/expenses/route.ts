@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -7,6 +7,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { notifyOrgMembers } from "@/lib/notifications/create";
 import { logApiAudit } from "@/lib/api/audit";
+import { parsePagination } from "@/lib/utils";
 
 const createExpenseSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -80,9 +81,7 @@ export async function GET(req: NextRequest) {
 
         const category = searchParams.get("category");
         const search = searchParams.get("search") ?? "";
-        const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-        const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 20)));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -102,7 +101,21 @@ export async function GET(req: NextRequest) {
         const [records, total] = await Promise.all([
             prisma.expense.findMany({
                 where: where as never,
-                include: {
+                select: {
+                    id: true,
+                    expenseNumber: true,
+                    description: true,
+                    merchantName: true,
+                    category: true,
+                    amount: true,
+                    vatAmount: true,
+                    total: true,
+                    currency: true,
+                    vatTreatment: true,
+                    paymentMethod: true,
+                    expenseDate: true,
+                    isReclaimable: true,
+                    createdAt: true,
                     product: { select: { id: true, name: true } },
                 },
                 orderBy: { expenseDate: "desc" },
@@ -130,7 +143,7 @@ export async function POST(req: NextRequest) {
         const result = createExpenseSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }
@@ -144,36 +157,41 @@ export async function POST(req: NextRequest) {
         const vatAmount = data.amount * vatRate;
         const total = data.amount + vatAmount;
 
-        const last = await prisma.expense.findFirst({
-            where: { organizationId: ctx.organizationId },
-            orderBy: { createdAt: "desc" },
-            select: { expenseNumber: true },
-        });
-        const expenseNumber = generateExpenseNumber(last?.expenseNumber ?? null);
+        const expense = await prisma.$transaction(async (tx) => {
+            // Serialize expense number generation per organization
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`exp:${ctx.organizationId}`}))`;
 
-        const expense = await prisma.expense.create({
-            data: {
-                organizationId: ctx.organizationId,
-                productId: data.productId ?? null,
-                expenseNumber,
-                reference: data.reference ?? null,
-                description: data.description,
-                expenseDate: data.expenseDate ? new Date(data.expenseDate) : new Date(),
-                category: normalizeExpenseCategory(data.category) as never,
-                amount: data.amount,
-                vatAmount,
-                total,
-                currency: data.currency,
-                vatTreatment: data.vatTreatment,
-                vatRate: data.vatRate,
-                isVatReclaimable: data.isVatReclaimable,
-                paymentMethod: normalizePaymentMethod(data.paymentMethod) as never,
-                isPaid: data.isPaid,
-                paidAt: data.paidAt ? new Date(data.paidAt) : data.isPaid ? new Date() : null,
-                merchantName: data.merchantName ?? null,
-                receiptUrl: data.receiptUrl ?? null,
-                notes: data.notes ?? null,
-            },
+            const last = await tx.expense.findFirst({
+                where: { organizationId: ctx.organizationId },
+                orderBy: { createdAt: "desc" },
+                select: { expenseNumber: true },
+            });
+            const expenseNumber = generateExpenseNumber(last?.expenseNumber ?? null);
+
+            return tx.expense.create({
+                data: {
+                    organizationId: ctx.organizationId,
+                    productId: data.productId ?? null,
+                    expenseNumber,
+                    reference: data.reference ?? null,
+                    description: data.description,
+                    expenseDate: data.expenseDate ? new Date(data.expenseDate) : new Date(),
+                    category: normalizeExpenseCategory(data.category) as never,
+                    amount: data.amount,
+                    vatAmount,
+                    total,
+                    currency: data.currency,
+                    vatTreatment: data.vatTreatment,
+                    vatRate: data.vatRate,
+                    isVatReclaimable: data.isVatReclaimable,
+                    paymentMethod: normalizePaymentMethod(data.paymentMethod) as never,
+                    isPaid: data.isPaid,
+                    paidAt: data.paidAt ? new Date(data.paidAt) : data.isPaid ? new Date() : null,
+                    merchantName: data.merchantName ?? null,
+                    receiptUrl: data.receiptUrl ?? null,
+                    notes: data.notes ?? null,
+                },
+            });
         });
 
         // Notify org members about new expense

@@ -1,7 +1,8 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { CRON_SECRET, APP_URL } from "@/lib/constants/env";
+import { timingSafeCompare } from "@/lib/crypto/token";
 import { sendEmail } from "@/lib/email";
 import { paymentReminderEmail } from "@/lib/email/templates";
 
@@ -12,7 +13,7 @@ import { paymentReminderEmail } from "@/lib/email/templates";
  */
 export async function POST(req: NextRequest) {
     const secret = req.headers.get("x-cron-secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
-    if (!CRON_SECRET || secret !== CRON_SECRET) {
+    if (!CRON_SECRET || !secret || !timingSafeCompare(secret, CRON_SECRET)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

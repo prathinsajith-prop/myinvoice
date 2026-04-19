@@ -23,6 +23,8 @@ import {
   RefreshCcw,
   Bell,
   ShoppingCart,
+  Calculator,
+  UserCog,
 } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
@@ -86,7 +88,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       label: t("sections.finance"),
       items: [
         { name: t("reports"), href: "/reports", icon: BarChart3 },
-        { name: t("vatReturns"), href: "/vat-returns", icon: Receipt },
+        { name: t("vatReturns"), href: "/vat-returns", icon: Calculator },
         { name: t("paymentReminders"), href: "/payment-reminders", icon: Bell },
       ],
     },
@@ -204,7 +206,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
             onClick={onLinkClick}
             className={navLinkClass(isActive("/users"))}
           >
-            <Users className="h-4 w-4 flex-shrink-0" />
+            <UserCog className="h-4 w-4 flex-shrink-0" />
             <span>{t("users")}</span>
           </Link>
         </div>
