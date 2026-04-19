@@ -23,6 +23,7 @@ import {
     KeyRound,
     Trash2,
     RefreshCw,
+    Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -42,7 +43,7 @@ import {
     LineChart,
     Line,
 } from "recharts";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -71,9 +72,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { LoadingState } from "@/components/loading-state";
 import { PermissionGate } from "@/components/tenant/permission-gate";
 import { jsonFetcher } from "@/lib/fetcher";
+import { APP_MODULES, SCOPE_ACTIONS } from "@/lib/constants/app-scopes";
 
 /* ─── Helpers ─── */
 
@@ -107,6 +114,13 @@ function getEnabledModules(scopes: string[]): string[] {
         modules.add(mod);
     }
     return Array.from(modules).sort();
+}
+
+function formatModuleLabel(module: string): string {
+    return module
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
 }
 
 function copyToClipboard(text: string) {
@@ -254,9 +268,27 @@ export default function AppReportPage() {
 
     const [regenOpen, setRegenOpen] = useState(false);
     const [revokeOpen, setRevokeOpen] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
     const [regenerating, setRegenerating] = useState(false);
     const [revoking, setRevoking] = useState(false);
+    const [updating, setUpdating] = useState(false);
     const [secretDialog, setSecretDialog] = useState<{ apiSecret: string } | null>(null);
+    const [editName, setEditName] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [editScopes, setEditScopes] = useState<string[]>([]);
+    const [editIpWhitelist, setEditIpWhitelist] = useState("");
+    const [newSecret, setNewSecret] = useState<string | null>(null);
+    const [newSecretCopied, setNewSecretCopied] = useState(false);
+
+    useEffect(() => {
+        if (!id) return;
+        const key = `app_new_secret_${id}`;
+        const stored = sessionStorage.getItem(key);
+        if (stored) {
+            setNewSecret(stored);
+            sessionStorage.removeItem(key);
+        }
+    }, [id]);
 
     async function handleRegenerate() {
         setRegenerating(true);
@@ -285,6 +317,64 @@ export default function AppReportPage() {
         } finally {
             setRevoking(false);
             setRevokeOpen(false);
+        }
+    }
+
+    function openEditDialog() {
+        const current = data?.data.app;
+        if (!current) return;
+        setEditName(current.name);
+        setEditDescription(current.description ?? "");
+        setEditScopes(current.scopes);
+        setEditIpWhitelist(current.ipWhitelist.join(", "));
+        setEditOpen(true);
+    }
+
+    function toggleScope(scope: string) {
+        setEditScopes((prev) =>
+            prev.includes(scope)
+                ? prev.filter((s) => s !== scope)
+                : [...prev, scope],
+        );
+    }
+
+    async function handleSaveEdit() {
+        if (!editName.trim()) {
+            toast.error("App name is required");
+            return;
+        }
+        if (editScopes.length === 0) {
+            toast.error("Select at least one scope");
+            return;
+        }
+
+        setUpdating(true);
+        try {
+            const res = await fetch(`/api/apps/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: editName.trim(),
+                    description: editDescription.trim() || null,
+                    scopes: editScopes,
+                    ipWhitelist: editIpWhitelist
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                }),
+            });
+            const payload = await res.json().catch(() => null);
+            if (!res.ok) {
+                toast.error(payload?.error ?? "Failed to update app");
+                return;
+            }
+            toast.success("App settings updated");
+            setEditOpen(false);
+            await mutate();
+        } catch {
+            toast.error("Failed to update app");
+        } finally {
+            setUpdating(false);
         }
     }
 
@@ -324,6 +414,39 @@ export default function AppReportPage() {
     return (
         <PermissionGate permission="manage_org">
             <div className="space-y-6">
+                {/* First-time credential banner */}
+                {newSecret && (
+                    <div className="rounded-lg border border-yellow-400/60 bg-yellow-50 dark:bg-yellow-950/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Save your API secret — it won&apos;t be shown again</p>
+                            <p className="font-mono text-xs mt-1 break-all text-yellow-900 dark:text-yellow-200 select-all">{newSecret}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-yellow-400 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(newSecret);
+                                    setNewSecretCopied(true);
+                                    setTimeout(() => setNewSecretCopied(false), 2000);
+                                }}
+                            >
+                                {newSecretCopied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+                                {newSecretCopied ? "Copied" : "Copy"}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-yellow-700 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900"
+                                onClick={() => setNewSecret(null)}
+                            >
+                                Dismiss
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.push("/apps")}>
@@ -343,6 +466,12 @@ export default function AppReportPage() {
                             <RefreshCw className="h-4 w-4 mr-2" />
                             Refresh
                         </Button>
+                        {app.status === "ACTIVE" && (
+                            <Button variant="outline" size="sm" onClick={openEditDialog}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                            </Button>
+                        )}
                         {app.status === "ACTIVE" && (
                             <>
                                 <Button
@@ -1177,9 +1306,9 @@ const { data, pagination } = await response.json();`}
                         </DialogHeader>
                         {secretDialog?.apiSecret && (
                             <div className="space-y-2">
-                                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                     API Secret (X-Api-Secret header)
-                                </label>
+                                </p>
                                 <div className="flex items-center gap-2">
                                     <code className="flex-1 truncate rounded border bg-muted/50 px-3 py-2 text-sm font-mono">
                                         {secretDialog.apiSecret}
@@ -1188,6 +1317,90 @@ const { data, pagination } = await response.json();`}
                                 </div>
                             </div>
                         )}
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                    <DialogContent className="max-w-3xl p-0 gap-0">
+                        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+                            <DialogTitle>Edit Application</DialogTitle>
+                            <DialogDescription>
+                                Update app name, description, permissions and IP restrictions.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[70vh]">
+                            <div className="px-6 py-5 space-y-6">
+                                <div className="grid gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="app-name">App Name</Label>
+                                        <Input
+                                            id="app-name"
+                                            value={editName}
+                                            onChange={(e) => setEditName(e.target.value)}
+                                            placeholder="My Integration App"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="app-description">Description</Label>
+                                        <Textarea
+                                            id="app-description"
+                                            rows={3}
+                                            value={editDescription}
+                                            onChange={(e) => setEditDescription(e.target.value)}
+                                            placeholder="What this app does"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium">Permissions</p>
+                                    <div className="rounded-md border divide-y">
+                                        {APP_MODULES.map((module) => (
+                                            <div key={module} className="p-3 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                                                <div className="font-medium text-sm">{formatModuleLabel(module)}</div>
+                                                <div className="sm:col-span-3 flex flex-wrap gap-3">
+                                                    {SCOPE_ACTIONS.map((action) => {
+                                                        const scope = `${module}:${action}`;
+                                                        const checked = editScopes.includes(scope);
+                                                        return (
+                                                            <label key={scope} className="inline-flex items-center gap-2 text-sm">
+                                                                <Checkbox
+                                                                    checked={checked}
+                                                                    onCheckedChange={() => toggleScope(scope)}
+                                                                />
+                                                                <span className="capitalize">{action}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="app-ip-whitelist">IP Whitelist</Label>
+                                    <Input
+                                        id="app-ip-whitelist"
+                                        value={editIpWhitelist}
+                                        onChange={(e) => setEditIpWhitelist(e.target.value)}
+                                        placeholder="203.0.113.10, 198.51.100.0/24"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Comma-separated IP addresses or CIDR ranges. Leave empty to allow all.
+                                    </p>
+                                </div>
+                            </div>
+                        </ScrollArea>
+                        <div className="px-6 py-4 border-t flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={updating}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSaveEdit} disabled={updating}>
+                                {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Changes
+                            </Button>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

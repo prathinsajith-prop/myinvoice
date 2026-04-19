@@ -351,8 +351,9 @@ export default function AppsPage() {
                     open={createOpen}
                     onOpenChange={setCreateOpen}
                     onCreated={(result) => {
-                        setSecretDialog({ id: result.id, apiSecret: result.apiSecret });
                         mutate();
+                        sessionStorage.setItem(`app_new_secret_${result.id}`, result.apiSecret);
+                        router.push(`/apps/${result.id}`);
                     }}
                 />
 

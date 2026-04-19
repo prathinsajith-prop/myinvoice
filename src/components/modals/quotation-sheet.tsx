@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { useOrgSettings, loadOrgSettings } from "@/lib/hooks/use-org-settings";
 import { jsonFetcher } from "@/lib/fetcher";
+import { calcLine, reduceTotals, DEFAULT_LINE_ITEM, lineItemSchema as sharedLineItemSchema, numericKeyDown, type ProductOption } from "@/lib/utils/document";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,15 +33,6 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatePicker } from "@/components/ui/date-picker";
 
-const lineItemSchema = z.object({
-    description: z.string().min(1, "Description required"),
-    quantity: z.coerce.number().positive("Must be > 0"),
-    unitPrice: z.coerce.number().min(0),
-    discountPercent: z.coerce.number().min(0).max(100).default(0),
-    vatTreatment: z.string().default("STANDARD_RATED"),
-    productId: z.string().optional(),
-});
-
 const schema = z.object({
     customerId: z.string().min(1, "Customer required"),
     issueDate: z.string().min(1),
@@ -48,22 +40,11 @@ const schema = z.object({
     currency: z.string().min(1),
     notes: z.string().optional(),
     termsAndConditions: z.string().optional(),
-    lineItems: z.array(lineItemSchema).min(1, "At least one line item required"),
+    lineItems: z.array(sharedLineItemSchema).min(1, "At least one line item required"),
 });
 
 type FormValues = z.infer<typeof schema>;
 interface Customer { id: string; name: string }
-interface Product { id: string; name: string; unitPrice: number; vatTreatment: string }
-
-const VAT_RATES: Record<string, number> = { STANDARD_RATED: 0.05, STANDARD: 0.05, EXEMPT: 0, ZERO_RATED: 0, OUT_OF_SCOPE: 0, REVERSE_CHARGE: 0 };
-
-function calcLine(qty: number, price: number, disc: number, vat: string) {
-    const sub = qty * price;
-    const discAmt = sub * (disc / 100);
-    const taxable = sub - discAmt;
-    const vatAmt = taxable * (VAT_RATES[vat] ?? 0.05);
-    return { subtotal: sub, discountAmt: discAmt, vatAmt, lineTotal: taxable + vatAmt };
-}
 
 interface QuotationSheetProps {
     open: boolean;
@@ -80,7 +61,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
     );
     const { data: productsData } = useSWR(
         open ? "/api/products?limit=200" : null,
-        jsonFetcher<{ data: Product[] }>
+        jsonFetcher<{ data: ProductOption[] }>
     );
     const customers = customersData?.data ?? [];
     const products = productsData?.data ?? [];
@@ -106,7 +87,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
             currency: orgSettings.defaultCurrency,
             notes: orgSettings.defaultNotes,
             termsAndConditions: orgSettings.defaultTerms,
-            lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" }],
+            lineItems: [DEFAULT_LINE_ITEM],
         },
     });
 
@@ -144,7 +125,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                         currency: s.defaultCurrency,
                         notes: s.defaultNotes,
                         termsAndConditions: s.defaultTerms,
-                        lineItems: [{ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" }],
+                        lineItems: [DEFAULT_LINE_ITEM],
                     });
                 });
             }
@@ -152,13 +133,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
 
     }, [open, editQuotationId, editQuotationData]);
 
-    const totals = watchedItems.reduce(
-        (acc, item) => {
-            const r = calcLine(Number(item.quantity) || 0, Number(item.unitPrice) || 0, Number(item.discountPercent) || 0, item.vatTreatment ?? "STANDARD_RATED");
-            return { subtotal: acc.subtotal + r.subtotal, discount: acc.discount + r.discountAmt, vat: acc.vat + r.vatAmt, total: acc.total + r.lineTotal };
-        },
-        { subtotal: 0, discount: 0, vat: 0, total: 0 }
-    );
+    const totals = reduceTotals(watchedItems);
 
     function applyProduct(index: number, productId: string) {
         const p = products.find((x) => x.id === productId);
@@ -297,15 +272,15 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Qty</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.quantity`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={numericKeyDown} />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Price ({currency})</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0.00" {...form.register(`lineItems.${index}.unitPrice`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={numericKeyDown} />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">Disc %</Label>
-                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} />
+                                                    <Input className="h-8 text-sm" type="text" inputMode="decimal" placeholder="0" {...form.register(`lineItems.${index}.discountPercent`, { setValueAs: (v) => v === '' ? 0 : parseFloat(v) || 0 })} onKeyDown={numericKeyDown} />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <Label className="text-[11px] text-muted-foreground">VAT</Label>
@@ -334,7 +309,7 @@ export function QuotationSheet({ open, onClose, onSuccess, defaultCustomerId, ed
                                 variant="ghost"
                                 size="sm"
                                 className="mt-2 w-full border border-dashed text-muted-foreground hover:text-foreground"
-                                onClick={() => append({ description: "", quantity: 1, unitPrice: 0, discountPercent: 0, vatTreatment: "STANDARD_RATED" })}
+                                onClick={() => append(DEFAULT_LINE_ITEM)}
                             >
                                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Line Item
                             </Button>

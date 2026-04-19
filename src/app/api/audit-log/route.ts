@@ -1,8 +1,9 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { parsePagination } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
     try {
@@ -11,9 +12,7 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const action = searchParams.get("action");
         const entityType = searchParams.get("entityType");
-        const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "30"));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams, { limit: 30 });
 
         const where = {
             organizationId: ctx.organizationId,

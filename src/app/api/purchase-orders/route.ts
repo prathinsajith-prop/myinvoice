@@ -7,6 +7,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { parsePagination } from "@/lib/utils";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -45,9 +46,7 @@ export async function GET(req: NextRequest) {
         const status = searchParams.get("status");
         const supplierId = searchParams.get("supplierId");
         const search = searchParams.get("search") ?? "";
-        const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -103,7 +102,7 @@ export async function POST(req: NextRequest) {
         const parsed = createPOSchema.safeParse(body);
         if (!parsed.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: parsed.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: parsed.error.flatten() },
                 { status: 400 },
             );
         }

@@ -1,7 +1,8 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { CRON_SECRET } from "@/lib/constants/env";
+import { timingSafeCompare } from "@/lib/crypto/token";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { generatePublicToken } from "@/lib/crypto/token";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
@@ -31,7 +32,7 @@ function computeNextRunDate(current: Date, frequency: string): Date {
 export async function POST(req: NextRequest) {
     // Authenticate cron request
     const secret = req.headers.get("x-cron-secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
-    if (!CRON_SECRET || secret !== CRON_SECRET) {
+    if (!CRON_SECRET || !secret || !timingSafeCompare(secret, CRON_SECRET)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

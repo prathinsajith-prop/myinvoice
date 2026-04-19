@@ -1,6 +1,9 @@
 "use client";
 
-import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useRef, useMemo } from "react";
+import useSWR from "swr";
+import { jsonFetcher } from "@/lib/fetcher";
+import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, FileText, AlertCircle, Trash2, XCircle, CheckSquare } from "lucide-react";
@@ -77,12 +80,9 @@ export default function InvoicesPage() {
     const currency = orgSettings.defaultCurrency;
     const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
-    const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkVoidOpen, setBulkVoidOpen] = useState(false);
@@ -100,24 +100,17 @@ export default function InvoicesPage() {
         createParamHandled.current = true;
     }, []);
 
-    const fetchInvoices = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (normalizedSearch) params.set("search", normalizedSearch);
-            if (statusFilter !== "ALL") params.set("status", statusFilter);
-            const res = await fetch(`/api/invoices?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setInvoices(data.data ?? []);
-                setPagination(data.pagination ?? null);
-            }
-        } finally {
-            setLoading(false);
-        }
-    }, [page, normalizedSearch, statusFilter]);
-
-    useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
+    const swrParams = new URLSearchParams({ page: String(page), limit: "20" });
+    if (normalizedSearch) swrParams.set("search", normalizedSearch);
+    if (statusFilter !== "ALL") swrParams.set("status", statusFilter);
+    const { data: swrData, isLoading, mutate } = useSWR(
+        `/api/invoices?${swrParams}`,
+        jsonFetcher<{ data: Invoice[]; pagination: Pagination }>,
+        { onError: (err) => toast.error(err.message ?? "Failed to load invoices") },
+    );
+    const invoices = swrData?.data ?? [];
+    const pagination = swrData?.pagination ?? null;
+    const loading = isLoading;
 
     const handleSearchChange = (value: string) => {
         setPage(1);
@@ -160,7 +153,7 @@ export default function InvoicesPage() {
                 setBulkVoidOpen(false);
                 setBulkVoidReason("");
                 clearSelection();
-                await fetchInvoices();
+                await mutate();
             }
         } finally {
             setBulkLoading(false);
@@ -177,7 +170,7 @@ export default function InvoicesPage() {
             });
             if (res.ok) {
                 clearSelection();
-                await fetchInvoices();
+                await mutate();
             }
         } finally {
             setBulkLoading(false);
@@ -301,7 +294,7 @@ export default function InvoicesPage() {
             <PageHeader
                 title={t("title")}
                 description={pagination ? t("totalCount", { total: pagination.total }) : t("manageDescription")}
-                onRefresh={fetchInvoices}
+                onRefresh={mutate}
                 isRefreshing={loading}
                 actions={
                     <>
@@ -421,7 +414,7 @@ export default function InvoicesPage() {
             <InvoiceSheet
                 open={sheetOpen}
                 onClose={() => setSheetOpen(false)}
-                onSuccess={() => { fetchInvoices(); setSheetOpen(false); }}
+                onSuccess={() => { mutate(); setSheetOpen(false); }}
             />
 
             {/* Bulk void dialog */}

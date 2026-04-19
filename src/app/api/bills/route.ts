@@ -9,6 +9,7 @@ import { logApiAudit } from "@/lib/api/audit";
 import { getNextDocumentNumber } from "@/lib/services/numbering";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
 import { notifyOrgMembers } from "@/lib/notifications/create";
+import { parsePagination } from "@/lib/utils";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -48,9 +49,7 @@ export async function GET(req: NextRequest) {
 
         const status = searchParams.get("status");
         const search = searchParams.get("search") ?? "";
-        const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-        const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 20)));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -71,7 +70,21 @@ export async function GET(req: NextRequest) {
         const [records, total] = await Promise.all([
             prisma.bill.findMany({
                 where: where as never,
-                include: {
+                select: {
+                    id: true,
+                    billNumber: true,
+                    supplierInvoiceNumber: true,
+                    reference: true,
+                    status: true,
+                    currency: true,
+                    subtotal: true,
+                    vatAmount: true,
+                    total: true,
+                    amountPaid: true,
+                    issueDate: true,
+                    dueDate: true,
+                    receivedDate: true,
+                    createdAt: true,
                     supplier: { select: { id: true, name: true, email: true } },
                     _count: { select: { lineItems: true } },
                 },
@@ -100,7 +113,7 @@ export async function POST(req: NextRequest) {
         const result = createBillSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

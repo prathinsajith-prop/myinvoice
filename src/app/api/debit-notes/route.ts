@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -7,6 +7,7 @@ import { normalizeDocumentBody } from "@/lib/api/normalize";
 import { toErrorResponse } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
 import { calculateLineItem, calculateDocumentTotals } from "@/lib/services/vat";
+import { parsePagination } from "@/lib/utils";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -46,9 +47,7 @@ export async function GET(req: NextRequest) {
 
         const status = searchParams.get("status");
         const search = searchParams.get("search") ?? "";
-        const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-        const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 20)));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -96,7 +95,7 @@ export async function POST(req: NextRequest) {
         const result = createDebitNoteSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

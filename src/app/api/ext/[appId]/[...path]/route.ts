@@ -14,16 +14,11 @@ import { resolveAppContext } from "@/lib/api/app-auth";
 import { toErrorResponse } from "@/lib/errors";
 import { getModuleConfig } from "@/lib/api/ext-modules";
 import prisma from "@/lib/db/prisma";
+import { parsePagination } from "@/lib/utils";
 
 type RouteParams = { params: Promise<{ appId: string; path: string[] }> };
 
 /* ────────── helpers ────────── */
-
-function parsePagination(url: URL) {
-    const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "20")));
-    return { page, limit, skip: (page - 1) * limit };
-}
 
 function buildSearchFilter(search: string, columns: string[]) {
     if (!search || columns.length === 0) return {};
@@ -109,7 +104,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
         /* ── List ── */
         const url = new URL(req.url);
-        const { page, limit, skip } = parsePagination(url);
+        const { page, limit, skip } = parsePagination(url.searchParams);
         const search = url.searchParams.get("search") ?? "";
         const status = url.searchParams.get("status");
 

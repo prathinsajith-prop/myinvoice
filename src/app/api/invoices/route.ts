@@ -12,6 +12,7 @@ import { notifyOrgMembers } from "@/lib/notifications/create";
 import { enforceInvoiceLimit } from "@/lib/plans.server";
 import { generateFtaQrPayload } from "@/lib/services/fta-qr";
 import { generatePublicToken } from "@/lib/crypto/token";
+import { parsePagination } from "@/lib/utils";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -49,9 +50,7 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
         const customerId = searchParams.get("customerId");
-        const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
         const result = createInvoiceSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

@@ -5,6 +5,7 @@ import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { logApiAudit } from "@/lib/api/audit";
+import { parsePagination } from "@/lib/utils";
 
 const createPaymentSchema = z.object({
     customerId: z.string().min(1),
@@ -39,9 +40,7 @@ export async function GET(req: NextRequest) {
 
         const customerId = searchParams.get("customerId");
         const search = searchParams.get("search") ?? "";
-        const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-        const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 20)));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -88,7 +87,7 @@ export async function POST(req: NextRequest) {
         const result = createPaymentSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

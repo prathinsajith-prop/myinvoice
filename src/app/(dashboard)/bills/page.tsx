@@ -1,6 +1,9 @@
 "use client";
 
-import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useRef, useMemo } from "react";
+import useSWR from "swr";
+import { jsonFetcher } from "@/lib/fetcher";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Plus, Receipt, AlertCircle, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -52,12 +55,9 @@ export default function BillsPage() {
     const orgSettings = useOrgSettings();
     const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
-    const [bills, setBills] = useState<Bill[]>([]);
-    const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [page, setPage] = useState(1);
-    const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [editBillId, setEditBillId] = useState<string | null>(null);
     const deferredSearch = useDeferredValue(search);
@@ -72,24 +72,17 @@ export default function BillsPage() {
         createParamHandled.current = true;
     }, []);
 
-    const fetchBills = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (normalizedSearch) params.set("search", normalizedSearch);
-            if (statusFilter !== "ALL") params.set("status", statusFilter);
-            const res = await fetch(`/api/bills?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setBills(data.data ?? []);
-                setPagination(data.pagination ?? null);
-            }
-        } finally {
-            setLoading(false);
-        }
-    }, [page, normalizedSearch, statusFilter]);
-
-    useEffect(() => { fetchBills(); }, [fetchBills]);
+    const swrParams = new URLSearchParams({ page: String(page), limit: "20" });
+    if (normalizedSearch) swrParams.set("search", normalizedSearch);
+    if (statusFilter !== "ALL") swrParams.set("status", statusFilter);
+    const { data: swrData, isLoading, mutate } = useSWR(
+        `/api/bills?${swrParams}`,
+        jsonFetcher<{ data: Bill[]; pagination: Pagination }>,
+        { onError: (err) => toast.error(err.message ?? "Failed to load bills") },
+    );
+    const bills = swrData?.data ?? [];
+    const pagination = swrData?.pagination ?? null;
+    const loading = isLoading;
 
     const handleSearchChange = (value: string) => {
         setPage(1);
@@ -195,7 +188,7 @@ export default function BillsPage() {
             <PageHeader
                 title={t("title")}
                 description={pagination ? t("totalBills", { count: pagination.total }) : t("manageDescription")}
-                onRefresh={fetchBills}
+                onRefresh={() => mutate()}
                 isRefreshing={loading}
                 actions={
                     <>
@@ -292,7 +285,7 @@ export default function BillsPage() {
             <BillSheet
                 open={sheetOpen || !!editBillId}
                 onClose={() => { setSheetOpen(false); setEditBillId(null); }}
-                onSuccess={() => { fetchBills(); setSheetOpen(false); setEditBillId(null); }}
+                onSuccess={() => { mutate(); setSheetOpen(false); setEditBillId(null); }}
                 editBillId={editBillId}
             />
         </div>
