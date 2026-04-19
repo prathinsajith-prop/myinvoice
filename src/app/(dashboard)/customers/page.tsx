@@ -1,6 +1,9 @@
 "use client";
 
-import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDeferredValue, useState, useEffect, useRef, useMemo } from "react";
+import useSWR from "swr";
+import { jsonFetcher } from "@/lib/fetcher";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
     Plus,
@@ -74,12 +77,9 @@ export default function CustomersPage() {
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
     const createParamHandled = useRef(false);
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [pagination, setPagination] = useState<Pagination | null>(null);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("ALL");
     const [page, setPage] = useState(1);
-    const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
@@ -97,26 +97,17 @@ export default function CustomersPage() {
         createParamHandled.current = true;
     }, []);
 
-    const fetchCustomers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({ page: String(page), limit: "20" });
-            if (normalizedSearch) params.set("search", normalizedSearch);
-            if (typeFilter !== "ALL") params.set("type", typeFilter);
-            const res = await fetch(`/api/customers?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setCustomers(data.data ?? []);
-                setPagination(data.pagination ?? null);
-            }
-        } finally {
-            setLoading(false);
-        }
-    }, [page, normalizedSearch, typeFilter]);
-
-    useEffect(() => {
-        fetchCustomers();
-    }, [fetchCustomers]);
+    const swrParams = new URLSearchParams({ page: String(page), limit: "20" });
+    if (normalizedSearch) swrParams.set("search", normalizedSearch);
+    if (typeFilter !== "ALL") swrParams.set("type", typeFilter);
+    const { data: swrData, isLoading, mutate } = useSWR(
+        `/api/customers?${swrParams}`,
+        jsonFetcher<{ data: Customer[]; pagination: Pagination }>,
+        { onError: (err) => toast.error(err.message ?? "Failed to load customers") },
+    );
+    const customers = swrData?.data ?? [];
+    const pagination = swrData?.pagination ?? null;
+    const loading = isLoading;
 
     const handleSearchChange = (value: string) => {
         setPage(1);
@@ -266,7 +257,7 @@ export default function CustomersPage() {
             <PageHeader
                 title={t("title")}
                 description={pagination ? t("totalCustomers", { count: pagination.total }) : t("manageDescription")}
-                onRefresh={fetchCustomers}
+                onRefresh={mutate}
                 isRefreshing={loading}
                 actions={
                     <>
@@ -365,7 +356,7 @@ export default function CustomersPage() {
             <CustomerModal
                 open={createOpen || editId !== null}
                 onClose={() => { setCreateOpen(false); setEditId(null); setEditData(undefined); }}
-                onSuccess={() => { fetchCustomers(); setCreateOpen(false); setEditId(null); setEditData(undefined); }}
+                onSuccess={() => { mutate(); setCreateOpen(false); setEditId(null); setEditData(undefined); }}
                 initialData={editData as Record<string, string>}
                 id={editId ?? undefined}
             />

@@ -48,7 +48,7 @@ pnpm dev
 | Branch | Purpose |
 |--------|---------|
 | `main` | Production. Auto-deploys to Vercel on merge. Protected. |
-| `develop` | Integration branch. All feature branches merge here first. |
+| `development` | Integration branch. All feature branches merge here first. |
 | `feat/<description>` | New features |
 | `fix/<description>` | Bug fixes |
 | `chore/<description>` | Tooling, deps, non-functional changes |
@@ -56,9 +56,9 @@ pnpm dev
 | `hotfix/<description>` | Urgent production fixes — branch from `main` |
 
 **Rules:**
-- Never commit directly to `main` or `develop`.
+- Never commit directly to `main` or `development`.
 - All changes go through a pull request with at least 1 reviewer.
-- Rebase feature branches on `develop` before opening a PR (no merge commits).
+- Rebase feature branches on `development` before opening a PR (no merge commits).
 
 ---
 

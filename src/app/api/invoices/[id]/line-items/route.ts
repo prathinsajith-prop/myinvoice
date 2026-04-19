@@ -103,7 +103,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const result = lineItemSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }
@@ -159,7 +159,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         const result = updateLineItemSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }

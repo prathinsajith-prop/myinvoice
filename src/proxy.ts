@@ -46,9 +46,11 @@ export async function proxy(req: NextRequest) {
   if (normalizedPath.startsWith("/api/") && normalizedPath !== "/api/auth/session") {
     const ip = getClientIp(req.headers);
     const isAuthApi = normalizedPath.startsWith("/api/auth/");
-    const limit = isAuthApi ? 60 : 300;
+    const isWebhookApi = normalizedPath.startsWith("/api/webhooks/");
+    const isExtApi = normalizedPath.startsWith("/api/ext/") || req.headers.has("x-api-secret");
+    const limit = isAuthApi ? 60 : isWebhookApi ? 120 : isExtApi ? 200 : 300;
     const windowMs = 15 * 60 * 1000;
-    const rl = await rateLimit(`${ip}:${isAuthApi ? "auth" : "api"}`, limit, windowMs);
+    const rl = await rateLimit(`${ip}:${isAuthApi ? "auth" : isWebhookApi ? "webhook" : isExtApi ? "ext-api" : "api"}`, limit, windowMs);
 
     if (!rl.allowed) {
       return NextResponse.json(

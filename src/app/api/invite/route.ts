@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const parsed = acceptSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: parsed.error.flatten() },
+        { error: "Validation failed", code: "VALIDATION_ERROR", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
