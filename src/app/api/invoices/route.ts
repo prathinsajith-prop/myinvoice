@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -12,6 +12,7 @@ import { notifyOrgMembers } from "@/lib/notifications/create";
 import { enforceInvoiceLimit } from "@/lib/plans.server";
 import { generateFtaQrPayload } from "@/lib/services/fta-qr";
 import { generatePublicToken } from "@/lib/crypto/token";
+import { parsePagination } from "@/lib/utils";
 
 const lineItemSchema = z.object({
     productId: z.string().optional().nullable(),
@@ -49,9 +50,7 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") ?? "";
         const status = searchParams.get("status");
         const customerId = searchParams.get("customerId");
-        const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-        const limit = Math.min(100, parseInt(searchParams.get("limit") ?? searchParams.get("pageSize") ?? "20"));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(searchParams);
 
         const where = {
             organizationId: ctx.organizationId,
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
         const result = createInvoiceSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: result.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
                 { status: 400 }
             );
         }
@@ -138,16 +137,17 @@ export async function POST(req: NextRequest) {
 
         const invoiceNumber = await getNextDocumentNumber(ctx.organizationId, documentType);
 
-        const organization = await prisma.organization.findUnique({
-            where: { id: ctx.organizationId },
-            select: { name: true, legalName: true, trn: true },
-        });
-
-        // Resolve customer TRN for FTA compliance (buyerTrn required on B2B invoices > AED 10,000)
-        const customerRecord = await prisma.customer.findUnique({
-            where: { id: invoiceData.customerId },
-            select: { trn: true, type: true, email: true },
-        });
+        const [organization, customerRecord] = await Promise.all([
+            prisma.organization.findUnique({
+                where: { id: ctx.organizationId },
+                select: { name: true, legalName: true, trn: true },
+            }),
+            // Resolve customer TRN for FTA compliance (buyerTrn required on B2B invoices > AED 10,000)
+            prisma.customer.findUnique({
+                where: { id: invoiceData.customerId },
+                select: { trn: true, type: true, email: true },
+            }),
+        ]);
 
         // FTA Compliance: B2B invoices over AED 10,000 MUST have buyerTrn
         if (

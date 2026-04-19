@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const payload = sendSchema.safeParse(await req.json().catch(() => ({})));
         if (!payload.success) {
             return NextResponse.json(
-                { error: "Validation failed", details: payload.error.flatten() },
+                { error: "Validation failed", code: "VALIDATION_ERROR", details: payload.error.flatten() },
                 { status: 400 }
             );
         }

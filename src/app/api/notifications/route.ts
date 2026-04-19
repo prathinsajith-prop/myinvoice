@@ -1,9 +1,10 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { resolveApiContext } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
+import { parsePagination } from "@/lib/utils";
 
 // GET /api/notifications — list notifications for user with pagination
 export async function GET(req: NextRequest) {
@@ -11,8 +12,7 @@ export async function GET(req: NextRequest) {
     const ctx = await resolveApiContext(req);
     const { searchParams } = new URL(req.url);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
-    const limit = Math.min(Number(searchParams.get("limit") ?? "20"), 50);
-    const offset = Math.max(0, Number(searchParams.get("offset") ?? "0"));
+    const { limit, skip } = parsePagination(searchParams);
 
     const where = {
       userId: ctx.userId,
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       prisma.notification.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        skip: offset,
+        skip,
         take: limit,
       }),
       prisma.notification.count({ where }),
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       notifications,
       total,
       unreadCount,
-      hasMore: offset + notifications.length < total,
+      hasMore: skip + notifications.length < total,
     });
   } catch (error) {
     return toErrorResponse(error);
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest) {
     const result = patchNotificationsSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: result.error.flatten() },
+        { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
         { status: 400 }
       );
     }
@@ -100,7 +100,7 @@ export async function DELETE(req: NextRequest) {
     const result = deleteNotificationsSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: result.error.flatten() },
+        { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
         { status: 400 }
       );
     }

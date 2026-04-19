@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Plus,
   Loader2,
+  Blocks,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -208,6 +209,16 @@ export function UserProfileDropdown() {
             <Settings className="h-4 w-4 text-muted-foreground" />
             <span>{t("settings")}</span>
             <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        {/* Developer Section */}
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => router.push("/apps")} className="gap-2 py-2">
+            <Blocks className="h-4 w-4 text-muted-foreground" />
+            <span>{t("connectedApps")}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
 

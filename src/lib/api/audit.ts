@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
  */
 export function logApiAudit(params: {
     organizationId: string;
-    userId: string;
+    userId?: string | null;
     userEmail?: string | null;
     action: string;
     entityType: string;
@@ -16,20 +16,23 @@ export function logApiAudit(params: {
     previousData?: unknown;
     newData?: unknown;
     metadata?: Record<string, unknown>;
+    ipAddress?: string | null;
+    appId?: string;
     req?: NextRequest;
 }) {
-    const ipAddress = params.req
-        ? params.req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        params.req.headers.get("x-real-ip") ??
-        null
-        : null;
+    const ipAddr = params.ipAddress ??
+        (params.req
+            ? params.req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+            params.req.headers.get("x-real-ip") ??
+            null
+            : null);
 
     // Fire-and-forget — do not await in the calling code
     prisma.auditLog
         .create({
             data: {
                 organizationId: params.organizationId,
-                userId: params.userId,
+                userId: params.userId ?? undefined,
                 userEmail: params.userEmail ?? undefined,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 action: params.action as any,
@@ -39,7 +42,8 @@ export function logApiAudit(params: {
                 previousData: params.previousData as object | undefined,
                 newData: params.newData as object | undefined,
                 metadata: params.metadata as object | undefined,
-                ipAddress,
+                ipAddress: ipAddr,
+                appId: params.appId,
             },
         })
         .catch(() => {
