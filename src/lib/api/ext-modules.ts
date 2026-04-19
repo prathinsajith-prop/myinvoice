@@ -32,6 +32,18 @@ export interface ModuleConfig {
     orderBy: Record<string, string>;
     /** Whether the model uses soft-delete (deletedAt field) */
     softDelete: boolean;
+    /**
+     * Explicit list of body fields allowed on POST/PATCH.
+     * If set, any key not in this list is stripped before the Prisma call.
+     * If undefined, all body fields pass through (legacy behaviour).
+     */
+    allowedWriteFields?: string[];
+    /**
+     * Optional override for record creation.
+     * When provided, replaces the default `delegate.create()` call in the POST handler.
+     * Receives the raw request body and the resolved organizationId.
+     */
+    createFn?: (body: Record<string, unknown>, organizationId: string) => Promise<unknown>;
 }
 
 /* ---------- per-module configs -------- */
@@ -75,6 +87,12 @@ const MODULES: Record<string, ModuleConfig> = {
         searchColumns: ["name", "email", "phone", "trn"],
         orderBy: { name: "asc" },
         softDelete: true,
+        allowedWriteFields: [
+            "name", "displayName", "email", "phone", "mobile", "contactPerson",
+            "type", "trn", "isVatRegistered", "city", "emirate", "country",
+            "currency", "defaultPaymentTerms", "notes", "website",
+            "unitNumber", "buildingName", "street", "area", "postalCode",
+        ],
     },
 
     suppliers: {
@@ -92,6 +110,12 @@ const MODULES: Record<string, ModuleConfig> = {
         searchColumns: ["name", "email", "phone", "trn"],
         orderBy: { name: "asc" },
         softDelete: true,
+        allowedWriteFields: [
+            "name", "displayName", "email", "phone", "mobile", "contactPerson",
+            "type", "trn", "isVatRegistered", "city", "emirate", "country",
+            "currency", "defaultPaymentTerms", "notes", "website",
+            "bankName", "accountNumber", "iban", "swift",
+        ],
     },
 
     products: {
@@ -259,6 +283,65 @@ const MODULES: Record<string, ModuleConfig> = {
         searchColumns: ["paymentNumber", "reference"],
         orderBy: { paymentDate: "desc" },
         softDelete: false,
+        createFn: async (body, organizationId) => {
+            const amount = Number(body.amount ?? 0);
+            const bankCharge = Number(body.bankCharge ?? 0);
+            const amountNet = amount - bankCharge;
+
+            // Accept both `method` and legacy `paymentMethod`
+            const method = (body.method ?? body.paymentMethod ?? "BANK_TRANSFER") as string;
+            const customerId = body.customerId as string;
+            const invoiceId = body.invoiceId as string | undefined;
+            const currency = (body.currency ?? "AED") as string;
+            const reference = (body.reference ?? null) as string | null;
+            const notes = (body.notes ?? null) as string | null;
+            const paymentDate = body.paymentDate
+                ? new Date(body.paymentDate as string)
+                : new Date();
+
+            return prisma.$transaction(async (tx) => {
+                await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pay:${organizationId}`}))`;
+
+                const last = await tx.payment.findFirst({
+                    where: { organizationId },
+                    orderBy: { createdAt: "desc" },
+                    select: { paymentNumber: true },
+                });
+                const next = last?.paymentNumber
+                    ? String(Number(last.paymentNumber.replace(/[^0-9]/g, "")) + 1).padStart(4, "0")
+                    : "0001";
+                const paymentNumber = `PAY-${next}`;
+
+                const payment = await tx.payment.create({
+                    data: {
+                        organizationId,
+                        customerId,
+                        paymentNumber,
+                        reference,
+                        method: method as "CASH" | "BANK_TRANSFER" | "CHEQUE" | "CARD" | "STRIPE" | "PAYBY" | "TABBY" | "TAMARA" | "OTHER",
+                        status: "COMPLETED",
+                        currency,
+                        amount,
+                        bankCharge,
+                        amountNet,
+                        paymentDate,
+                        notes,
+                    },
+                });
+
+                if (invoiceId) {
+                    await tx.paymentAllocation.create({
+                        data: {
+                            paymentId: payment.id,
+                            invoiceId,
+                            amount,
+                        },
+                    });
+                }
+
+                return payment;
+            });
+        },
     },
 
     "recurring-invoices": {

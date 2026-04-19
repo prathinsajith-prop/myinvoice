@@ -395,7 +395,18 @@
     "exportTotalInvoiced": "إجمالي الفواتير",
     "exportOutstanding": "المستحق",
     "exportActive": "نشط",
-    "exportTitle": "تقرير العملاء"
+    "exportTitle": "تقرير العملاء",
+    "importCustomers": "استيراد CSV",
+    "importDialogTitle": "استيراد العملاء من CSV",
+    "importDialogDesc": "ارفع ملف CSV يحتوي على الأعمدة: name, email, phone, type (BUSINESS/INDIVIDUAL), trn, city, emirate, notes. الحد الأقصى 500 صف.",
+    "importDownloadTemplate": "تنزيل القالب",
+    "importSelectFile": "اختر ملف CSV",
+    "importConfirm": "استيراد",
+    "importing": "جارٍ الاستيراد…",
+    "importSuccess": "تم استيراد {count} عميل",
+    "importSkipped": "{count} تم تخطيها (بريد مكرر)",
+    "importErrors": "{count} صف بها أخطاء",
+    "importNoFile": "الرجاء تحديد ملف CSV أولاً"
   },
   "suppliers": {
     "title": "الموردون",

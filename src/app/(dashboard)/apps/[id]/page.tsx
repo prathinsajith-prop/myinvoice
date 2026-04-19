@@ -70,6 +70,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
@@ -1294,29 +1295,55 @@ const { data, pagination } = await response.json();`}
 
                 {/* Secret Display Dialog */}
                 <Dialog open={!!secretDialog} onOpenChange={() => setSecretDialog(null)}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-2xl">
                         <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <KeyRound className="h-5 w-5" />
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                <KeyRound className="h-5 w-5 text-amber-500" />
                                 {t("newApiSecretTitle")}
                             </DialogTitle>
-                            <DialogDescription>
-                                {t("newApiSecretDesc")}
-                            </DialogDescription>
                         </DialogHeader>
-                        {secretDialog?.apiSecret && (
-                            <div className="space-y-2">
-                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                                    {t("apiSecretLabel")}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <code className="flex-1 truncate rounded border bg-muted/50 px-3 py-2 text-sm font-mono">
-                                        {secretDialog.apiSecret}
+
+                        <div className="flex gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-800 dark:text-amber-300">{t("newApiSecretDesc")}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    App ID — used in the URL path
+                                </label>
+                                <div className="flex items-start gap-2">
+                                    <code className="flex-1 break-all rounded-md border bg-muted/50 px-3 py-2.5 text-sm font-mono leading-relaxed">
+                                        {id}
                                     </code>
-                                    <CopyButton text={secretDialog.apiSecret} />
+                                    <CopyButton text={id} />
                                 </div>
                             </div>
-                        )}
+
+                            {secretDialog?.apiSecret && (
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                        {t("apiSecretLabel")} — X-Api-Secret header
+                                    </label>
+                                    <div className="flex items-start gap-2">
+                                        <code className="flex-1 break-all rounded-md border bg-muted/50 px-3 py-2.5 text-sm font-mono leading-relaxed">
+                                            {secretDialog.apiSecret}
+                                        </code>
+                                        <CopyButton text={secretDialog.apiSecret} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                className="w-full sm:w-auto"
+                                onClick={() => setSecretDialog(null)}
+                            >
+                                Done, I&apos;ve saved my credentials
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
