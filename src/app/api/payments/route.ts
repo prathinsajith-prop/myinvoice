@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
         const payment = await prisma.$transaction(async (tx) => {
             // Serialize payment number generation per organization.
-            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pay:${ctx.organizationId}`}))`;
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pay:${ctx.organizationId}`}))`;
 
             // Generate payment number atomically inside the transaction
             const last = await tx.payment.findFirst({

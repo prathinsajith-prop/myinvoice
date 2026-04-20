@@ -1,11 +1,12 @@
 "use client";
 
 import { useDeferredValue, useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Plus, Truck, Eye, Send, CheckCircle2, Ban, MoreHorizontal } from "lucide-react";
+import { Plus, Truck, Eye, Send, CheckCircle2, Ban, MoreHorizontal, Download } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 
 import { DeliveryNoteSheet } from "@/components/modals/delivery-note-sheet";
+import { useTenant } from "@/lib/tenant/context";
 import { DeliveryNoteDetailDrawer } from "@/components/modals/delivery-note-detail-drawer";
 
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ export default function DeliveryNotesPage() {
     const t = useTranslations("deliveryNotes");
     const tc = useTranslations("common");
     const orgSettings = useOrgSettings();
+    const { hasPermission } = useTenant();
     const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
     const [notes, setNotes] = useState<DeliveryNote[]>([]);
@@ -203,7 +205,12 @@ export default function DeliveryNotesPage() {
                                 <DropdownMenuItem onClick={() => setDetailId(row.original.id)}>
                                     <Eye className="mr-2 h-4 w-4" />{tc("view")}
                                 </DropdownMenuItem>
-                                {canDispatch && (
+                                <DropdownMenuItem asChild>
+                                    <a href={`/api/delivery-notes/${row.original.id}/pdf`}>
+                                        <Download className="mr-2 h-4 w-4" />Download PDF
+                                    </a>
+                                </DropdownMenuItem>
+                                {canDispatch && hasPermission('edit') && (
                                     <>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => updateStatusInline(row.original.id, "DISPATCHED")}>
@@ -211,7 +218,7 @@ export default function DeliveryNotesPage() {
                                         </DropdownMenuItem>
                                     </>
                                 )}
-                                {canDeliver && (
+                                {canDeliver && hasPermission('edit') && (
                                     <>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => updateStatusInline(row.original.id, "DELIVERED")}>
@@ -219,7 +226,7 @@ export default function DeliveryNotesPage() {
                                         </DropdownMenuItem>
                                     </>
                                 )}
-                                {canVoid && (
+                                {canVoid && hasPermission('edit') && (
                                     <>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
@@ -246,9 +253,11 @@ export default function DeliveryNotesPage() {
                 onRefresh={fetchNotes}
                 isRefreshing={loading}
                 actions={
-                    <Button onClick={() => setSheetOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> {t("new")}
-                    </Button>
+                    hasPermission('create') ? (
+                        <Button onClick={() => setSheetOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" /> {t("new")}
+                        </Button>
+                    ) : null
                 }
             />
 

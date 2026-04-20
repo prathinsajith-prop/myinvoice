@@ -52,9 +52,9 @@ describe('formatAmount', () => {
         expect(formatAmount('200.5')).toBe('200.50');
     });
 
-    it('handles NaN-like strings by passing through NaN', () => {
-        // Number('not-a-number') === NaN — the function does not guard against this
-        expect(formatAmount('not-a-number')).toBe('NaN');
+    it('returns "0.00" for NaN-like strings (NaN-safe guard)', () => {
+        // formatAmount guards against NaN — returns "0.00" instead of "NaN"
+        expect(formatAmount('not-a-number')).toBe('0.00');
     });
 
     it('uses western digits for Arabic locale', () => {

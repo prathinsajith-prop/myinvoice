@@ -38,6 +38,7 @@ export default function ProfileSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageChanged, setImageChanged] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -78,23 +79,40 @@ export default function ProfileSettingsPage() {
       return;
     }
 
+    // Local preview only — store file for upload on submit
     const reader = new FileReader();
     reader.onload = () => {
       setImagePreview(reader.result as string);
       setImageChanged(true);
     };
     reader.readAsDataURL(file);
+    // Keep the File reference so we can upload it (not store the data URI)
+    setImageFile(file);
   };
 
   const onSubmit = async (data: UpdateProfileInput) => {
     setSaving(true);
     try {
+      let imageUrl: string | null | undefined;
+
+      // Upload avatar file to server; store URL — never the base64 data URI
+      if (imageChanged && imageFile) {
+        const formData = new FormData();
+        formData.append("file", imageFile);
+        const uploadRes = await fetch("/api/uploads/avatar", { method: "POST", body: formData });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error || "Failed to upload avatar");
+        }
+        imageUrl = uploadData.url as string;
+      }
+
       const res = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          ...(imageChanged ? { image: imagePreview } : {}),
+          ...(imageChanged ? { image: imageUrl ?? imagePreview } : {}),
         }),
       });
 
@@ -110,6 +128,7 @@ export default function ProfileSettingsPage() {
 
       toast.success("Profile updated successfully");
       setImageChanged(false);
+      setImageFile(null);
       // Update local preview to match what was saved
       setImagePreview(updatedUser.image ?? null);
       reset({ name: data.name, phone: data.phone });

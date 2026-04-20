@@ -395,7 +395,18 @@
     "exportTotalInvoiced": "Total Invoiced",
     "exportOutstanding": "Outstanding",
     "exportActive": "Active",
-    "exportTitle": "Customers Report"
+    "exportTitle": "Customers Report",
+    "importCustomers": "Import CSV",
+    "importDialogTitle": "Import Customers from CSV",
+    "importDialogDesc": "Upload a CSV file with columns: name, email, phone, type (BUSINESS/INDIVIDUAL), trn, city, emirate, notes. Max 500 rows.",
+    "importDownloadTemplate": "Download template",
+    "importSelectFile": "Select CSV file",
+    "importConfirm": "Import",
+    "importing": "Importing…",
+    "importSuccess": "Imported {count} customers",
+    "importSkipped": "{count} skipped (duplicate email)",
+    "importErrors": "{count} rows had errors",
+    "importNoFile": "Please select a CSV file first"
   },
   "suppliers": {
     "title": "Suppliers",
