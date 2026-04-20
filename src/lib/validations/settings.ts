@@ -44,7 +44,14 @@ export const markNotificationReadSchema = z.object({
 export const updateProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100).optional(),
   phone: z.string().optional().nullable(),
-  image: z.string().optional().nullable(),
+  // Accept relative paths or https URLs only — reject base64 data URIs
+  image: z
+    .string()
+    .refine((v) => !v.startsWith("data:"), {
+      message: "Base64 data URIs are not accepted. Upload the file first.",
+    })
+    .optional()
+    .nullable(),
 });
 
 export const updatePasswordSchema = z
@@ -191,7 +198,7 @@ export const updateOrganizationSettingsSchema = z.object({
 // ── Credit Note ───────────────────────────────────────────────────────────────
 
 export const updateTeamMemberSchema = z.object({
-  role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
+  role: z.enum(["ADMIN", "MANAGER", "ACCOUNTANT", "MEMBER"]),
 });
 
 // ── Types ────────────────────────────────────────────────────────────────────

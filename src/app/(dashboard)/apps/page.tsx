@@ -12,11 +12,11 @@ import {
     Eye,
     ShieldAlert,
     Blocks,
-    Code,
     KeyRound,
     Activity,
     Clock,
     Shield,
+    TriangleAlert,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -44,11 +44,10 @@ import {
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { PermissionGate } from "@/components/tenant/permission-gate";
 import { jsonFetcher } from "@/lib/fetcher";
 import { CreateAppSheet } from "@/components/modals/create-app-sheet";
@@ -84,18 +83,18 @@ function CopyableField({ label, value, mono = true }: { label: string; value: st
     }
 
     return (
-        <div className="space-y-1">
-            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 {label}
             </label>
-            <div className="flex items-center gap-2">
-                <code className={`flex-1 truncate rounded border bg-muted/50 px-3 py-2 text-sm ${mono ? "font-mono" : ""}`}>
+            <div className="flex items-start gap-2">
+                <code className={`flex-1 break-all rounded-md border bg-muted/50 px-3 py-2.5 text-sm leading-relaxed ${mono ? "font-mono" : ""}`}>
                     {value}
                 </code>
                 <Button
                     variant="outline"
                     size="icon"
-                    className="shrink-0 h-9 w-9"
+                    className="shrink-0 h-9 w-9 mt-0.5"
                     onClick={handleCopy}
                     title="Copy to clipboard"
                 >
@@ -426,55 +425,46 @@ export default function AppsPage() {
                         if (appId) router.push(`/apps/${appId}`);
                     }}
                 >
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-2xl">
                         <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <KeyRound className="h-5 w-5" />
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                <KeyRound className="h-5 w-5 text-amber-500" />
                                 {t("secretsTitle")}
                             </DialogTitle>
-                            <DialogDescription>
-                                {t("secretWarning")}
-                            </DialogDescription>
                         </DialogHeader>
+
+                        <div className="flex gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3">
+                            <TriangleAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-800 dark:text-amber-300">{t("secretWarning")}</p>
+                        </div>
+
                         <div className="space-y-4">
                             {secretDialog?.id && (
                                 <CopyableField
-                                    label="App ID (used in the URL path)"
+                                    label="App ID — used in the URL path"
                                     value={secretDialog.id}
                                 />
                             )}
                             {secretDialog?.apiSecret && (
                                 <CopyableField
-                                    label="API Secret (X-Api-Secret header)"
+                                    label="API Secret — X-Api-Secret header"
                                     value={secretDialog.apiSecret}
                                 />
                             )}
                         </div>
-                        <Separator />
-                        <div className="space-y-3">
-                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                                <Code className="h-3.5 w-3.5" />
-                                How to authenticate
-                            </p>
-                            <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-xs text-muted-foreground">
-                                <p>
-                                    Use the <strong className="text-foreground">App ID</strong> in the URL path and pass the{" "}
-                                    <strong className="text-foreground">API Secret</strong> as the{" "}
-                                    <code className="rounded bg-muted px-1 py-0.5 text-foreground">X-Api-Secret</code> header
-                                    in every API request.
-                                </p>
-                                <div className="rounded bg-muted px-3 py-2 font-mono text-foreground text-sm">
-                                    POST https://myinvoice.ae/api/ext/<span className="text-blue-500">{"<App ID>"}</span>/invoices<br />
-                                    X-Api-Secret: <span className="text-green-500">{"<API Secret>"}</span>
-                                </div>
-                            </div>
-                            <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto font-mono leading-relaxed">
-                                {`curl -X POST https://myinvoice.ae/api/ext/${secretDialog?.id || "<appId>"}/invoices \\
-  -H "X-Api-Secret: ${secretDialog?.apiSecret || "<your-api-secret>"}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"customer_id": "...", "items": [...]}'`}
-                            </pre>
-                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                    const appId = secretDialog?.id;
+                                    setSecretDialog(null);
+                                    if (appId) router.push(`/apps/${appId}`);
+                                }}
+                            >
+                                Done, I&apos;ve saved my credentials
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
 

@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
                     totalVat: true,
                     total: true,
                     amountPaid: true,
+                    outstanding: true,
                     issueDate: true,
                     dueDate: true,
                     receivedDate: true,

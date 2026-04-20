@@ -200,13 +200,25 @@ function getDashboardStatsData(report: ReportResponse) {
 }
 
 
+// Semantic colour palette — shared across all charts
+const CHART_COLORS = {
+    revenue: "#3b82f6", // blue-500   — money in
+    expenses: "#f97316", // orange-500 — money out
+    paid: "#22c55e", // green-500  — success
+    overdue: "#ef4444", // red-500    — urgent
+    partial: "#f59e0b", // amber-500  — partial / warning
+    sent: "#60a5fa", // blue-400   — in-progress
+    draft: "#94a3b8", // slate-400  — neutral
+    void: "#cbd5e1", // slate-300  — inactive
+} as const;
+
 const STATUS_COLORS: Record<string, string> = {
-    DRAFT: "#94a3b8",
-    SENT: "#60a5fa",
-    PAID: "#34d399",
-    OVERDUE: "#f87171",
-    PARTIAL: "#fbbf24",
-    VOID: "#d1d5db",
+    DRAFT: CHART_COLORS.draft,
+    SENT: CHART_COLORS.sent,
+    PAID: CHART_COLORS.paid,
+    OVERDUE: CHART_COLORS.overdue,
+    PARTIAL: CHART_COLORS.partial,
+    VOID: CHART_COLORS.void,
 };
 
 export default function DashboardPage() {
@@ -338,8 +350,8 @@ export default function DashboardPage() {
             {loading ? (
                 <div className="space-y-4">
                     {/* Stat card skeletons */}
-                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-                        {Array.from({ length: 4 }).map((_, i) => (
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                        {Array.from({ length: 5 }).map((_, i) => (
                             <div key={i} className="rounded-lg border bg-card p-5 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <Skeleton className="h-4 w-28" />
@@ -388,7 +400,7 @@ export default function DashboardPage() {
                 </Card>
             ) : (
                 <>
-                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         {stats.map((stat) => (
                             <Card key={stat.name}>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -428,14 +440,18 @@ export default function DashboardPage() {
                                         {t("noDataPeriod")}
                                     </div>
                                 ) : (
-                                    <ResponsiveContainer width="100%" height={220}>
-                                        <BarChart data={monthlyTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                    <ResponsiveContainer width="100%" height={240}>
+                                        <BarChart data={monthlyTrend} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
                                             <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                                             <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
-                                            <Bar dataKey="revenue" name={t("chartRevenue")} fill="#6366f1" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="expenses" name={t("chartExpenses")} fill="#f87171" radius={[4, 4, 0, 0]} />
+                                            <Tooltip
+                                                formatter={(v, name) => [formatCurrency(Number(v ?? 0), currency), name]}
+                                                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                                            />
+                                            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                                            <Bar dataKey="revenue" name={t("chartRevenue")} fill={CHART_COLORS.revenue} radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="expenses" name={t("chartExpenses")} fill={CHART_COLORS.expenses} radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 )}
@@ -492,40 +508,47 @@ export default function DashboardPage() {
                                 <CardTitle>{t("recentInvoicesTitle")}</CardTitle>
                                 <CardDescription>{t("recentInvoicesDesc")}</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {recentInvoices.length === 0 ? (
-                                        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                                            {t("noInvoicesCreated")}
-                                        </div>
-                                    ) : (
-                                        recentInvoices.map((invoice) => (
-                                            <div
+                            <CardContent className="p-0">
+                                {recentInvoices.length === 0 ? (
+                                    <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+                                        {t("noInvoicesCreated")}
+                                    </div>
+                                ) : (
+                                    <div className="divide-y">
+                                        {recentInvoices.map((invoice) => (
+                                            <Link
                                                 key={invoice.id}
-                                                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                                                href={`/invoices/${invoice.id}`}
+                                                className="flex items-center justify-between gap-4 px-6 py-3.5 transition-colors hover:bg-muted/40"
                                             >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                                        <FileText className="h-5 w-5 text-muted-foreground" />
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                                        <FileText className="h-4 w-4 text-primary" />
                                                     </div>
-                                                    <div>
-                                                        <p className="font-medium">{invoice.customer.name}</p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {invoice.invoiceNumber} • {formatDate(invoice.issueDate, dateFormat)}
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-medium leading-5">
+                                                            {invoice.customer.name}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {invoice.invoiceNumber} · {formatDate(invoice.issueDate, dateFormat)}
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-3 sm:justify-end">
-                                                    <span className="font-medium">{formatCurrency(invoice.total, currency)}</span>
+                                                <div className="flex shrink-0 items-center gap-3">
+                                                    <span className="text-sm font-semibold tabular-nums">
+                                                        {formatCurrency(invoice.total, currency)}
+                                                    </span>
                                                     <StatusBadge status={invoice.status} />
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="border-t px-6 py-3">
+                                    <Button variant="ghost" size="sm" className="w-full text-muted-foreground" asChild>
+                                        <Link href="/invoices">{t("viewAllInvoices")}</Link>
+                                    </Button>
                                 </div>
-                                <Button variant="outline" className="mt-4 w-full" asChild>
-                                    <Link href="/invoices">{t("viewAllInvoices")}</Link>
-                                </Button>
                             </CardContent>
                         </Card>
 
@@ -553,25 +576,25 @@ export default function DashboardPage() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
+                            <Card>
                                 <CardHeader className="pb-2">
                                     <div className="flex items-center gap-2">
-                                        <AlertCircle className="h-5 w-5 text-orange-600" />
-                                        <CardTitle className="text-orange-600">{t("vatSummary")}</CardTitle>
+                                        <Percent className="h-4 w-4 text-muted-foreground" />
+                                        <CardTitle className="text-sm font-medium">{t("vatSummary")}</CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-2 text-sm">
-                                    <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
-                                        <span>{t("outputVat")}</span>
-                                        <span>{formatCurrency(vatSummary.outputVat, currency)}</span>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">{t("outputVat")}</span>
+                                        <span className="font-medium">{formatCurrency(vatSummary.outputVat, currency)}</span>
                                     </div>
-                                    <div className="flex items-center justify-between text-orange-700 dark:text-orange-300">
-                                        <span>{t("inputVat")}</span>
-                                        <span>{formatCurrency(vatSummary.inputVat, currency)}</span>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">{t("inputVat")}</span>
+                                        <span className="font-medium">{formatCurrency(vatSummary.inputVat, currency)}</span>
                                     </div>
-                                    <div className="flex items-center justify-between font-medium text-orange-800 dark:text-orange-200">
-                                        <span>{t("netVatPayable")}</span>
-                                        <span>{formatCurrency(vatSummary.netVatPayable, currency)}</span>
+                                    <div className="flex items-center justify-between border-t pt-2">
+                                        <span className="font-medium">{t("netVatPayable")}</span>
+                                        <span className="font-semibold text-primary">{formatCurrency(vatSummary.netVatPayable, currency)}</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -583,26 +606,21 @@ export default function DashboardPage() {
                                         <CardDescription>{t("receivableAgingDesc")}</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2 text-sm">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t("current")}</span>
-                                            <span className="font-medium text-green-600">{formatCurrency(receivableAging.current, currency)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t("days1to30")}</span>
-                                            <span className="font-medium text-yellow-600">{formatCurrency(receivableAging.days1to30, currency)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t("days31to60")}</span>
-                                            <span className="font-medium text-orange-600">{formatCurrency(receivableAging.days31to60, currency)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t("days61to90")}</span>
-                                            <span className="font-medium text-red-500">{formatCurrency(receivableAging.days61to90, currency)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t("days90plus")}</span>
-                                            <span className="font-medium text-red-700">{formatCurrency(receivableAging.days90plus, currency)}</span>
-                                        </div>
+                                        {([
+                                            { key: "current", label: t("current"), value: receivableAging.current, color: "bg-emerald-500" },
+                                            { key: "1-30", label: t("days1to30"), value: receivableAging.days1to30, color: "bg-yellow-400" },
+                                            { key: "31-60", label: t("days31to60"), value: receivableAging.days31to60, color: "bg-orange-400" },
+                                            { key: "61-90", label: t("days61to90"), value: receivableAging.days61to90, color: "bg-red-400" },
+                                            { key: "90+", label: t("days90plus"), value: receivableAging.days90plus, color: "bg-red-600" },
+                                        ] as const).map(({ key, label, value, color }) => (
+                                            <div key={key} className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />
+                                                    <span className="text-muted-foreground">{label}</span>
+                                                </div>
+                                                <span className="font-medium tabular-nums">{formatCurrency(value, currency)}</span>
+                                            </div>
+                                        ))}
                                     </CardContent>
                                 </Card>
                             )}
@@ -625,7 +643,7 @@ export default function DashboardPage() {
                                         label={t("collectionRate")}
                                         value={`${report.financialHealth.collectionRate.toFixed(1)}%`}
                                         pct={report.financialHealth.collectionRate}
-                                        color="bg-green-500"
+                                        color="bg-emerald-500"
                                     />
                                     <HealthRow
                                         label={t("profitMargin")}
@@ -637,7 +655,7 @@ export default function DashboardPage() {
                                         label={t("expenseRatio")}
                                         value={`${report.financialHealth.expenseRatio.toFixed(1)}%`}
                                         pct={Math.min(100, report.financialHealth.expenseRatio)}
-                                        color="bg-orange-500"
+                                        color="bg-amber-500"
                                     />
                                     <div className="flex items-center justify-between pt-1">
                                         <span className="text-muted-foreground flex items-center gap-1">
@@ -699,15 +717,24 @@ export default function DashboardPage() {
                                 {report.paymentPatterns && (
                                     <>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-green-600">{t("onTime")}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                <span className="text-muted-foreground">{t("onTime")}</span>
+                                            </div>
                                             <span className="font-medium">{report.paymentPatterns.onTime}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-yellow-600">{t("late")}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-yellow-400" />
+                                                <span className="text-muted-foreground">{t("late")}</span>
+                                            </div>
                                             <span className="font-medium">{report.paymentPatterns.late}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-red-600">{t("veryLate")}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-red-500" />
+                                                <span className="text-muted-foreground">{t("veryLate")}</span>
+                                            </div>
                                             <span className="font-medium">{report.paymentPatterns.veryLate}</span>
                                         </div>
                                     </>
@@ -718,11 +745,11 @@ export default function DashboardPage() {
                                             <p className="text-xs text-muted-foreground uppercase font-medium mb-2">{t("forecast")}</p>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-muted-foreground">{t("nextMonth")}</span>
-                                                <span className="font-medium text-green-600">{formatCurrency(report.forecast.nextMonthRevenue, currency)}</span>
+                                                <span className="font-medium">{formatCurrency(report.forecast.nextMonthRevenue, currency)}</span>
                                             </div>
                                             <div className="flex items-center justify-between mt-1">
                                                 <span className="text-muted-foreground">{t("next3Months")}</span>
-                                                <span className="font-medium text-green-600">{formatCurrency(report.forecast.next3MonthsRevenue, currency)}</span>
+                                                <span className="font-medium">{formatCurrency(report.forecast.next3MonthsRevenue, currency)}</span>
                                             </div>
                                         </div>
                                     </>

@@ -113,7 +113,7 @@ function LoginForm() {
         {step === "credentials" ? (
           <>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" required>Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -129,7 +129,7 @@ function LoginForm() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" required>Password</Label>
                 <Link
                   href="/forgot-password"
                   className="text-sm text-primary hover:underline"
@@ -192,7 +192,7 @@ function LoginForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="otp">Authentication Code</Label>
+              <Label htmlFor="otp" required>Authentication Code</Label>
               <Input
                 id="otp"
                 type="text"

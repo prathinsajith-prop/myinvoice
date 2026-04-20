@@ -179,7 +179,7 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Bill Details</p>
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="sm:col-span-2 space-y-1.5">
-                                    <Label>Supplier <span className="text-destructive">*</span></Label>
+                                    <Label required>Supplier</Label>
                                     <Select value={form.watch("supplierId")} onValueChange={(v) => form.setValue("supplierId", v, { shouldValidate: true })}>
                                         <SelectTrigger><SelectValue placeholder="Select supplier..." /></SelectTrigger>
                                         <SelectContent>
@@ -193,11 +193,11 @@ export function BillSheet({ open, onClose, onSuccess, defaultSupplierId, editBil
                                     )}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Bill Date <span className="text-destructive">*</span></Label>
+                                    <Label required>Bill Date</Label>
                                     <DatePicker value={form.watch("billDate")} onChange={(v) => form.setValue("billDate", v, { shouldValidate: true })} />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Due Date <span className="text-destructive">*</span></Label>
+                                    <Label required>Due Date</Label>
                                     <DatePicker value={form.watch("dueDate")} onChange={(v) => form.setValue("dueDate", v, { shouldValidate: true })} />
                                 </div>
                                 <div className="space-y-1.5">

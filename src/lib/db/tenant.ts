@@ -1,7 +1,7 @@
 import prisma from "./prisma";
 
 // All models that carry an organizationId foreign key
-const TENANT_SCOPED_MODELS = new Set([
+export const TENANT_SCOPED_MODELS = new Set([
   "customer",
   "supplier",
   "product",
@@ -26,11 +26,11 @@ const TENANT_SCOPED_MODELS = new Set([
   "notification",
 ]);
 
-function isTenantScoped(model: string): boolean {
+export function isTenantScoped(model: string): boolean {
   return TENANT_SCOPED_MODELS.has(model.toLowerCase());
 }
 
-function injectOrg(
+export function injectOrg(
   where: Record<string, unknown> | undefined,
   organizationId: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

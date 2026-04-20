@@ -115,7 +115,7 @@
     "newOrganization": "New organization",
     "noOrganizations": "No organizations",
     "switchedOrganization": "Switched organization",
-    "connectedApps": "Connected Apps"
+    "connectedApps": "Apps"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -148,7 +148,8 @@
     },
     "recurringInvoices": "Recurring Invoices",
     "paymentReminders": "Payment Reminders",
-    "connectedApps": "Connected Apps"
+    "reconciliation": "Reconciliation",
+    "connectedApps": "Apps"
   },
   "dashboard": {
     "welcome": "Welcome back, {name}",
@@ -395,7 +396,18 @@
     "exportTotalInvoiced": "Total Invoiced",
     "exportOutstanding": "Outstanding",
     "exportActive": "Active",
-    "exportTitle": "Customers Report"
+    "exportTitle": "Customers Report",
+    "importCustomers": "Import CSV",
+    "importDialogTitle": "Import Customers from CSV",
+    "importDialogDesc": "Upload a CSV file with columns: name, email, phone, type (BUSINESS/INDIVIDUAL), trn, city, emirate, notes. Max 500 rows.",
+    "importDownloadTemplate": "Download template",
+    "importSelectFile": "Select CSV file",
+    "importConfirm": "Import",
+    "importing": "Importing…",
+    "importSuccess": "Imported {count} customers",
+    "importSkipped": "{count} skipped (duplicate email)",
+    "importErrors": "{count} rows had errors",
+    "importNoFile": "Please select a CSV file first"
   },
   "suppliers": {
     "title": "Suppliers",
@@ -455,18 +467,19 @@
     "totalLabel": "Total Products",
     "allTypes": "All Types",
     "unitPriceHeader": "Unit Price",
+    "costPriceHeader": "Cost Price",
     "vatHeader": "VAT",
     "statusHeader": "Status",
     "typeLabels": {
       "PRODUCT": "Product",
-      "SERVICE": "Service",
-      "EXPENSE": "Expense"
+      "SERVICE": "Service"
     },
     "totalItems": "{count} items",
     "exportName": "Name",
     "exportSku": "SKU",
     "exportType": "Type",
     "exportUnitPrice": "Unit Price",
+    "exportCostPrice": "Cost Price",
     "exportVatTreatment": "VAT Treatment",
     "exportActive": "Active",
     "exportTitle": "Products & Services Report"
@@ -698,7 +711,7 @@
       "subscriptionName": "Subscription",
       "subscriptionDesc": "Manage your subscription and billing",
       "developer": "Developer",
-      "appsName": "Connected Apps",
+      "appsName": "Apps",
       "appsDesc": "Manage API keys and webhook integrations"
     },
     "organization": {
@@ -841,9 +854,9 @@
       "roles": {
         "owner": "Owner",
         "admin": "Admin",
+        "manager": "Manager",
         "accountant": "Accountant",
-        "member": "Member",
-        "viewer": "Viewer"
+        "member": "Member"
       },
       "pending": "Pending",
       "remove": "Remove Member",
@@ -876,16 +889,16 @@
       "roleLabels": {
         "OWNER": "Owner",
         "ADMIN": "Admin",
+        "MANAGER": "Manager",
         "ACCOUNTANT": "Accountant",
-        "MEMBER": "Member",
-        "VIEWER": "Viewer"
+        "MEMBER": "Member"
       },
       "roleDescriptions": {
         "OWNER": "Full access, can delete organization",
         "ADMIN": "Full access except organization deletion",
+        "MANAGER": "Can approve invoices, manage team, full edit access",
         "ACCOUNTANT": "Financial access, manage invoices",
-        "MEMBER": "View and limited edit access",
-        "VIEWER": "Read-only access"
+        "MEMBER": "View and limited edit access"
       }
     },
     "billing": {
@@ -1053,10 +1066,10 @@
       "recently": "Recently"
     },
     "apps": {
-      "title": "Connected Apps",
+      "title": "Apps",
       "description": "Manage API keys, scopes, and webhook integrations for external services.",
       "createApp": "Create App",
-      "noApps": "No connected apps yet",
+      "noApps": "No apps yet",
       "noAppsDesc": "Create an API key to integrate external services with your organization.",
       "name": "App Name",
       "namePlaceholder": "e.g. My ERP Integration",
@@ -1555,15 +1568,15 @@
     "roleLabels": {
       "owner": "Owner",
       "admin": "Admin",
+      "manager": "Manager",
       "accountant": "Accountant",
-      "member": "Member",
-      "viewer": "Viewer"
+      "member": "Member"
     },
     "roles": {
       "ADMIN": "Full access except organization deletion",
+      "MANAGER": "Can approve invoices, manage team, full edit access",
       "ACCOUNTANT": "Financial access, manage invoices",
-      "MEMBER": "View and limited edit access",
-      "VIEWER": "Read-only access"
+      "MEMBER": "View and limited edit access"
     }
   },
   "globalSearch": {
@@ -1692,5 +1705,42 @@
       "FAILED": "Failed",
       "SKIPPED": "Skipped"
     }
+  },
+  "reconciliation": {
+    "title": "Reconciliation",
+    "description": "Match payments to outstanding invoices and reconcile your accounts.",
+    "summary": "Summary",
+    "totalOutstanding": "Total Outstanding",
+    "totalPayments": "Total Payments",
+    "unallocated": "Unallocated Funds",
+    "reconciledThisMonth": "Reconciled This Month",
+    "outstandingInvoices": "Outstanding Invoices",
+    "unallocatedPayments": "Unallocated Payments",
+    "noOutstandingInvoices": "No outstanding invoices",
+    "noUnallocatedPayments": "No unallocated payments",
+    "allocate": "Allocate",
+    "allocatePayment": "Allocate Payment",
+    "selectInvoice": "Select Invoice",
+    "selectPayment": "Select Payment",
+    "amountToAllocate": "Amount to Allocate",
+    "allocateSuccess": "Payment allocated successfully",
+    "allocateError": "Failed to allocate payment",
+    "available": "Available",
+    "invoice": "Invoice",
+    "payment": "Payment",
+    "customer": "Customer",
+    "date": "Date",
+    "amount": "Amount",
+    "outstanding": "Outstanding",
+    "status": "Status",
+    "reference": "Reference",
+    "method": "Method",
+    "dateRange": "Date Range",
+    "from": "From",
+    "to": "To",
+    "refresh": "Refresh",
+    "reconciled": "Reconciled",
+    "partiallyPaid": "Partially Paid",
+    "overdue": "Overdue"
   }
 }

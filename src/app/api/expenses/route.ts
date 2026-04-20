@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
                     vatTreatment: true,
                     paymentMethod: true,
                     expenseDate: true,
-                    isReclaimable: true,
+                    isVatReclaimable: true,
                     createdAt: true,
                     product: { select: { id: true, name: true } },
                 },
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
 
         const expense = await prisma.$transaction(async (tx) => {
             // Serialize expense number generation per organization
-            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`exp:${ctx.organizationId}`}))`;
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`exp:${ctx.organizationId}`}))`;
 
             const last = await tx.expense.findFirst({
                 where: { organizationId: ctx.organizationId },

@@ -8,7 +8,7 @@ interface PermissionGateProps {
   /** Show children only if user has this permission */
   permission?: Permission;
   /** Show children only if user has this role or higher */
-  role?: "VIEWER" | "MEMBER" | "ACCOUNTANT" | "ADMIN" | "OWNER";
+  role?: "MEMBER" | "ACCOUNTANT" | "MANAGER" | "ADMIN" | "OWNER";
   /** Rendered when the user lacks permission (optional) */
   fallback?: ReactNode;
   children: ReactNode;

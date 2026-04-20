@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -13,8 +13,8 @@ const markPaidSchema = z.object({
     method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "STRIPE", "PAYBY", "TABBY", "TAMARA", "OTHER"]),
     reference: z.string().optional(),
     notes: z.string().optional(),
-    currencyCode: z.string().default("AED"),
-    exchangeRate: z.number().positive().default(1),
+    currencyCode: z.string().optional(),
+    exchangeRate: z.number().positive().optional(),
 });
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -27,8 +27,12 @@ export async function POST(req: NextRequest, { params }: Params) {
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
         });
         if (!invoice) throw new NotFoundError("Invoice");
+        if (!invoice.customerId) throw new ForbiddenError("Cannot record payment for an invoice without a customer");
         if (invoice.status === "VOID") throw new ForbiddenError("Cannot pay a voided invoice");
         if (invoice.status === "PAID") throw new ForbiddenError("Invoice is already fully paid");
+        if (invoice.status === "DRAFT") throw new ForbiddenError("Cannot pay a draft invoice");
+        if (invoice.status === "PENDING_APPROVAL") throw new ForbiddenError("Invoice is pending approval");
+        if (invoice.status === "CREDITED") throw new ForbiddenError("Invoice has been credited");
 
         const result = markPaidSchema.safeParse(body);
         if (!result.success) {
@@ -40,8 +44,12 @@ export async function POST(req: NextRequest, { params }: Params) {
 
         const { amount, paymentDate, method, reference, notes, currencyCode, exchangeRate } =
             result.data;
+        const normalizedReference = reference?.trim() ? reference.trim() : null;
+        const normalizedNotes = notes?.trim() ? notes.trim() : null;
+        const paymentCurrency = currencyCode ?? invoice.currency;
+        const paymentExchangeRate = exchangeRate ?? 1;
 
-        const outstanding = Number(invoice.outstanding);
+        const outstanding = Number(invoice.outstanding ?? invoice.total);
         if (amount > outstanding + 0.01) {
             return NextResponse.json(
                 { error: `Payment amount exceeds outstanding balance of ${outstanding}` },
@@ -73,16 +81,16 @@ export async function POST(req: NextRequest, { params }: Params) {
                 data: {
                     paymentNumber,
                     organizationId: ctx.organizationId,
-                    customerId: invoice.customerId!,
+                    customerId: invoice.customerId,
                     amount,
                     bankCharge: 0,
                     amountNet: amount,
-                    currency: currencyCode,
-                    exchangeRate,
+                    currency: paymentCurrency,
+                    exchangeRate: paymentExchangeRate,
                     paymentDate: new Date(paymentDate),
                     method,
-                    reference: reference ?? null,
-                    notes: notes ?? null,
+                    reference: normalizedReference,
+                    notes: normalizedNotes,
                     status: "COMPLETED",
                     allocations: {
                         create: {
@@ -98,7 +106,6 @@ export async function POST(req: NextRequest, { params }: Params) {
                     amountPaid: { increment: amount },
                     outstanding: newOutstanding,
                     status: newStatus,
-                    ...(newStatus === "PAID" ? { paidAt: new Date() } : {}),
                 },
             }),
         ]);

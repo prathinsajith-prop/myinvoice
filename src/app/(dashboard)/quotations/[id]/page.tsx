@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, ArrowRight } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, ArrowRight, Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -155,6 +155,11 @@ export default function QuotationDetailPage() {
                             </Link>
                         </Button>
                     )}
+                    <Button variant="outline" size="icon" asChild title="Download PDF">
+                        <a href={`/api/quotations/${quotation.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
                 </div>
             </div>
 

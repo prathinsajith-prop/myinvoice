@@ -5,6 +5,7 @@ import { Bell, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { type ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
+import { useTenant } from "@/lib/tenant/context";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -47,6 +48,7 @@ export default function PaymentRemindersPage() {
     const tc = useTranslations("common");
     const orgSettings = useOrgSettings();
     const dateFormat = orgSettings.dateFormat;
+    const { hasPermission } = useTenant();
 
     const [tab, setTab] = useState<TabValue>("upcoming");
     const [records, setRecords] = useState<Reminder[]>([]);
@@ -160,19 +162,21 @@ export default function PaymentRemindersPage() {
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => e.stopPropagation()}
                     >
-                        {rem.status === "PENDING" && (
+                        {rem.status === "PENDING" && hasPermission('edit') && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" title={t("cancel")} onClick={() => cancelReminder(rem.id)}>
                                 <X className="h-4 w-4" />
                             </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("delete")} onClick={() => deleteReminder(rem.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {hasPermission('delete') && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("delete")} onClick={() => deleteReminder(rem.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        )}
                     </div>
                 );
             },
         },
-         
+
     ], [dateFormat, t, tc]);
 
     return (

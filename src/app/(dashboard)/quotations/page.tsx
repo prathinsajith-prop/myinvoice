@@ -2,11 +2,12 @@
 
 import { useDeferredValue, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Eye, FileCheck, Pencil } from "lucide-react";
+import { Plus, Eye, FileCheck, Pencil, Download } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { QuotationSheet } from "@/components/modals/quotation-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
-import { formatDate } from "@/lib/format";
+import { formatAmount, formatDate } from "@/lib/format";
 import {
     Select,
     SelectContent,
@@ -50,6 +51,7 @@ export default function QuotationsPage() {
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
     const dateFormat = orgSettings.dateFormat;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -137,7 +139,7 @@ export default function QuotationsPage() {
             header: () => <div className="text-right">{tc("total")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {currency} {formatAmount(row.getValue("total"))}
                 </div>
             ),
         },
@@ -156,12 +158,17 @@ export default function QuotationsPage() {
                             onClick={() => router.push(`/quotations/${row.original.id}`)}>
                             <Eye className="h-4 w-4" />
                         </Button>
-                        {canEdit('quotation', row.original.status) && (
+                        {canEdit('quotation', row.original.status) && hasPermission('edit') && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                                 onClick={() => setEditQuotationId(row.original.id)}>
                                 <Pencil className="h-4 w-4" />
                             </Button>
                         )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" asChild>
+                            <a href={`/api/quotations/${row.original.id}/pdf`}>
+                                <Download className="h-4 w-4" />
+                            </a>
+                        </Button>
                     </div>
                 </div>
             ),
@@ -184,16 +191,18 @@ export default function QuotationsPage() {
                                 { header: t("exportCustomer"), accessor: "customer.name" },
                                 { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
                                 { header: t("exportValidUntil"), accessor: "validUntil", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
-                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => formatAmount(v) },
                                 { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="quotations"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setSheetOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newQuote")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setSheetOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newQuote")}
+                            </Button>
+                        )}
                     </>
                 }
             />

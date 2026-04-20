@@ -136,6 +136,8 @@ export function SupplierModal({
             toast.success(isEdit ? "Supplier updated" : "Supplier created");
             onSuccess(data);
             onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to save supplier");
         } finally {
             setSaving(false);
         }
@@ -165,8 +167,8 @@ export function SupplierModal({
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem className="sm:col-span-2">
-                                            <FormLabel>
-                                                Supplier Name <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Supplier Name
                                             </FormLabel>
                                             <FormControl>
                                                 <Input placeholder="e.g. Emirates Paper Supply" {...field} />

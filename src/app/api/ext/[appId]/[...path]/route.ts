@@ -161,12 +161,37 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
         const body = await req.json();
 
-        const record = await config.delegate.create({
-            data: {
-                ...body,
-                organizationId: ctx.organizationId,
-            },
-        });
+        let record;
+        try {
+            if (config.createFn) {
+                // Module-specific creation logic (handles auto-numbering, computed fields, etc.)
+                record = await config.createFn(body, ctx.organizationId);
+            } else {
+                // Generic path: strip unknown fields then call Prisma create
+                const safeBody = config.allowedWriteFields
+                    ? Object.fromEntries(
+                        Object.entries(body).filter(([k]) => config.allowedWriteFields!.includes(k)),
+                    )
+                    : body;
+
+                record = await config.delegate.create({
+                    data: {
+                        ...safeBody,
+                        organizationId: ctx.organizationId,
+                    },
+                });
+            }
+        } catch (createErr: unknown) {
+            // P2002 = unique constraint violation
+            if ((createErr as { code?: string })?.code === "P2002") {
+                logRequest(appId, "POST", req.nextUrl.pathname, moduleName, 409, startMs, req, "Duplicate record");
+                return NextResponse.json(
+                    { error: "A record with this value already exists (duplicate)", code: "CONFLICT" },
+                    { status: 409 },
+                );
+            }
+            throw createErr;
+        }
 
         logRequest(appId, "POST", req.nextUrl.pathname, moduleName, 201, startMs, req);
         return NextResponse.json({ data: record }, { status: 201 });
@@ -225,10 +250,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         delete body.organizationId;
         delete body.id;
 
-        const updated = await config.delegate.update({
-            where: { id: recordId },
-            data: body,
-        });
+        // Strip unknown fields if allowedWriteFields is defined
+        const safeBody = config.allowedWriteFields
+            ? Object.fromEntries(
+                Object.entries(body).filter(([k]) => config.allowedWriteFields!.includes(k)),
+            )
+            : body;
+
+        let updated;
+        try {
+            updated = await config.delegate.update({
+                where: { id: recordId },
+                data: safeBody,
+            });
+        } catch (updateErr: unknown) {
+            if ((updateErr as { code?: string })?.code === "P2002") {
+                logRequest(appId, "PATCH", req.nextUrl.pathname, moduleName, 409, startMs, req, "Duplicate record");
+                return NextResponse.json(
+                    { error: "A record with this value already exists (duplicate)", code: "CONFLICT" },
+                    { status: 409 },
+                );
+            }
+            throw updateErr;
+        }
 
         logRequest(appId, "PATCH", req.nextUrl.pathname, moduleName, 200, startMs, req);
         return NextResponse.json({ data: updated });
