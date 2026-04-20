@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, ShoppingCart, AlertCircle } from "lucide-react";
+import { Plus, ShoppingCart, AlertCircle, Eye, Download } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
@@ -141,6 +141,23 @@ export default function PurchaseOrdersPage() {
             accessorKey: "status",
             header: tc("status"),
             cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+        },
+        {
+            id: "actions",
+            header: "",
+            cell: ({ row }) => (
+                <div role="presentation" className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("view")}
+                        onClick={() => router.push(`/purchase-orders/${row.original.id}`)}>
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" asChild>
+                        <a href={`/api/purchase-orders/${row.original.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
+                </div>
+            ),
         },
     ], [currency, dateFormat, t, tc]);
 

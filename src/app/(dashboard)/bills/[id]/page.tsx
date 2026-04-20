@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer, MessageCircle } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, PackageCheck, Printer, MessageCircle, Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -193,6 +193,11 @@ export default function BillDetailPage() {
                             Void
                         </Button>
                     )}
+                    <Button variant="outline" size="icon" asChild title="Download PDF">
+                        <a href={`/api/bills/${bill.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
                     </Button>

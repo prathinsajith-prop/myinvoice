@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
     Truck, Package, MapPin, Hash, User, FileText,
     Loader2, Trash2, CheckCircle2, Send, Ban, Clock,
-    Navigation, Car, NotepadText
+    Navigation, Car, NotepadText, Download
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -165,7 +165,7 @@ export function DeliveryNoteDetailDrawer({ open, onClose, noteId, onUpdate }: Pr
     return (
         <>
             <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-                <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
+                <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
                     {/* Header */}
                     <SheetHeader className="px-5 py-4 border-b">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -199,8 +199,8 @@ export function DeliveryNoteDetailDrawer({ open, onClose, noteId, onUpdate }: Pr
                                             <div key={step.key} className="flex items-center flex-1 last:flex-none">
                                                 <div className="flex flex-col items-center gap-1.5">
                                                     <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${isCompleted ? "border-primary bg-primary text-primary-foreground"
-                                                            : isCurrent ? "border-primary bg-primary/10 text-primary"
-                                                                : "border-border bg-background text-muted-foreground"
+                                                        : isCurrent ? "border-primary bg-primary/10 text-primary"
+                                                            : "border-border bg-background text-muted-foreground"
                                                         }`}>
                                                         <StepIcon className="h-4 w-4" />
                                                     </div>
@@ -341,6 +341,11 @@ export function DeliveryNoteDetailDrawer({ open, onClose, noteId, onUpdate }: Pr
                                 </Button>
                             )}
                             <div className="flex-1" />
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" asChild>
+                                <a href={`/api/delivery-notes/${note.id}/pdf`}>
+                                    <Download className="h-4 w-4" />
+                                </a>
+                            </Button>
                             {canVoid && (
                                 <Button variant="outline" size="sm" disabled={updating} onClick={() => setConfirmAction("void")}>
                                     <Ban className="mr-1.5 h-3.5 w-3.5" />

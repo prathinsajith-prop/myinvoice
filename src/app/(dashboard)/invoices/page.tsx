@@ -11,6 +11,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { PageHeader } from "@/components/page-header";
 import { useTranslations } from "next-intl";
@@ -79,6 +80,7 @@ export default function InvoicesPage() {
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
     const dateFormat = orgSettings.dateFormat;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -277,7 +279,7 @@ export default function InvoicesPage() {
                             <DropdownMenuItem asChild>
                                 <Link href={`/invoices/${row.original.id}`}>{tc("view")}</Link>
                             </DropdownMenuItem>
-                            {canEdit('invoice', row.original.status) && (
+                            {canEdit('invoice', row.original.status) && hasPermission('edit') && (
                                 <DropdownMenuItem asChild>
                                     <Link href={`/invoices/${row.original.id}/edit`}>{tc("edit")}</Link>
                                 </DropdownMenuItem>
@@ -312,10 +314,12 @@ export default function InvoicesPage() {
                             filename="invoices"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setSheetOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newInvoice")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setSheetOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newInvoice")}
+                            </Button>
+                        )}
                     </>
                 }
             />

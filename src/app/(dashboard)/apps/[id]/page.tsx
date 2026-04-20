@@ -1380,26 +1380,48 @@ const { data, pagination } = await response.json();`}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="text-sm font-medium">{t("permissions")}</p>
-                                    <div className="rounded-md border divide-y">
-                                        {APP_MODULES.map((module) => (
-                                            <div key={module} className="p-3 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
-                                                <div className="font-medium text-sm">{formatModuleLabel(module)}</div>
-                                                <div className="sm:col-span-3 flex flex-wrap gap-3">
-                                                    {SCOPE_ACTIONS.map((action) => {
-                                                        const scope = `${module}:${action}`;
-                                                        const checked = editScopes.includes(scope);
-                                                        return (
-                                                            <label key={scope} className="inline-flex items-center gap-2 text-sm">
-                                                                <Checkbox
-                                                                    checked={checked}
-                                                                    onCheckedChange={() => toggleScope(scope)}
-                                                                />
-                                                                <span className="capitalize">{action}</span>
-                                                            </label>
-                                                        );
-                                                    })}
-                                                </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium">{t("permissions")}</p>
+                                        <button
+                                            type="button"
+                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                            onClick={() => {
+                                                const allScopes = APP_MODULES.flatMap((m) => SCOPE_ACTIONS.map((a) => `${m}:${a}`));
+                                                const allSelected = allScopes.every((s) => editScopes.includes(s));
+                                                setEditScopes(allSelected ? [] : allScopes);
+                                            }}
+                                        >
+                                            {APP_MODULES.flatMap((m) => SCOPE_ACTIONS.map((a) => `${m}:${a}`)).every((s) => editScopes.includes(s))
+                                                ? "Deselect All"
+                                                : "Select All"}
+                                        </button>
+                                    </div>
+                                    <div className="rounded-md border overflow-hidden">
+                                        {/* Column headers */}
+                                        <div className="grid grid-cols-[1fr_80px_80px_80px] items-center px-4 py-2 bg-muted/50 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b">
+                                            <span>Module</span>
+                                            <span className="text-center">Read</span>
+                                            <span className="text-center">Write</span>
+                                            <span className="text-center">Delete</span>
+                                        </div>
+                                        {/* Module rows */}
+                                        {APP_MODULES.map((module, idx) => (
+                                            <div
+                                                key={module}
+                                                className={`grid grid-cols-[1fr_80px_80px_80px] items-center px-4 py-2.5 hover:bg-muted/30 transition-colors ${idx < APP_MODULES.length - 1 ? "border-b" : ""}`}
+                                            >
+                                                <span className="text-sm font-medium">{formatModuleLabel(module)}</span>
+                                                {SCOPE_ACTIONS.map((action) => {
+                                                    const scope = `${module}:${action}`;
+                                                    return (
+                                                        <div key={scope} className="flex justify-center">
+                                                            <Checkbox
+                                                                checked={editScopes.includes(scope)}
+                                                                onCheckedChange={() => toggleScope(scope)}
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         ))}
                                     </div>

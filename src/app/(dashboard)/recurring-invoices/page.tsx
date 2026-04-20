@@ -5,6 +5,7 @@ import { Plus, RefreshCcw, Play, Pause, X } from "lucide-react";
 import { toast } from "sonner";
 import { type ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
+import { useTenant } from "@/lib/tenant/context";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -51,6 +52,7 @@ export default function RecurringInvoicesPage() {
     const t = useTranslations("recurringInvoices");
     const tc = useTranslations("common");
     const orgSettings = useOrgSettings();
+    const { hasPermission } = useTenant();
     const dateFormat = orgSettings.dateFormat;
 
     const [records, setRecords] = useState<RecurringInvoice[]>([]);
@@ -158,17 +160,17 @@ export default function RecurringInvoicesPage() {
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => e.stopPropagation()}
                     >
-                        {rec.status === "ACTIVE" && (
+                        {rec.status === "ACTIVE" && hasPermission('edit') && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" title={t("pause")} onClick={() => updateStatus(rec.id, "PAUSED")}>
                                 <Pause className="h-4 w-4" />
                             </Button>
                         )}
-                        {rec.status === "PAUSED" && (
+                        {rec.status === "PAUSED" && hasPermission('edit') && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" title={t("resume")} onClick={() => updateStatus(rec.id, "ACTIVE")}>
                                 <Play className="h-4 w-4" />
                             </Button>
                         )}
-                        {rec.status !== "CANCELED" && (
+                        {rec.status !== "CANCELED" && hasPermission('edit') && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" title={t("cancel")} onClick={() => updateStatus(rec.id, "CANCELED")}>
                                 <X className="h-4 w-4" />
                             </Button>
@@ -177,7 +179,7 @@ export default function RecurringInvoicesPage() {
                 );
             },
         },
-         
+
     ], [dateFormat, t]);
 
     return (
@@ -188,9 +190,11 @@ export default function RecurringInvoicesPage() {
                 onRefresh={fetchRecords}
                 isRefreshing={loading}
                 actions={
-                    <Button onClick={() => setSheetOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> {t("new")}
-                    </Button>
+                    hasPermission('create') ? (
+                        <Button onClick={() => setSheetOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" /> {t("new")}
+                        </Button>
+                    ) : null
                 }
             />
 

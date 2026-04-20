@@ -50,6 +50,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { useTenant } from "@/lib/tenant/context";
 import { PageHeader } from "@/components/page-header";
 import { useTranslations } from "next-intl";
 import { StatCard } from "@/components/stat-card";
@@ -86,6 +87,7 @@ export default function CustomersPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("ALL");
@@ -322,10 +324,12 @@ export default function CustomersPage() {
                             <Upload className="mr-2 h-4 w-4" />
                             {t("importCustomers")}
                         </Button>
-                        <Button onClick={() => setCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newCustomer")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newCustomer")}
+                            </Button>
+                        )}
                     </>
                 }
             />

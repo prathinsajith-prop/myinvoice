@@ -5,6 +5,7 @@ import { Plus, CreditCard, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { ExpenseModal } from "@/components/modals/expense-modal";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ export default function ExpensesPage() {
     const tc = useTranslations("common");
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const { hasPermission } = useTenant();
     const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -253,10 +255,12 @@ export default function ExpensesPage() {
                             filename="expenses"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newExpense")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newExpense")}
+                            </Button>
+                        )}
                     </>
                 }
             />
@@ -327,80 +331,104 @@ export default function ExpensesPage() {
 
             {/* View Dialog */}
             <Dialog open={viewDetail !== null} onOpenChange={(o) => { if (!o) setViewDetail(null); }}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center justify-between">
-                            <span>{viewDetail?.expenseNumber}</span>
-                            {viewDetail && (
-                                <StatusBadge status={viewDetail.isPaid ? "PAID" : "UNPAID"} />
-                            )}
-                        </DialogTitle>
-                        <DialogDescription className="sr-only">
+                <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Expense Details</DialogTitle>
+                        <DialogDescription>
                             Review expense details including category, payment method, VAT, and totals.
                         </DialogDescription>
                     </DialogHeader>
                     {viewDetail && (
-                        <div className="space-y-4 text-sm">
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">{tc("description")}</p>
-                                    <p className="font-medium mt-0.5">{viewDetail.description}</p>
+                        <>
+                            {/* ── Header ── */}
+                            <div className="px-6 pt-6 pb-5 pr-12">
+                                <div className="flex items-center gap-2.5">
+                                    <p className="text-xl font-bold tracking-tight">{viewDetail.expenseNumber}</p>
+                                    <StatusBadge status={viewDetail.isPaid ? "PAID" : "UNPAID"} />
                                 </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">{tc("category")}</p>
-                                    <Badge variant="outline" className="mt-1 text-xs">{t(`categories.${viewDetail.category}`)}</Badge>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">{tc("date")}</p>
-                                    <p className="font-medium mt-0.5">{formatDate(viewDetail.expenseDate, dateFormat)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">{t("paymentMethod")}</p>
-                                    <Badge variant="secondary" className="mt-1 text-xs capitalize">{viewDetail.paymentMethod?.toLowerCase().replace(/_/g, " ")}</Badge>
-                                </div>
-                                {viewDetail.merchantName && (
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">{t("vendor")}</p>
-                                        <p className="font-medium mt-0.5">{viewDetail.merchantName}</p>
-                                    </div>
-                                )}
-                                {viewDetail.reference && (
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">{t("reference")}</p>
-                                        <p className="font-medium mt-0.5">{viewDetail.reference}</p>
-                                    </div>
-                                )}
                             </div>
+
+                            {/* ── Metadata grid ── */}
+                            <div className="px-6 pb-5">
+                                <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{tc("description")}</p>
+                                        <p className="font-medium leading-snug">{viewDetail.description}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{tc("category")}</p>
+                                        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">
+                                            {t(`categories.${viewDetail.category}`)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{tc("date")}</p>
+                                        <p className="font-medium">{formatDate(viewDetail.expenseDate, dateFormat)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{t("paymentMethod")}</p>
+                                        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium capitalize">
+                                            {viewDetail.paymentMethod?.toLowerCase().replace(/_/g, " ")}
+                                        </span>
+                                    </div>
+                                    {viewDetail.merchantName && (
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{t("vendor")}</p>
+                                            <p className="font-medium">{viewDetail.merchantName}</p>
+                                        </div>
+                                    )}
+                                    {viewDetail.reference && (
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{t("reference")}</p>
+                                            <p className="font-medium">{viewDetail.reference}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <Separator />
-                            <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+
+                            {/* ── Amounts ── */}
+                            <div className="px-6 py-4 space-y-2 text-sm">
                                 <div className="flex justify-between text-muted-foreground">
                                     <span>{t("amount")}</span>
-                                    <span>{viewDetail.currency} {formatAmount(viewDetail.amount)}</span>
+                                    <span className="tabular-nums">{viewDetail.currency} {formatAmount(viewDetail.amount)}</span>
                                 </div>
                                 {Number(viewDetail.vatAmount) > 0 && (
                                     <div className="flex justify-between text-muted-foreground">
                                         <span>VAT ({VAT_TREATMENT_LABELS[viewDetail.vatTreatment] ?? viewDetail.vatTreatment.replace(/_/g, " ")})</span>
-                                        <span>{viewDetail.currency} {formatAmount(viewDetail.vatAmount)}</span>
+                                        <span className="tabular-nums">{viewDetail.currency} {formatAmount(viewDetail.vatAmount)}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between font-semibold pt-1 border-t">
+                                <div className="flex justify-between font-semibold text-base border-t pt-2 mt-1">
                                     <span>{t("total")}</span>
-                                    <span>{viewDetail.currency} {formatAmount(viewDetail.total)}</span>
+                                    <span className="tabular-nums">{viewDetail.currency} {formatAmount(viewDetail.total)}</span>
                                 </div>
                             </div>
+
+                            {/* ── Notes ── */}
                             {viewDetail.notes && (
-                                <div>
-                                    <p className="text-xs text-muted-foreground mb-1">{t("notes")}</p>
-                                    <p className="text-sm text-muted-foreground">{viewDetail.notes}</p>
-                                </div>
+                                <>
+                                    <Separator />
+                                    <div className="px-6 py-4 text-sm">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{t("notes")}</p>
+                                        <p className="text-muted-foreground leading-relaxed">{viewDetail.notes}</p>
+                                    </div>
+                                </>
                             )}
-                            <div className="flex justify-between items-center pt-1">
+
+                            <Separator />
+
+                            {/* ── Footer ── */}
+                            <div className="flex items-center justify-between px-6 py-4">
                                 <StatusBadge status={viewDetail.isPaid ? "PAID" : "UNPAID"} />
-                                <Button size="sm" variant="outline" onClick={() => { setViewDetail(null); openEdit(viewDetail.id); }}>
-                                    <Pencil className="mr-2 h-3.5 w-3.5" />{tc("edit")}
-                                </Button>
+                                {hasPermission('edit') && (
+                                    <Button size="sm" variant="outline" onClick={() => { setViewDetail(null); openEdit(viewDetail.id); }}>
+                                        <Pencil className="mr-2 h-3.5 w-3.5" />{tc("edit")}
+                                    </Button>
+                                )}
                             </div>
-                        </div>
+                        </>
                     )}
                 </DialogContent>
             </Dialog>

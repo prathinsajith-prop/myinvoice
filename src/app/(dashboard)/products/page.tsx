@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Package, Eye, Pencil } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { ProductModal } from "@/components/modals/product-modal";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export default function ProductsPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [products, setProducts] = useState<Product[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -235,10 +237,12 @@ export default function ProductsPage() {
                             filename="products"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newProduct")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newProduct")}
+                            </Button>
+                        )}
                     </>
                 }
             />

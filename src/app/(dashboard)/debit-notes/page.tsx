@@ -3,10 +3,11 @@
 import { useDeferredValue, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, FileText, Eye } from "lucide-react";
+import { Plus, FileText, Eye, Download } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { DebitNoteSheet } from "@/components/modals/debit-note-sheet";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export default function DebitNotesPage() {
     const tc = useTranslations("common");
     const router = useRouter();
     const orgSettings = useOrgSettings();
+    const { hasPermission } = useTenant();
     const currency = orgSettings.defaultCurrency;
     const dateFormat = orgSettings.dateFormat;
     const createParamHandled = useRef(false);
@@ -158,6 +160,11 @@ export default function DebitNotesPage() {
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" asChild>
+                        <a href={`/api/debit-notes/${row.original.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
                 </div>
             ),
         },
@@ -171,9 +178,11 @@ export default function DebitNotesPage() {
                 onRefresh={fetchNotes}
                 isRefreshing={loading}
                 actions={
-                    <Button onClick={() => setSheetOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> {t("new")}
-                    </Button>
+                    hasPermission('create') ? (
+                        <Button onClick={() => setSheetOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" /> {t("new")}
+                        </Button>
+                    ) : null
                 }
             />
 
