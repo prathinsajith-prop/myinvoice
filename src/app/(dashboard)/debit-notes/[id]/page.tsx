@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, Send, XCircle, CheckCircle, Download } from "lucide-react";
+import { ChevronLeft, Loader2, Send, XCircle, CheckCircle, Download, User, FileText, MessageSquare, Hash, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -155,20 +155,20 @@ export default function DebitNoteDetailPage() {
             <div className="grid gap-4 sm:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-muted-foreground">Customer</CardTitle>
+                        <CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><User className="h-3.5 w-3.5" />Customer</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Link href={`/customers/${note.customer.id}`} className="font-medium text-primary hover:underline underline-offset-4">
                             {note.customer.name}
                         </Link>
                         {note.customer.email && (
-                            <p className="text-sm text-muted-foreground">{note.customer.email}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{note.customer.email}</p>
                         )}
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-muted-foreground">Linked Invoice</CardTitle>
+                        <CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><FileText className="h-3.5 w-3.5" />Linked Invoice</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Link href={`/invoices/${note.invoice.id}`} className="font-medium text-primary hover:underline underline-offset-4">
@@ -184,29 +184,41 @@ export default function DebitNoteDetailPage() {
             {/* Reason & TRN */}
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Details</CardTitle>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2"><ClipboardList className="h-4 w-4 text-muted-foreground" />Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                    <div>
-                        <span className="text-muted-foreground">Reason: </span>
-                        <span>{note.reason}</span>
+                    <div className="flex items-start gap-2">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div>
+                            <span className="text-muted-foreground text-xs block">Reason</span>
+                            <span>{note.reason}</span>
+                        </div>
                     </div>
                     {note.sellerTrn && (
-                        <div>
-                            <span className="text-muted-foreground">Seller TRN: </span>
-                            <span className="font-mono">{note.sellerTrn}</span>
+                        <div className="flex items-start gap-2">
+                            <Hash className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <div>
+                                <span className="text-muted-foreground text-xs block">Seller TRN</span>
+                                <span className="font-mono">{note.sellerTrn}</span>
+                            </div>
                         </div>
                     )}
                     {note.buyerTrn && (
-                        <div>
-                            <span className="text-muted-foreground">Buyer TRN: </span>
-                            <span className="font-mono">{note.buyerTrn}</span>
+                        <div className="flex items-start gap-2">
+                            <Hash className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <div>
+                                <span className="text-muted-foreground text-xs block">Buyer TRN</span>
+                                <span className="font-mono">{note.buyerTrn}</span>
+                            </div>
                         </div>
                     )}
                     {note.notes && (
-                        <div>
-                            <span className="text-muted-foreground">Notes: </span>
-                            <span>{note.notes}</span>
+                        <div className="flex items-start gap-2">
+                            <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <div>
+                                <span className="text-muted-foreground text-xs block">Notes</span>
+                                <span>{note.notes}</span>
+                            </div>
                         </div>
                     )}
                 </CardContent>
