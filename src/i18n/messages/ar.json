@@ -1063,7 +1063,11 @@
       "emailVerified": "تأكيد البريد الإلكتروني",
       "verified": "مُتحقق",
       "notVerified": "غير مُتحقق",
-      "recently": "مؤخراً"
+      "recently": "مؤخراً",
+      "lastLogin": "آخر تسجيل دخول",
+      "twoFactor": "المصادقة الثنائية",
+      "enabled": "مُفعّل",
+      "disabled": "مُعطّل"
     },
     "apps": {
       "title": "التطبيقات",

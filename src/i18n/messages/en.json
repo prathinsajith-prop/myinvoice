@@ -1063,7 +1063,11 @@
       "emailVerified": "Email Verified",
       "verified": "Verified",
       "notVerified": "Not verified",
-      "recently": "Recently"
+      "recently": "Recently",
+      "lastLogin": "Last Login",
+      "twoFactor": "Two-Factor Auth",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
     },
     "apps": {
       "title": "Apps",
