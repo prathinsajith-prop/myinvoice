@@ -143,7 +143,7 @@ export default function BillsPage() {
             header: () => <div className="text-right">{tc("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {row.original.currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {row.original.currency} {formatAmount(row.getValue("total"))}
                 </div>
             ),
         },
@@ -153,7 +153,7 @@ export default function BillsPage() {
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("outstanding")) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                        {row.original.currency} {Number(row.getValue("outstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                        {row.original.currency} {formatAmount(row.getValue("outstanding"))}
                     </span>
                 </div>
             ),
@@ -199,8 +199,8 @@ export default function BillsPage() {
                                 { header: t("exportSupplier"), accessor: "supplier.name" },
                                 { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
                                 { header: t("exportDueDate"), accessor: "dueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
-                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => formatAmount(v) },
+                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => formatAmount(v) },
                                 { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="bills"

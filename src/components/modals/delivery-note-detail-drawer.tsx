@@ -167,24 +167,63 @@ export function DeliveryNoteDetailDrawer({ open, onClose, noteId, onUpdate }: Pr
             <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
                 <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
                     {/* Header */}
-                    <SheetHeader className="px-5 py-4 border-b bg-muted/30">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                                    <Truck className="h-5 w-5 text-primary" />
-                                </div>
-                                <div className="min-w-0">
+                    <SheetHeader className="px-5 py-4 border-b">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                                <Truck className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <SheetTitle className="text-base leading-tight">
                                         {loading || !note ? t("details") : note.deliveryNoteNumber}
                                     </SheetTitle>
-                                    {note && (
-                                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{note.customer.name}</p>
-                                    )}
+                                    {note && <StatusBadge status={note.status} />}
                                 </div>
+                                {note && (
+                                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{note.customer.name}</p>
+                                )}
                             </div>
-                            {note && <StatusBadge status={note.status} />}
                         </div>
                     </SheetHeader>
+
+                    {/* Status strip — fixed between header and scroll area */}
+                    {note && (
+                        <div className="border-b bg-muted/20 px-5 py-3.5">
+                            {!isVoid ? (
+                                <div className="flex items-center">
+                                    {STATUS_STEPS.map((step, i) => {
+                                        const isCompleted = i < stepIndex;
+                                        const isCurrent = i === stepIndex;
+                                        const StepIcon = step.icon;
+                                        return (
+                                            <div key={step.key} className="flex items-center flex-1 last:flex-none">
+                                                <div className="flex flex-col items-center gap-1.5">
+                                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${isCompleted ? "border-primary bg-primary text-primary-foreground"
+                                                            : isCurrent ? "border-primary bg-primary/10 text-primary"
+                                                                : "border-border bg-background text-muted-foreground"
+                                                        }`}>
+                                                        <StepIcon className="h-4 w-4" />
+                                                    </div>
+                                                    <span className={`text-xs font-medium ${isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                                                        }`}>
+                                                        {t(`statuses.${step.key}` as never) || step.label}
+                                                    </span>
+                                                </div>
+                                                {i < STATUS_STEPS.length - 1 && (
+                                                    <div className={`flex-1 h-0.5 mx-2 mb-5 rounded transition-colors ${i < stepIndex ? "bg-primary" : "bg-border"}`} />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-sm text-destructive">
+                                    <Ban className="h-4 w-4 shrink-0" />
+                                    <span>{t("voidConfirm")}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <ScrollArea className="flex-1">
                         {loading || !note ? (
@@ -193,44 +232,7 @@ export function DeliveryNoteDetailDrawer({ open, onClose, noteId, onUpdate }: Pr
                             </div>
                         ) : (
                             <div className="px-5 py-4 space-y-5 pb-8">
-                                {/* Status progress — only for non-void */}
-                                {!isVoid && (
-                                    <div className="rounded-xl border bg-card p-4">
-                                        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Progress</p>
-                                        <div className="flex items-center gap-0">
-                                            {STATUS_STEPS.map((step, i) => {
-                                                const isCompleted = i < stepIndex;
-                                                const isCurrent = i === stepIndex;
-                                                const StepIcon = step.icon;
-                                                return (
-                                                    <div key={step.key} className="flex items-center flex-1 last:flex-none">
-                                                        <div className="flex flex-col items-center gap-1.5">
-                                                            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${isCompleted ? "border-primary bg-primary text-primary-foreground"
-                                                                : isCurrent ? "border-primary bg-primary/10 text-primary"
-                                                                    : "border-border bg-background text-muted-foreground"
-                                                                }`}>
-                                                                <StepIcon className="h-4 w-4" />
-                                                            </div>
-                                                            <span className={`text-xs font-medium ${isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"}`}>
-                                                                {t(`statuses.${step.key}` as never) || step.label}
-                                                            </span>
-                                                        </div>
-                                                        {i < STATUS_STEPS.length - 1 && (
-                                                            <div className={`flex-1 h-0.5 mx-2 mb-5 rounded transition-colors ${i < stepIndex ? "bg-primary" : "bg-border"}`} />
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
 
-                                {isVoid && (
-                                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 flex items-center gap-2 text-sm text-destructive">
-                                        <Ban className="h-4 w-4 shrink-0" />
-                                        <span>{t("voidConfirm")}</span>
-                                    </div>
-                                )}
 
                                 {/* Key Info Grid */}
                                 <div className="grid grid-cols-2 gap-3">

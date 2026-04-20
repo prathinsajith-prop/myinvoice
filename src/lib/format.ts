@@ -4,7 +4,8 @@ function intlLocale(locale = "en"): string {
 }
 
 export function formatCurrency(value: number | string, currency = "AED", locale = "en"): string {
-    const formatted = Number(value).toLocaleString(intlLocale(locale), {
+    const n = Number(value);
+    const formatted = (isNaN(n) ? 0 : n).toLocaleString(intlLocale(locale), {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
@@ -13,7 +14,9 @@ export function formatCurrency(value: number | string, currency = "AED", locale 
 }
 
 export function formatAmount(value: unknown, locale = "en"): string {
-    return Number(value).toLocaleString(intlLocale(locale), {
+    const n = Number(value);
+    if (isNaN(n)) return "0.00";
+    return n.toLocaleString(intlLocale(locale), {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });

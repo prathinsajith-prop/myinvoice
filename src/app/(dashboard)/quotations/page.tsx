@@ -20,7 +20,7 @@ import { SearchInput } from "@/components/search-input";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { PaginationControls } from "@/components/pagination-controls";
-import { formatDate } from "@/lib/format";
+import { formatAmount, formatDate } from "@/lib/format";
 import {
     Select,
     SelectContent,
@@ -137,7 +137,7 @@ export default function QuotationsPage() {
             header: () => <div className="text-right">{tc("total")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {currency} {formatAmount(row.getValue("total"))}
                 </div>
             ),
         },
@@ -184,7 +184,7 @@ export default function QuotationsPage() {
                                 { header: t("exportCustomer"), accessor: "customer.name" },
                                 { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
                                 { header: t("exportValidUntil"), accessor: "validUntil", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
-                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => formatAmount(v) },
                                 { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="quotations"

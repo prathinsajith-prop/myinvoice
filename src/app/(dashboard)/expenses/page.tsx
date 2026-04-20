@@ -201,7 +201,7 @@ export default function ExpensesPage() {
             header: () => <div className="text-right">{tc("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums font-medium">
-                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {currency} {formatAmount(row.getValue("total"))}
                 </div>
             ),
         },
@@ -247,7 +247,7 @@ export default function ExpensesPage() {
                                 { header: t("exportCategory"), accessor: "category", format: (v) => t(`categories.${v as string}`) },
                                 { header: t("exportDate"), accessor: "expenseDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
                                 { header: t("exportMethod"), accessor: "paymentMethod", format: (v) => String(v).toLowerCase().replace(/_/g, " ") },
-                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => formatAmount(v) },
                                 { header: t("exportPaid"), accessor: "isPaid", format: (v) => v ? tc("yes") : tc("no") },
                             ]}
                             filename="expenses"
@@ -375,17 +375,17 @@ export default function ExpensesPage() {
                             <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
                                 <div className="flex justify-between text-muted-foreground">
                                     <span>{t("amount")}</span>
-                                    <span>{viewDetail.currency} {Number(viewDetail.amount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                    <span>{viewDetail.currency} {formatAmount(viewDetail.amount)}</span>
                                 </div>
                                 {Number(viewDetail.vatAmount) > 0 && (
                                     <div className="flex justify-between text-muted-foreground">
                                         <span>VAT ({VAT_TREATMENT_LABELS[viewDetail.vatTreatment] ?? viewDetail.vatTreatment.replace(/_/g, " ")})</span>
-                                        <span>{viewDetail.currency} {Number(viewDetail.vatAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                        <span>{viewDetail.currency} {formatAmount(viewDetail.vatAmount)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between font-semibold pt-1 border-t">
                                     <span>{t("total")}</span>
-                                    <span>{viewDetail.currency} {Number(viewDetail.total).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                    <span>{viewDetail.currency} {formatAmount(viewDetail.total)}</span>
                                 </div>
                             </div>
                             {viewDetail.notes && (
