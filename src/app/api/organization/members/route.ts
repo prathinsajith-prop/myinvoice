@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { z } from "zod";
@@ -20,7 +20,7 @@ import { inviteEmail, addedToOrgEmail } from "@/lib/email/templates";
 
 const inviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
+  role: z.enum(["ADMIN", "MANAGER", "ACCOUNTANT", "MEMBER"]),
 });
 
 // GET /api/organization/members — list all active members

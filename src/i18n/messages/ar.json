@@ -115,7 +115,7 @@
     "newOrganization": "مؤسسة جديدة",
     "noOrganizations": "لا توجد مؤسسات",
     "switchedOrganization": "تم تبديل المؤسسة",
-    "connectedApps": "التطبيقات المتصلة"
+    "connectedApps": "التطبيقات"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -148,7 +148,8 @@
     },
     "recurringInvoices": "الفواتير المتكررة",
     "paymentReminders": "تذكيرات الدفع",
-    "connectedApps": "التطبيقات المتصلة"
+    "reconciliation": "التسوية",
+    "connectedApps": "التطبيقات"
   },
   "dashboard": {
     "welcome": "مرحباً بعودتك، {name}",
@@ -709,7 +710,7 @@
       "subscriptionName": "الاشتراك",
       "subscriptionDesc": "إدارة اشتراكك والفوترة",
       "developer": "المطور",
-      "appsName": "التطبيقات المتصلة",
+      "appsName": "التطبيقات",
       "appsDesc": "إدارة مفاتيح API وتكاملات Webhook"
     },
     "organization": {
@@ -852,9 +853,9 @@
       "roles": {
         "owner": "المالك",
         "admin": "مدير",
+        "manager": "مشرف",
         "accountant": "محاسب",
-        "member": "عضو",
-        "viewer": "مشاهد"
+        "member": "عضو"
       },
       "pending": "قيد الانتظار",
       "remove": "إزالة العضو",
@@ -887,16 +888,16 @@
       "roleLabels": {
         "OWNER": "المالك",
         "ADMIN": "مدير",
+        "MANAGER": "مشرف",
         "ACCOUNTANT": "محاسب",
-        "MEMBER": "عضو",
-        "VIEWER": "مشاهد"
+        "MEMBER": "عضو"
       },
       "roleDescriptions": {
         "OWNER": "وصول كامل، يمكنه حذف المؤسسة",
         "ADMIN": "وصول كامل ما عدا حذف المؤسسة",
+        "MANAGER": "يمكنه الموافقة على الفواتير وإدارة الفريق",
         "ACCOUNTANT": "وصول مالي، إدارة الفواتير",
-        "MEMBER": "وصول للعرض وتعديل محدود",
-        "VIEWER": "وصول للقراءة فقط"
+        "MEMBER": "وصول للعرض وتعديل محدود"
       }
     },
     "billing": {
@@ -1064,7 +1065,7 @@
       "recently": "مؤخراً"
     },
     "apps": {
-      "title": "التطبيقات المتصلة",
+      "title": "التطبيقات",
       "description": "إدارة مفاتيح API والنطاقات وتكاملات Webhook للخدمات الخارجية.",
       "createApp": "إنشاء تطبيق",
       "noApps": "لا توجد تطبيقات متصلة بعد",
@@ -1566,15 +1567,15 @@
     "roleLabels": {
       "owner": "المالك",
       "admin": "مدير",
+      "manager": "مشرف",
       "accountant": "محاسب",
-      "member": "عضو",
-      "viewer": "مشاهد"
+      "member": "عضو"
     },
     "roles": {
       "ADMIN": "وصول كامل ما عدا حذف المؤسسة",
+      "MANAGER": "يمكنه الموافقة على الفواتير وإدارة الفريق",
       "ACCOUNTANT": "وصول مالي، إدارة الفواتير",
-      "MEMBER": "وصول للعرض وتعديل محدود",
-      "VIEWER": "وصول للقراءة فقط"
+      "MEMBER": "وصول للعرض وتعديل محدود"
     }
   },
   "globalSearch": {
@@ -1703,5 +1704,42 @@
       "FAILED": "فشل",
       "SKIPPED": "تم تخطيه"
     }
+  },
+  "reconciliation": {
+    "title": "التسوية",
+    "description": "مطابقة المدفوعات مع الفواتير المستحقة وتسوية حساباتك.",
+    "summary": "ملخص",
+    "totalOutstanding": "إجمالي المستحق",
+    "totalPayments": "إجمالي المدفوعات",
+    "unallocated": "أموال غير مخصصة",
+    "reconciledThisMonth": "تمت التسوية هذا الشهر",
+    "outstandingInvoices": "الفواتير المستحقة",
+    "unallocatedPayments": "مدفوعات غير مخصصة",
+    "noOutstandingInvoices": "لا توجد فواتير مستحقة",
+    "noUnallocatedPayments": "لا توجد مدفوعات غير مخصصة",
+    "allocate": "تخصيص",
+    "allocatePayment": "تخصيص دفعة",
+    "selectInvoice": "اختر فاتورة",
+    "selectPayment": "اختر دفعة",
+    "amountToAllocate": "المبلغ المراد تخصيصه",
+    "allocateSuccess": "تم تخصيص الدفعة بنجاح",
+    "allocateError": "فشل تخصيص الدفعة",
+    "available": "متاح",
+    "invoice": "فاتورة",
+    "payment": "دفعة",
+    "customer": "العميل",
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "outstanding": "المستحق",
+    "status": "الحالة",
+    "reference": "المرجع",
+    "method": "طريقة الدفع",
+    "dateRange": "نطاق التاريخ",
+    "from": "من",
+    "to": "إلى",
+    "refresh": "تحديث",
+    "reconciled": "تمت التسوية",
+    "partiallyPaid": "مدفوع جزئياً",
+    "overdue": "متأخر"
   }
 }

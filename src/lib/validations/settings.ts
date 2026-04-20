@@ -198,7 +198,7 @@ export const updateOrganizationSettingsSchema = z.object({
 // ── Credit Note ───────────────────────────────────────────────────────────────
 
 export const updateTeamMemberSchema = z.object({
-  role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
+  role: z.enum(["ADMIN", "MANAGER", "ACCOUNTANT", "MEMBER"]),
 });
 
 // ── Types ────────────────────────────────────────────────────────────────────

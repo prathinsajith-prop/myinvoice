@@ -117,7 +117,8 @@ export async function POST(req: NextRequest) {
             ).map((c) => c.email!.toLowerCase()),
         );
 
-        const toCreate: Parameters<typeof prisma.customer.createMany>[0]["data"] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const toCreate: any[] = [];
         const errors: { row: number; message: string }[] = [];
         let skipped = 0;
 

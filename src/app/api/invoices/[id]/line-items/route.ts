@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -32,7 +32,7 @@ async function getInvoiceOrThrow(invoiceId: string, organizationId: string) {
         include: { lineItems: { orderBy: { sortOrder: "asc" } } },
     });
     if (!invoice) throw new NotFoundError("Invoice");
-    if (invoice.status === "VOID") throw new ForbiddenError("Cannot edit a voided invoice");
+    if (["VOID", "APPROVED", "PENDING_APPROVAL"].includes(invoice.status)) throw new ForbiddenError(`Cannot edit an invoice with status ${invoice.status}`);
     return invoice;
 }
 

@@ -274,7 +274,7 @@ export default function OrganizationSettingsPage() {
                 onKeyDown={(e) => { if (isAdmin && (e.key === "Enter" || e.key === " ")) fileInputRef.current?.click(); }}
               >
                 {logoPreview ? (
-                   
+
                   <img src={logoPreview} alt="Organization logo" className="h-full w-full object-contain p-1" />
                 ) : (
                   <ImageIcon className="h-8 w-8 text-muted-foreground" />
@@ -300,7 +300,7 @@ export default function OrganizationSettingsPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">{to("name")}</Label>
+                <Label htmlFor="name" required>{to("name")}</Label>
                 <Input
                   id="name"
                   placeholder="Your Company LLC"
@@ -313,7 +313,7 @@ export default function OrganizationSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">{to("businessEmail")}</Label>
+                <Label htmlFor="email" required>{to("businessEmail")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input

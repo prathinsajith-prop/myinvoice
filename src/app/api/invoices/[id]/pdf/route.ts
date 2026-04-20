@@ -78,9 +78,8 @@ export async function GET(req: NextRequest, { params }: Params) {
         });
 
         const pdfBytes = new Uint8Array(bytes);
-        const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
 
-        return new NextResponse(pdfBlob, {
+        return new NextResponse(Buffer.from(pdfBytes) as unknown as BodyInit, {
             status: 200,
             headers: {
                 "Content-Type": "application/pdf",

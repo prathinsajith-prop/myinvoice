@@ -25,6 +25,7 @@ import {
   ShoppingCart,
   Calculator,
   UserCog,
+  GitMerge,
 } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
@@ -63,7 +64,6 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         { name: t("invoices"), href: "/invoices", icon: FileText },
         { name: t("quotations"), href: "/quotations", icon: FileCheck },
         { name: t("creditNotes"), href: "/credit-notes", icon: FileMinus },
-        { name: t("debitNotes"), href: "/debit-notes", icon: FilePlus },
         { name: t("deliveryNotes"), href: "/delivery-notes", icon: Truck },
         { name: t("recurringInvoices"), href: "/recurring-invoices", icon: RefreshCcw },
         { name: t("customers"), href: "/customers", icon: Users },
@@ -74,6 +74,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       items: [
         { name: t("bills"), href: "/bills", icon: Receipt },
         { name: t("purchaseOrders"), href: "/purchase-orders", icon: ShoppingCart },
+        { name: t("debitNotes"), href: "/debit-notes", icon: FilePlus },
         { name: t("suppliers"), href: "/suppliers", icon: Building2 },
         { name: t("expenses"), href: "/expenses", icon: CreditCard },
       ],
@@ -90,6 +91,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         { name: t("reports"), href: "/reports", icon: BarChart3 },
         { name: t("vatReturns"), href: "/vat-returns", icon: Calculator },
         { name: t("paymentReminders"), href: "/payment-reminders", icon: Bell },
+        { name: t("reconciliation"), href: "/reconciliation", icon: GitMerge },
       ],
     },
   ];

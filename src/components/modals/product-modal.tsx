@@ -130,6 +130,8 @@ export function ProductModal({
             toast.success(isEdit ? "Product updated" : "Product created");
             onSuccess(data);
             onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to save product");
         } finally {
             setSaving(false);
         }
@@ -163,8 +165,8 @@ export function ProductModal({
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem className="sm:col-span-2">
-                                            <FormLabel>
-                                                Name <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Name
                                             </FormLabel>
                                             <FormControl>
                                                 <Input
@@ -242,8 +244,8 @@ export function ProductModal({
                                     name="unitPrice"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>
-                                                Unit Price (AED) <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Unit Price (AED)
                                             </FormLabel>
                                             <FormControl>
                                                 <Input

@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -92,6 +92,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
         if (result.data.status === "RECEIVED" && bill.status !== "DRAFT") {
             throw new ForbiddenError("Only draft bills can be marked as received");
+        }
+
+        if (result.data.status === "PAID" && bill.status === "DRAFT") {
+            throw new ForbiddenError("Cannot pay a draft bill. Mark it as received first");
         }
 
         if (result.data.status === "VOID" && (bill.status === "PAID" || Number(bill.amountPaid) > 0.01)) {

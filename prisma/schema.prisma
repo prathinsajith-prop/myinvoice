@@ -62,9 +62,9 @@ enum SubscriptionStatus {
 enum MemberRole {
   OWNER
   ADMIN
+  MANAGER
   ACCOUNTANT
   MEMBER
-  VIEWER
 }
 
 enum InviteStatus {
@@ -90,6 +90,8 @@ enum InvoiceType {
 
 enum InvoiceStatus {
   DRAFT
+  PENDING_APPROVAL
+  APPROVED
   SENT
   VIEWED
   PARTIALLY_PAID
