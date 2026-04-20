@@ -300,7 +300,7 @@ const MODULES: Record<string, ModuleConfig> = {
                 : new Date();
 
             return prisma.$transaction(async (tx) => {
-                await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`pay:${organizationId}`}))`;
+                await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pay:${organizationId}`}))`;
 
                 const last = await tx.payment.findFirst({
                     where: { organizationId },
