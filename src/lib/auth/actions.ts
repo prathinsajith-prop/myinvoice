@@ -145,7 +145,7 @@ export async function oauthSignIn(
  */
 export async function logoutAction(): Promise<void> {
   await signOut({
-    redirectTo: "/",
+    redirectTo: "/login",
   });
 }
 
