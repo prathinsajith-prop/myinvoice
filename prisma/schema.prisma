@@ -768,6 +768,7 @@ model Product {
   barcode     String?
 
   unitPrice Decimal @db.Decimal(12, 2)
+  costPrice Decimal @default(0) @db.Decimal(12, 2)
   currency  String  @default("AED")
 
   vatTreatment VatTreatment @default(STANDARD_RATED)

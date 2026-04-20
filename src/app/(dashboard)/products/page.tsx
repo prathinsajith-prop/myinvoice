@@ -37,6 +37,7 @@ interface Product {
     sku: string | null;
     type: string;
     unitPrice: number;
+    costPrice: number;
     vatTreatment: string;
     unitOfMeasure: string;
     isActive: boolean;
@@ -150,6 +151,15 @@ export default function ProductsPage() {
             ),
         },
         {
+            accessorKey: "costPrice",
+            header: () => <div className="text-right">{t("costPriceHeader")}</div>,
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums text-muted-foreground">
+                    {currency} {Number(row.getValue("costPrice")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                </div>
+            ),
+        },
+        {
             accessorKey: "vatTreatment",
             header: t("vatHeader"),
             cell: ({ row }) => (
@@ -205,6 +215,7 @@ export default function ProductsPage() {
             description: data.description ?? "",
             type: data.type === "PRODUCT" ? "PRODUCT" : "SERVICE",
             unitPrice: data.unitPrice ?? 0,
+            costPrice: data.costPrice ?? 0,
             unit: data.unitOfMeasure ?? "unit",
             vatTreatment: data.vatTreatment ?? "STANDARD_RATED",
             vatRate: data.vatRate ?? 5,
@@ -231,6 +242,7 @@ export default function ProductsPage() {
                                 { header: t("exportSku"), accessor: "sku" },
                                 { header: t("exportType"), accessor: "type" },
                                 { header: t("exportUnitPrice"), accessor: "unitPrice", format: (v) => formatAmount(v) },
+                                { header: t("exportCostPrice"), accessor: "costPrice", format: (v) => formatAmount(v) },
                                 { header: t("exportVatTreatment"), accessor: "vatTreatment", format: (v) => String(v).replace(/_/g, " ") },
                                 { header: t("exportActive"), accessor: "isActive", format: (v) => v ? tc("yes") : tc("no") },
                             ]}
@@ -263,7 +275,6 @@ export default function ProductsPage() {
                                 <SelectItem value="ALL">{t("allTypes")}</SelectItem>
                                 <SelectItem value="PRODUCT">{t("typeLabels.PRODUCT")}</SelectItem>
                                 <SelectItem value="SERVICE">{t("typeLabels.SERVICE")}</SelectItem>
-                                <SelectItem value="EXPENSE">{t("typeLabels.EXPENSE")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

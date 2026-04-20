@@ -19,23 +19,23 @@ interface Product {
     type: string;
     description: string;
     unitPrice: number;
+    costPrice: number;
     unitOfMeasure: string;
     vatTreatment: string;
     category: string;
     isActive: boolean;
     trackInventory: boolean;
-    currentStock: number;
-    reorderPoint: number;
+    stockQuantity: number;
+    lowStockAlert: number;
 }
 
 const TYPE_BADGE: Record<string, { variant: "default" | "secondary" | "outline"; label: string }> = {
     PRODUCT: { variant: "default", label: "Product" },
     SERVICE: { variant: "secondary", label: "Service" },
-    EXPENSE: { variant: "outline", label: "Expense" },
 };
 
 const VAT_LABELS: Record<string, string> = {
-    STANDARD: "Standard Rate (5%)",
+    STANDARD_RATED: "Standard Rate (5%)",
     ZERO_RATED: "Zero Rated (0%)",
     EXEMPT: "Exempt",
     OUT_OF_SCOPE: "Out of Scope",
@@ -110,10 +110,20 @@ export default function ProductDetailPage() {
                             <Separator />
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Cost Price</span>
+                                    <span>AED {Number(product.costPrice ?? 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Gross Margin</span>
+                                    <span>
+                                        AED {Math.max(Number(product.unitPrice) - Number(product.costPrice ?? 0), 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
                                     <span className="text-muted-foreground">VAT Treatment</span>
                                     <span>{VAT_LABELS[product.vatTreatment] ?? product.vatTreatment}</span>
                                 </div>
-                                {product.vatTreatment === "STANDARD" && (
+                                {product.vatTreatment === "STANDARD_RATED" && (
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Price incl. VAT</span>
                                         <span>AED {(Number(product.unitPrice) * 1.05).toFixed(2)}</span>
@@ -163,17 +173,17 @@ export default function ProductDetailPage() {
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Current Stock</span>
-                                    <span className={`font-medium ${Number(product.currentStock) <= Number(product.reorderPoint) ? "text-destructive" : ""}`}>
-                                        {product.currentStock ?? 0}
+                                    <span className={`font-medium ${Number(product.stockQuantity) <= Number(product.lowStockAlert) ? "text-destructive" : ""}`}>
+                                        {product.stockQuantity ?? 0}
                                     </span>
                                 </div>
-                                {product.reorderPoint !== null && (
+                                {product.lowStockAlert !== null && (
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Reorder Point</span>
-                                        <span>{product.reorderPoint}</span>
+                                        <span>{product.lowStockAlert}</span>
                                     </div>
                                 )}
-                                {Number(product.currentStock) <= Number(product.reorderPoint) && (
+                                {Number(product.stockQuantity) <= Number(product.lowStockAlert) && (
                                     <p className="text-xs text-destructive">⚠ Stock at or below reorder point</p>
                                 )}
                             </CardContent>
@@ -212,9 +222,10 @@ export default function ProductDetailPage() {
                     description: product.description ?? "",
                     type: product.type === "PRODUCT" ? "PRODUCT" : "SERVICE",
                     unitPrice: product.unitPrice ?? 0,
+                    costPrice: product.costPrice ?? 0,
                     unit: product.unitOfMeasure ?? "unit",
-                    vatTreatment: (product.vatTreatment === "STANDARD" ? "STANDARD_RATED" : product.vatTreatment) as "STANDARD_RATED" | "ZERO_RATED" | "EXEMPT" | "OUT_OF_SCOPE",
-                    vatRate: (product.vatTreatment === "STANDARD" || product.vatTreatment === "STANDARD_RATED") ? 5 : 0,
+                    vatTreatment: product.vatTreatment as "STANDARD_RATED" | "ZERO_RATED" | "EXEMPT" | "OUT_OF_SCOPE",
+                    vatRate: product.vatTreatment === "STANDARD_RATED" ? 5 : 0,
                     category: product.category ?? "",
                     trackInventory: product.trackInventory ?? false,
                     isActive: product.isActive ?? true,
