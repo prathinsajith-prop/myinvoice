@@ -15,9 +15,7 @@ import {
   Receipt,
   CreditCard,
   BarChart3,
-  ChevronDown,
   Menu,
-  Plus,
   Truck,
   LogOut,
   RefreshCcw,
@@ -34,13 +32,6 @@ import { GlobalSearch } from "@/components/global-search";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
@@ -122,52 +113,6 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       </div>
 
       <Separator />
-
-      {/* Quick Actions */}
-      <div className="px-3 pt-3 pb-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" className="w-full justify-start gap-2 font-medium">
-              <Plus className="h-3.5 w-3.5" />
-              {t("createNew")}
-              <ChevronDown className="h-3.5 w-3.5 ml-auto" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem asChild>
-              <Link href="/invoices?create=1" className="gap-2">
-                <FileText className="h-4 w-4" />
-                {t("invoices")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/quotations?create=1" className="gap-2">
-                <FileCheck className="h-4 w-4" />
-                {t("quotations")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/customers?create=1" className="gap-2">
-                <Users className="h-4 w-4" />
-                {t("customers")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/suppliers?create=1" className="gap-2">
-                <Building2 className="h-4 w-4" />
-                {t("suppliers")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/products?create=1" className="gap-2">
-                <Package className="h-4 w-4" />
-                {t("products")}
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
 
       {/* Main Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">

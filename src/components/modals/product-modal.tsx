@@ -44,6 +44,7 @@ const schema = z.object({
     description: z.string().optional().or(z.literal("")),
     type: z.enum(["PRODUCT", "SERVICE"]).default("SERVICE"),
     unitPrice: z.coerce.number().min(0),
+    costPrice: z.coerce.number().min(0).default(0),
     unit: z.string().default("unit"),
     vatTreatment: z
         .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE"])
@@ -62,6 +63,7 @@ const DEFAULT_VALUES: FormValues = {
     description: "",
     type: "SERVICE",
     unitPrice: 0,
+    costPrice: 0,
     unit: "unit",
     vatTreatment: "STANDARD_RATED",
     vatRate: 5,
@@ -113,6 +115,7 @@ export function ProductModal({
                     description: values.description || null,
                     type: values.type,
                     unitPrice: values.unitPrice,
+                    costPrice: values.costPrice,
                     unitOfMeasure: values.unit,
                     vatTreatment: values.vatTreatment,
                     vatRate: values.vatRate,
@@ -193,7 +196,6 @@ export function ProductModal({
                                                 <SelectContent>
                                                     <SelectItem value="SERVICE">Service</SelectItem>
                                                     <SelectItem value="PRODUCT">Product</SelectItem>
-                                                    <SelectItem value="EXPENSE">Expense</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
@@ -256,6 +258,30 @@ export function ProductModal({
                                                     onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
                                                 />
                                             </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="costPrice"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>
+                                                Cost Price (AED)
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    placeholder="0.00"
+                                                    {...field}
+                                                    onKeyDown={(e) => { if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                Used for purchase costing and margin analysis.
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { AlertCircle, FileText, ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarClock, CircleAlert, Receipt } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,12 +72,6 @@ function formatCurrency(amount: number, currency: string) {
     }).format(amount);
 }
 
-function getUrgencyColor(category: "overdue" | "dueSoon" | "future"): string {
-    if (category === "overdue") return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800";
-    if (category === "dueSoon") return "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800";
-    return "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800";
-}
-
 export function PayablesWidget() {
     const t = useTranslations("dashboard");
     const orgSettings = useOrgSettings();
@@ -98,6 +92,50 @@ export function PayablesWidget() {
         return data.count.total > 0;
     }, [data]);
 
+    const prioritizedBills = useMemo(() => {
+        if (!data) return [];
+        return [...data.overdue, ...data.dueSoon, ...data.future].slice(0, 8);
+    }, [data]);
+
+    const urgencySummary = useMemo(() => {
+        if (!data) return [];
+        return [
+            {
+                key: "overdue",
+                label: "Overdue",
+                amount: data.totals.overdue,
+                count: data.count.overdue,
+                tone: "text-red-700 border-red-200 bg-red-50",
+            },
+            {
+                key: "dueSoon",
+                label: "Due Soon",
+                amount: data.totals.dueSoon,
+                count: data.count.dueSoon,
+                tone: "text-amber-700 border-amber-200 bg-amber-50",
+            },
+            {
+                key: "future",
+                label: "Upcoming",
+                amount: data.totals.future,
+                count: data.count.future,
+                tone: "text-slate-700 border-slate-200 bg-slate-50",
+            },
+        ];
+    }, [data]);
+
+    function getUrgencyLabel(dueDate: string): "Overdue" | "Due Soon" | "Upcoming" {
+        const due = new Date(dueDate);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        if (due < now) return "Overdue";
+        const in7Days = new Date(now);
+        in7Days.setDate(in7Days.getDate() + 7);
+        if (due < in7Days) return "Due Soon";
+        return "Upcoming";
+    }
+
     if (isLoading) {
         return (
             <Card>
@@ -106,10 +144,15 @@ export function PayablesWidget() {
                     <CardDescription>{t("payablesWidgetDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="space-y-2">
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-20 w-full rounded-md" />
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+                        ))}
+                    </div>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="rounded-lg border p-3">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="mt-2 h-3 w-56" />
                         </div>
                     ))}
                 </CardContent>
@@ -125,7 +168,7 @@ export function PayablesWidget() {
                     <CardDescription>{t("payablesWidgetDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex min-h-[12rem] flex-col items-center justify-center gap-3 text-center">
-                    <AlertCircle className="h-8 w-8 text-green-500" />
+                    <AlertCircle className="h-8 w-8 text-emerald-600" />
                     <div>
                         <p className="font-medium">{t("allBillsPaid")}</p>
                         <p className="text-sm text-muted-foreground">{t("noPendingPayables")}</p>
@@ -146,129 +189,57 @@ export function PayablesWidget() {
                     <Badge variant="outline">{data?.count.total ?? 0} unpaid</Badge>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-                {/* Overdue Bills */}
-                {data && data.count.overdue > 0 && (
-                    <div className={`rounded-lg border p-4 ${getUrgencyColor("overdue")}`}>
-                        <div className="mb-3 flex items-center justify-between">
-                            <h4 className="font-semibold text-red-900 dark:text-red-100">
-                                🔴 Overdue ({data.count.overdue})
-                            </h4>
-                            <span className="text-sm font-medium text-red-700 dark:text-red-200">
-                                {formatCurrency(data.totals.overdue, currency)}
-                            </span>
+            <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                    {urgencySummary.map((item) => (
+                        <div key={item.key} className={`rounded-lg border p-3 ${item.tone}`}>
+                            <p className="text-xs font-semibold uppercase tracking-wide">{item.label}</p>
+                            <p className="mt-1 text-lg font-semibold tabular-nums">{formatCurrency(item.amount, currency)}</p>
+                            <p className="text-xs opacity-80">{item.count} bills</p>
                         </div>
-                        <div className="space-y-2">
-                            {data.overdue.slice(0, 3).map((bill) => (
-                                <div key={bill.id} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <FileText className="h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-red-900 dark:text-red-100 truncate">
-                                                {bill.supplier.name}
-                                            </p>
-                                            <p className="text-xs text-red-700 dark:text-red-300">
-                                                {bill.billNumber} • {formatDate(bill.dueDate, dateFormat)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="ml-2 text-right flex-shrink-0">
-                                        <p className="font-medium text-red-900 dark:text-red-100">
-                                            {formatCurrency(Number(bill.outstanding), currency)}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                            {data.count.overdue > 3 && (
-                                <p className="text-xs text-red-700 dark:text-red-300 text-center pt-1">
-                                    +{data.count.overdue - 3} more overdue bills
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                )}
+                    ))}
+                </div>
 
-                {/* Due Soon Bills */}
-                {data && data.count.dueSoon > 0 && (
-                    <div className={`rounded-lg border p-4 ${getUrgencyColor("dueSoon")}`}>
-                        <div className="mb-3 flex items-center justify-between">
-                            <h4 className="font-semibold text-amber-900 dark:text-amber-100">
-                                🟡 Due Soon ({data.count.dueSoon})
-                            </h4>
-                            <span className="text-sm font-medium text-amber-700 dark:text-amber-200">
-                                {formatCurrency(data.totals.dueSoon, currency)}
-                            </span>
+                <div className="rounded-xl border">
+                    <div className="flex items-center justify-between border-b px-4 py-3">
+                        <div className="flex items-center gap-2">
+                            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                            <p className="text-sm font-medium">Priority Payables</p>
                         </div>
-                        <div className="space-y-2">
-                            {data.dueSoon.slice(0, 3).map((bill) => (
-                                <div key={bill.id} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <FileText className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-amber-900 dark:text-amber-100 truncate">
-                                                {bill.supplier.name}
-                                            </p>
-                                            <p className="text-xs text-amber-700 dark:text-amber-300">
-                                                {bill.billNumber} • {formatDate(bill.dueDate, dateFormat)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="ml-2 text-right flex-shrink-0">
-                                        <p className="font-medium text-amber-900 dark:text-amber-100">
-                                            {formatCurrency(Number(bill.outstanding), currency)}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                            {data.count.dueSoon > 3 && (
-                                <p className="text-xs text-amber-700 dark:text-amber-300 text-center pt-1">
-                                    +{data.count.dueSoon - 3} more bills due soon
-                                </p>
-                            )}
-                        </div>
+                        <p className="text-sm font-semibold tabular-nums">
+                            {formatCurrency(data?.totals.total ?? 0, currency)}
+                        </p>
                     </div>
-                )}
+                    <div className="divide-y">
+                        {prioritizedBills.map((bill) => {
+                            const urgency = getUrgencyLabel(bill.dueDate);
+                            const urgencyVariant = urgency === "Overdue" ? "destructive" : "outline";
 
-                {/* Future Bills */}
-                {data && data.count.future > 0 && (
-                    <div className={`rounded-lg border p-4 ${getUrgencyColor("future")}`}>
-                        <div className="mb-3 flex items-center justify-between">
-                            <h4 className="font-semibold text-green-900 dark:text-green-100">
-                                🟢 Future ({data.count.future})
-                            </h4>
-                            <span className="text-sm font-medium text-green-700 dark:text-green-200">
-                                {formatCurrency(data.totals.future, currency)}
-                            </span>
-                        </div>
-                        <div className="space-y-2">
-                            {data.future.slice(0, 2).map((bill) => (
-                                <div key={bill.id} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <FileText className="h-4 w-4 flex-shrink-0 text-green-600 dark:text-green-400" />
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-green-900 dark:text-green-100 truncate">
-                                                {bill.supplier.name}
-                                            </p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">
-                                                {bill.billNumber} • {formatDate(bill.dueDate, dateFormat)}
-                                            </p>
+                            return (
+                                <div key={bill.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                                    <div className="min-w-0 space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <Receipt className="h-4 w-4 text-muted-foreground" />
+                                            <p className="truncate text-sm font-medium">{bill.supplier.name}</p>
                                         </div>
-                                    </div>
-                                    <div className="ml-2 text-right flex-shrink-0">
-                                        <p className="font-medium text-green-900 dark:text-green-100">
-                                            {formatCurrency(Number(bill.outstanding), currency)}
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {bill.billNumber} • Due {formatDate(bill.dueDate, dateFormat)}
                                         </p>
                                     </div>
+                                    <div className="shrink-0 text-right">
+                                        <p className="text-sm font-semibold tabular-nums">
+                                            {formatCurrency(Number(bill.outstanding), currency)}
+                                        </p>
+                                        <Badge variant={urgencyVariant} className="mt-1">
+                                            {urgency === "Overdue" && <CircleAlert className="mr-1 h-3 w-3" />}
+                                            {urgency}
+                                        </Badge>
+                                    </div>
                                 </div>
-                            ))}
-                            {data.count.future > 2 && (
-                                <p className="text-xs text-green-700 dark:text-green-300 text-center pt-1">
-                                    +{data.count.future - 2} more future bills
-                                </p>
-                            )}
-                        </div>
+                            );
+                        })}
                     </div>
-                )}
+                </div>
 
                 <Button variant="outline" className="w-full" asChild>
                     <Link href="/bills">

@@ -467,18 +467,19 @@
     "totalLabel": "Total Products",
     "allTypes": "All Types",
     "unitPriceHeader": "Unit Price",
+    "costPriceHeader": "Cost Price",
     "vatHeader": "VAT",
     "statusHeader": "Status",
     "typeLabels": {
       "PRODUCT": "Product",
-      "SERVICE": "Service",
-      "EXPENSE": "Expense"
+      "SERVICE": "Service"
     },
     "totalItems": "{count} items",
     "exportName": "Name",
     "exportSku": "SKU",
     "exportType": "Type",
     "exportUnitPrice": "Unit Price",
+    "exportCostPrice": "Cost Price",
     "exportVatTreatment": "VAT Treatment",
     "exportActive": "Active",
     "exportTitle": "Products & Services Report"
@@ -1068,7 +1069,7 @@
       "title": "Apps",
       "description": "Manage API keys, scopes, and webhook integrations for external services.",
       "createApp": "Create App",
-      "noApps": "No connected apps yet",
+      "noApps": "No apps yet",
       "noAppsDesc": "Create an API key to integrate external services with your organization.",
       "name": "App Name",
       "namePlaceholder": "e.g. My ERP Integration",

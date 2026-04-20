@@ -467,18 +467,19 @@
     "totalLabel": "إجمالي المنتجات",
     "allTypes": "جميع الأنواع",
     "unitPriceHeader": "سعر الوحدة",
+    "costPriceHeader": "سعر التكلفة",
     "vatHeader": "الضريبة",
     "statusHeader": "الحالة",
     "typeLabels": {
       "PRODUCT": "منتج",
-      "SERVICE": "خدمة",
-      "EXPENSE": "مصروف"
+      "SERVICE": "خدمة"
     },
     "totalItems": "{count} عناصر",
     "exportName": "الاسم",
     "exportSku": "رمز المنتج",
     "exportType": "النوع",
     "exportUnitPrice": "سعر الوحدة",
+    "exportCostPrice": "سعر التكلفة",
     "exportVatTreatment": "معالجة الضريبة",
     "exportActive": "نشط",
     "exportTitle": "تقرير المنتجات والخدمات"
@@ -1068,7 +1069,7 @@
       "title": "التطبيقات",
       "description": "إدارة مفاتيح API والنطاقات وتكاملات Webhook للخدمات الخارجية.",
       "createApp": "إنشاء تطبيق",
-      "noApps": "لا توجد تطبيقات متصلة بعد",
+      "noApps": "لا توجد تطبيقات بعد",
       "noAppsDesc": "أنشئ مفتاح API لدمج الخدمات الخارجية مع مؤسستك.",
       "name": "اسم التطبيق",
       "namePlaceholder": "مثال: تكامل نظام ERP",
