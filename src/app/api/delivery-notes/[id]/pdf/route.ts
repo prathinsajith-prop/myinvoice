@@ -70,7 +70,7 @@ export async function GET(req: NextRequest, { params }: Params) {
             })),
         });
 
-        return new NextResponse(new Blob([bytes], { type: "application/pdf" }), {
+        return new NextResponse(Buffer.from(bytes) as unknown as BodyInit, {
             status: 200,
             headers: {
                 "Content-Type": "application/pdf",

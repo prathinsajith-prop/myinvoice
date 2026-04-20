@@ -10,24 +10,24 @@ describe('RBAC System', () => {
 
         it('should return true for higher hierarchy', () => {
             expect(hasRole('OWNER', 'MEMBER')).toBe(true); // Owner > Member
-            expect(hasRole('ADMIN', 'VIEWER')).toBe(true); // Admin > Viewer
+            expect(hasRole('ADMIN', 'MEMBER')).toBe(true); // Admin > Member
         });
 
         it('should return false for lower hierarchy', () => {
-            expect(hasRole('VIEWER', 'OWNER')).toBe(false);
+            expect(hasRole('MEMBER', 'OWNER')).toBe(false);
             expect(hasRole('MEMBER', 'ADMIN')).toBe(false);
         });
     });
 
     describe('hasPermission', () => {
         it('should grant view permission to all roles', () => {
-            (['VIEWER', 'MEMBER', 'ACCOUNTANT', 'ADMIN', 'OWNER'] as MemberRole[]).forEach(role => {
+            (['MEMBER', 'ACCOUNTANT', 'MANAGER', 'ADMIN', 'OWNER'] as MemberRole[]).forEach(role => {
                 expect(hasPermission(role, 'view')).toBe(true);
             });
         });
 
         it('should grant create to MEMBER and above', () => {
-            expect(hasPermission('VIEWER', 'create')).toBe(false);
+            expect(hasPermission('MEMBER', 'create')).toBe(true);
             expect(hasPermission('MEMBER', 'create')).toBe(true);
             expect(hasPermission('ADMIN', 'create')).toBe(true);
         });
@@ -45,10 +45,10 @@ describe('RBAC System', () => {
     });
 
     describe('getPermissions', () => {
-        it('should return viewer permissions for VIEWER role', () => {
-            const perms = getPermissions('VIEWER');
+        it('should return member permissions for MEMBER role', () => {
+            const perms = getPermissions('MEMBER');
             expect(perms.view).toBe(true);
-            expect(perms.create).toBe(false);
+            expect(perms.create).toBe(true);
             expect(perms.delete).toBe(false);
         });
 

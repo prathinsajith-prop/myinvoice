@@ -145,6 +145,8 @@ export function DeliveryNoteSheet({ open, onClose, onSuccess, defaultCustomerId,
             toast.success("Delivery note created");
             onSuccess(data);
             onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to create delivery note");
         } finally {
             setSaving(false);
         }

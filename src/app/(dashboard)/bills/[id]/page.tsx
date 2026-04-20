@@ -152,7 +152,7 @@ export default function BillDetailPage() {
     if (!bill) return null;
 
     const canVoid = !["VOID", "PAID", "PARTIALLY_PAID"].includes(bill.status) && Number(bill.amountPaid) <= 0.01;
-    const canPay = !["PAID", "VOID"].includes(bill.status) && Number(bill.outstanding) > 0;
+    const canPay = !["PAID", "VOID", "DRAFT"].includes(bill.status) && Number(bill.outstanding) > 0;
     const canReceive = bill.status === "DRAFT";
     const isOverdue = !["PAID", "VOID"].includes(bill.status) && new Date(bill.dueDate) < new Date();
     const shareText = encodeURIComponent(

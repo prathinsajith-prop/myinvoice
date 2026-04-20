@@ -11,6 +11,6 @@ export const USER_ROLE_META: Record<
     OWNER: { label: "Owner", variant: "default", icon: Crown },
     ADMIN: { label: "Admin", variant: "default", icon: Shield },
     ACCOUNTANT: { label: "Accountant", variant: "secondary", icon: UserCheck },
-    MEMBER: { label: "Member", variant: "secondary", icon: Users },
-    VIEWER: { label: "Viewer", variant: "outline", icon: Users },
+    MANAGER: { label: "Manager", variant: "secondary", icon: Shield },
+    MEMBER: { label: "Member", variant: "outline", icon: Users },
 };

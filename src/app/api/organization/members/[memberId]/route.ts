@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -11,7 +11,7 @@ import { logApiAudit } from "@/lib/api/audit";
 import { hasRole } from "@/lib/rbac";
 
 const updateMemberSchema = z.object({
-  role: z.enum(["ADMIN", "ACCOUNTANT", "MEMBER", "VIEWER"]),
+  role: z.enum(["ADMIN", "MANAGER", "ACCOUNTANT", "MEMBER"]),
 });
 
 // PATCH /api/organization/members/[memberId] — update member role

@@ -221,7 +221,7 @@ export default function ProfileSettingsPage() {
             {/* Form Fields */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">{t("fullName")}</Label>
+                <Label htmlFor="name" required>{t("fullName")}</Label>
                 <Input
                   id="name"
                   placeholder={t("namePlaceholder")}
@@ -233,7 +233,7 @@ export default function ProfileSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">{t("emailAddress")}</Label>
+                <Label htmlFor="email" required>{t("emailAddress")}</Label>
                 <Input
                   id="email"
                   type="email"

@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -16,7 +16,7 @@ const updateInvoiceSchema = z.object({
     terms: z.string().optional().nullable(),
     internalNotes: z.string().optional().nullable(),
     status: z
-        .enum(["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "VOID", "CREDITED"])
+        .enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "VOID", "CREDITED"])
         .optional(),
 });
 
@@ -69,8 +69,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             where: { id, organizationId: ctx.organizationId, deletedAt: null },
         });
         if (!invoice) throw new NotFoundError("Invoice");
-        if (invoice.status === "VOID") {
-            throw new ForbiddenError("Cannot edit a voided invoice");
+        if (["VOID", "APPROVED", "PENDING_APPROVAL"].includes(invoice.status)) {
+            throw new ForbiddenError(`Cannot edit an invoice with status ${invoice.status}`);
         }
 
         const result = updateInvoiceSchema.safeParse(body);
@@ -90,7 +90,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
                 snapshot: invoice as object,
                 changedBy: ctx.userId,
             },
-        }).catch(() => {}); // fire-and-forget — non-critical to response
+        }).catch(() => { }); // fire-and-forget — non-critical to response
 
         const updated = await prisma.invoice.update({
             where: { id },

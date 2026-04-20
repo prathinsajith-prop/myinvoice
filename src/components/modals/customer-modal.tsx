@@ -194,6 +194,8 @@ export function CustomerModal({
             toast.success(isEdit ? "Customer updated" : "Customer created");
             onSuccess(data);
             onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to save customer");
         } finally {
             setSaving(false);
         }
@@ -259,8 +261,8 @@ export function CustomerModal({
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem className="sm:col-span-2">
-                                            <FormLabel>
-                                                Name <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Name
                                             </FormLabel>
                                             <FormControl>
                                                 <Input placeholder="e.g. Acme Trading LLC" {...field} />

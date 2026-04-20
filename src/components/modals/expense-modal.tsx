@@ -194,8 +194,8 @@ export function ExpenseModal({
                                 name="description"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>
-                                            Description <span className="text-destructive">*</span>
+                                        <FormLabel required>
+                                            Description
                                         </FormLabel>
                                         <FormControl>
                                             <Input
@@ -214,8 +214,8 @@ export function ExpenseModal({
                                     name="category"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>
-                                                Category <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Category
                                             </FormLabel>
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
@@ -240,8 +240,8 @@ export function ExpenseModal({
                                     name="expenseDate"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>
-                                                Date <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Date
                                             </FormLabel>
                                             <FormControl>
                                                 <DatePicker value={field.value} onChange={field.onChange} />
@@ -255,8 +255,8 @@ export function ExpenseModal({
                                     name="amount"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>
-                                                Amount <span className="text-destructive">*</span>
+                                            <FormLabel required>
+                                                Amount
                                             </FormLabel>
                                             <FormControl>
                                                 <Input

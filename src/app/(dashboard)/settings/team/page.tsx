@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import {
-  Loader2, UserPlus, MoreHorizontal, Shield, Users, Eye,
+  Loader2, UserPlus, MoreHorizontal, Shield, Users,
   Calculator, Crown, Mail, Clock, Trash2, UserCog,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -26,7 +26,7 @@ import { useTenant } from "@/lib/tenant/context";
 import { jsonFetcher } from "@/lib/fetcher";
 import { useTranslations } from "next-intl";
 
-type MemberRole = "OWNER" | "ADMIN" | "ACCOUNTANT" | "MEMBER" | "VIEWER";
+type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "ACCOUNTANT" | "MEMBER";
 
 interface Member {
   id: string;
@@ -48,9 +48,9 @@ interface Member {
 const ROLE_CONFIG: Record<MemberRole, { icon: React.ElementType; color: string }> = {
   OWNER: { icon: Crown, color: "text-amber-600 bg-amber-50 border-amber-200" },
   ADMIN: { icon: Shield, color: "text-blue-600 bg-blue-50 border-blue-200" },
+  MANAGER: { icon: UserCog, color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
   ACCOUNTANT: { icon: Calculator, color: "text-green-600 bg-green-50 border-green-200" },
   MEMBER: { icon: Users, color: "text-purple-600 bg-purple-50 border-purple-200" },
-  VIEWER: { icon: Eye, color: "text-gray-600 bg-gray-50 border-gray-200" },
 };
 
 function getInitials(name: string | null, email: string) {
@@ -304,9 +304,9 @@ export default function TeamSettingsPage() {
                 <SelectTrigger><SelectValue placeholder={t("selectRole")} /></SelectTrigger>
                 <SelectContent>
                   {canInviteAdmin && <SelectItem value="ADMIN">{t("roleLabels.ADMIN")}</SelectItem>}
+                  <SelectItem value="MANAGER">{t("roleLabels.MANAGER")}</SelectItem>
                   <SelectItem value="ACCOUNTANT">{t("roleLabels.ACCOUNTANT")}</SelectItem>
                   <SelectItem value="MEMBER">{t("roleLabels.MEMBER")}</SelectItem>
-                  <SelectItem value="VIEWER">{t("roleLabels.VIEWER")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">{t(`roleDescriptions.${inviteRole}`)}</p>
@@ -335,9 +335,9 @@ export default function TeamSettingsPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {canInviteAdmin && <SelectItem value="ADMIN">{t("roleLabels.ADMIN")}</SelectItem>}
+                  <SelectItem value="MANAGER">{t("roleLabels.MANAGER")}</SelectItem>
                   <SelectItem value="ACCOUNTANT">{t("roleLabels.ACCOUNTANT")}</SelectItem>
                   <SelectItem value="MEMBER">{t("roleLabels.MEMBER")}</SelectItem>
-                  <SelectItem value="VIEWER">{t("roleLabels.VIEWER")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">{t(`roleDescriptions.${editRole}`)}</p>

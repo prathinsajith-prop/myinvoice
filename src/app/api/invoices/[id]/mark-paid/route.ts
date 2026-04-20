@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -29,6 +29,9 @@ export async function POST(req: NextRequest, { params }: Params) {
         if (!invoice) throw new NotFoundError("Invoice");
         if (invoice.status === "VOID") throw new ForbiddenError("Cannot pay a voided invoice");
         if (invoice.status === "PAID") throw new ForbiddenError("Invoice is already fully paid");
+        if (invoice.status === "DRAFT") throw new ForbiddenError("Cannot pay a draft invoice");
+        if (invoice.status === "PENDING_APPROVAL") throw new ForbiddenError("Invoice is pending approval");
+        if (invoice.status === "CREDITED") throw new ForbiddenError("Invoice has been credited");
 
         const result = markPaidSchema.safeParse(body);
         if (!result.success) {
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         const { amount, paymentDate, method, reference, notes, currencyCode, exchangeRate } =
             result.data;
 
-        const outstanding = Number(invoice.outstanding);
+        const outstanding = Number(invoice.outstanding ?? invoice.total);
         if (amount > outstanding + 0.01) {
             return NextResponse.json(
                 { error: `Payment amount exceeds outstanding balance of ${outstanding}` },

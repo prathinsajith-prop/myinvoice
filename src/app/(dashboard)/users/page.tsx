@@ -44,7 +44,7 @@ interface Member {
     };
 }
 
-type InviteRole = "ADMIN" | "ACCOUNTANT" | "MEMBER" | "VIEWER";
+type InviteRole = "ADMIN" | "MANAGER" | "ACCOUNTANT" | "MEMBER";
 
 function initials(name: string | null, email: string): string {
     if (!name) return email.slice(0, 2).toUpperCase();
@@ -107,7 +107,7 @@ export default function UsersPage() {
                 acc.total += 1;
                 if (m.role === "OWNER") acc.owners += 1;
                 if (m.role === "ADMIN") acc.admins += 1;
-                if (["MEMBER", "ACCOUNTANT", "VIEWER"].includes(m.role)) acc.staff += 1;
+                if (["MEMBER", "ACCOUNTANT", "MANAGER"].includes(m.role)) acc.staff += 1;
                 if (m.inviteStatus === "PENDING" || !m.acceptedAt) acc.pending += 1;
                 return acc;
             },
@@ -279,9 +279,9 @@ export default function UsersPage() {
                                     <SelectItem value="ALL">{t("allRoles")}</SelectItem>
                                     <SelectItem value="OWNER">{t("roleLabels.owner")}</SelectItem>
                                     <SelectItem value="ADMIN">{t("roleLabels.admin")}</SelectItem>
+                                    <SelectItem value="MANAGER">{t("roleLabels.manager")}</SelectItem>
                                     <SelectItem value="ACCOUNTANT">{t("roleLabels.accountant")}</SelectItem>
                                     <SelectItem value="MEMBER">{t("roleLabels.member")}</SelectItem>
-                                    <SelectItem value="VIEWER">{t("roleLabels.viewer")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -471,9 +471,9 @@ export default function UsersPage() {
                                 <SelectTrigger><SelectValue placeholder={t("selectRole")} /></SelectTrigger>
                                 <SelectContent>
                                     {canInviteAdmin && <SelectItem value="ADMIN">{t("roleLabels.admin")}</SelectItem>}
+                                    <SelectItem value="MANAGER">{t("roleLabels.manager")}</SelectItem>
                                     <SelectItem value="ACCOUNTANT">{t("roleLabels.accountant")}</SelectItem>
                                     <SelectItem value="MEMBER">{t("roleLabels.member")}</SelectItem>
-                                    <SelectItem value="VIEWER">{t("roleLabels.viewer")}</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">{t(`roles.${inviteRole}`)}</p>
