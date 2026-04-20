@@ -70,7 +70,7 @@ export function UserProfileDropdown() {
     .slice(0, 2);
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/login" });
+    await signOut({ redirectTo: "/login" });
   };
 
   async function handleSwitch(orgId: string) {

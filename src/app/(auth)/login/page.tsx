@@ -89,7 +89,7 @@ function LoginForm() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl });
+      await signIn("google", { redirectTo: callbackUrl });
     } catch {
       toast.error("An error occurred. Please try again.");
       setIsGoogleLoading(false);
