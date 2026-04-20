@@ -115,7 +115,7 @@
     "newOrganization": "مؤسسة جديدة",
     "noOrganizations": "لا توجد مؤسسات",
     "switchedOrganization": "تم تبديل المؤسسة",
-    "connectedApps": "التطبيقات المتصلة"
+    "connectedApps": "التطبيقات"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -148,7 +148,8 @@
     },
     "recurringInvoices": "الفواتير المتكررة",
     "paymentReminders": "تذكيرات الدفع",
-    "connectedApps": "التطبيقات المتصلة"
+    "reconciliation": "التسوية",
+    "connectedApps": "التطبيقات"
   },
   "dashboard": {
     "welcome": "مرحباً بعودتك، {name}",
@@ -395,7 +396,18 @@
     "exportTotalInvoiced": "إجمالي الفواتير",
     "exportOutstanding": "المستحق",
     "exportActive": "نشط",
-    "exportTitle": "تقرير العملاء"
+    "exportTitle": "تقرير العملاء",
+    "importCustomers": "استيراد CSV",
+    "importDialogTitle": "استيراد العملاء من CSV",
+    "importDialogDesc": "ارفع ملف CSV يحتوي على الأعمدة: name, email, phone, type (BUSINESS/INDIVIDUAL), trn, city, emirate, notes. الحد الأقصى 500 صف.",
+    "importDownloadTemplate": "تنزيل القالب",
+    "importSelectFile": "اختر ملف CSV",
+    "importConfirm": "استيراد",
+    "importing": "جارٍ الاستيراد…",
+    "importSuccess": "تم استيراد {count} عميل",
+    "importSkipped": "{count} تم تخطيها (بريد مكرر)",
+    "importErrors": "{count} صف بها أخطاء",
+    "importNoFile": "الرجاء تحديد ملف CSV أولاً"
   },
   "suppliers": {
     "title": "الموردون",
@@ -455,18 +467,19 @@
     "totalLabel": "إجمالي المنتجات",
     "allTypes": "جميع الأنواع",
     "unitPriceHeader": "سعر الوحدة",
+    "costPriceHeader": "سعر التكلفة",
     "vatHeader": "الضريبة",
     "statusHeader": "الحالة",
     "typeLabels": {
       "PRODUCT": "منتج",
-      "SERVICE": "خدمة",
-      "EXPENSE": "مصروف"
+      "SERVICE": "خدمة"
     },
     "totalItems": "{count} عناصر",
     "exportName": "الاسم",
     "exportSku": "رمز المنتج",
     "exportType": "النوع",
     "exportUnitPrice": "سعر الوحدة",
+    "exportCostPrice": "سعر التكلفة",
     "exportVatTreatment": "معالجة الضريبة",
     "exportActive": "نشط",
     "exportTitle": "تقرير المنتجات والخدمات"
@@ -698,7 +711,7 @@
       "subscriptionName": "الاشتراك",
       "subscriptionDesc": "إدارة اشتراكك والفوترة",
       "developer": "المطور",
-      "appsName": "التطبيقات المتصلة",
+      "appsName": "التطبيقات",
       "appsDesc": "إدارة مفاتيح API وتكاملات Webhook"
     },
     "organization": {
@@ -841,9 +854,9 @@
       "roles": {
         "owner": "المالك",
         "admin": "مدير",
+        "manager": "مشرف",
         "accountant": "محاسب",
-        "member": "عضو",
-        "viewer": "مشاهد"
+        "member": "عضو"
       },
       "pending": "قيد الانتظار",
       "remove": "إزالة العضو",
@@ -876,16 +889,16 @@
       "roleLabels": {
         "OWNER": "المالك",
         "ADMIN": "مدير",
+        "MANAGER": "مشرف",
         "ACCOUNTANT": "محاسب",
-        "MEMBER": "عضو",
-        "VIEWER": "مشاهد"
+        "MEMBER": "عضو"
       },
       "roleDescriptions": {
         "OWNER": "وصول كامل، يمكنه حذف المؤسسة",
         "ADMIN": "وصول كامل ما عدا حذف المؤسسة",
+        "MANAGER": "يمكنه الموافقة على الفواتير وإدارة الفريق",
         "ACCOUNTANT": "وصول مالي، إدارة الفواتير",
-        "MEMBER": "وصول للعرض وتعديل محدود",
-        "VIEWER": "وصول للقراءة فقط"
+        "MEMBER": "وصول للعرض وتعديل محدود"
       }
     },
     "billing": {
@@ -1053,10 +1066,10 @@
       "recently": "مؤخراً"
     },
     "apps": {
-      "title": "التطبيقات المتصلة",
+      "title": "التطبيقات",
       "description": "إدارة مفاتيح API والنطاقات وتكاملات Webhook للخدمات الخارجية.",
       "createApp": "إنشاء تطبيق",
-      "noApps": "لا توجد تطبيقات متصلة بعد",
+      "noApps": "لا توجد تطبيقات بعد",
       "noAppsDesc": "أنشئ مفتاح API لدمج الخدمات الخارجية مع مؤسستك.",
       "name": "اسم التطبيق",
       "namePlaceholder": "مثال: تكامل نظام ERP",
@@ -1555,15 +1568,15 @@
     "roleLabels": {
       "owner": "المالك",
       "admin": "مدير",
+      "manager": "مشرف",
       "accountant": "محاسب",
-      "member": "عضو",
-      "viewer": "مشاهد"
+      "member": "عضو"
     },
     "roles": {
       "ADMIN": "وصول كامل ما عدا حذف المؤسسة",
+      "MANAGER": "يمكنه الموافقة على الفواتير وإدارة الفريق",
       "ACCOUNTANT": "وصول مالي، إدارة الفواتير",
-      "MEMBER": "وصول للعرض وتعديل محدود",
-      "VIEWER": "وصول للقراءة فقط"
+      "MEMBER": "وصول للعرض وتعديل محدود"
     }
   },
   "globalSearch": {
@@ -1692,5 +1705,42 @@
       "FAILED": "فشل",
       "SKIPPED": "تم تخطيه"
     }
+  },
+  "reconciliation": {
+    "title": "التسوية",
+    "description": "مطابقة المدفوعات مع الفواتير المستحقة وتسوية حساباتك.",
+    "summary": "ملخص",
+    "totalOutstanding": "إجمالي المستحق",
+    "totalPayments": "إجمالي المدفوعات",
+    "unallocated": "أموال غير مخصصة",
+    "reconciledThisMonth": "تمت التسوية هذا الشهر",
+    "outstandingInvoices": "الفواتير المستحقة",
+    "unallocatedPayments": "مدفوعات غير مخصصة",
+    "noOutstandingInvoices": "لا توجد فواتير مستحقة",
+    "noUnallocatedPayments": "لا توجد مدفوعات غير مخصصة",
+    "allocate": "تخصيص",
+    "allocatePayment": "تخصيص دفعة",
+    "selectInvoice": "اختر فاتورة",
+    "selectPayment": "اختر دفعة",
+    "amountToAllocate": "المبلغ المراد تخصيصه",
+    "allocateSuccess": "تم تخصيص الدفعة بنجاح",
+    "allocateError": "فشل تخصيص الدفعة",
+    "available": "متاح",
+    "invoice": "فاتورة",
+    "payment": "دفعة",
+    "customer": "العميل",
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "outstanding": "المستحق",
+    "status": "الحالة",
+    "reference": "المرجع",
+    "method": "طريقة الدفع",
+    "dateRange": "نطاق التاريخ",
+    "from": "من",
+    "to": "إلى",
+    "refresh": "تحديث",
+    "reconciled": "تمت التسوية",
+    "partiallyPaid": "مدفوع جزئياً",
+    "overdue": "متأخر"
   }
 }

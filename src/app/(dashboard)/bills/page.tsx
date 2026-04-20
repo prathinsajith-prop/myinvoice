@@ -5,11 +5,12 @@ import useSWR from "swr";
 import { jsonFetcher } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Plus, Receipt, AlertCircle, Eye, Pencil } from "lucide-react";
+import { Plus, Receipt, AlertCircle, Eye, Pencil, Download } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { BillSheet } from "@/components/modals/bill-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { PageHeader } from "@/components/page-header";
 import { useTranslations } from "next-intl";
@@ -54,6 +55,7 @@ export default function BillsPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const dateFormat = orgSettings.dateFormat;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -143,7 +145,7 @@ export default function BillsPage() {
             header: () => <div className="text-right">{tc("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {row.original.currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {row.original.currency} {formatAmount(row.getValue("total"))}
                 </div>
             ),
         },
@@ -153,7 +155,7 @@ export default function BillsPage() {
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("outstanding")) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                        {row.original.currency} {Number(row.getValue("outstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                        {row.original.currency} {formatAmount(row.getValue("outstanding"))}
                     </span>
                 </div>
             ),
@@ -172,13 +174,16 @@ export default function BillsPage() {
                         onClick={() => router.push(`/bills/${row.original.id}`)}>
                         <Eye className="h-4 w-4" />
                     </Button>
-                    {canEdit('bill', row.original.status) && (
+                    {canEdit('bill', row.original.status) && hasPermission('edit') && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" title={tc("edit")}
                             onClick={() => setEditBillId(row.original.id)}>
                             <Pencil className="h-4 w-4" />
                         </Button>
-                    )}
-                </div>
+                    )}                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download PDF" asChild>
+                        <a href={`/api/bills/${row.original.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>                </div>
             ),
         },
     ], [dateFormat, router, t, tc]);
@@ -199,17 +204,19 @@ export default function BillsPage() {
                                 { header: t("exportSupplier"), accessor: "supplier.name" },
                                 { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
                                 { header: t("exportDueDate"), accessor: "dueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
-                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => formatAmount(v) },
+                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => formatAmount(v) },
                                 { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="bills"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setSheetOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newBill")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setSheetOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newBill")}
+                            </Button>
+                        )}
                     </>
                 }
             />

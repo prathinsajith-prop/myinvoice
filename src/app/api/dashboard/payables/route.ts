@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
                 organizationId: ctx.organizationId,
                 deletedAt: null,
                 status: {
-                    not: "PAID",
+                    in: ["RECEIVED", "PARTIALLY_PAID", "OVERDUE"],
+                },
+                outstanding: {
+                    gt: 0,
                 },
             },
             select: {

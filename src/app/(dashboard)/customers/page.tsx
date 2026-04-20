@@ -14,7 +14,17 @@ import {
     Eye,
     Pencil,
     FileText,
+    Upload,
+    Download,
 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { type ColumnDef } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +50,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { useTenant } from "@/lib/tenant/context";
 import { PageHeader } from "@/components/page-header";
 import { useTranslations } from "next-intl";
 import { StatCard } from "@/components/stat-card";
@@ -76,6 +87,7 @@ export default function CustomersPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState("ALL");
@@ -85,6 +97,39 @@ export default function CustomersPage() {
     const [editData, setEditData] = useState<Record<string, unknown> | undefined>(undefined);
     const [invoiceOpen, setInvoiceOpen] = useState(false);
     const [invoiceCustomerId, setInvoiceCustomerId] = useState<string | undefined>(undefined);
+    const [importOpen, setImportOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importing, setImporting] = useState(false);
+    const importInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImport = async () => {
+        if (!importFile) { toast.error(t("importNoFile")); return; }
+        setImporting(true);
+        try {
+            const form = new FormData();
+            form.append("file", importFile);
+            const res = await fetch("/api/customers/import", { method: "POST", body: form });
+            const data = await res.json();
+            if (!res.ok) { toast.error(data.error ?? "Import failed"); return; }
+            toast.success(t("importSuccess", { count: data.imported }));
+            if (data.skipped > 0) toast.info(t("importSkipped", { count: data.skipped }));
+            if (data.errors?.length > 0) toast.warning(t("importErrors", { count: data.errors.length }));
+            setImportOpen(false);
+            setImportFile(null);
+            await mutate();
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    const downloadTemplate = () => {
+        const csv = "name,email,phone,type,trn,city,emirate,currency,notes\nAcme Corp,billing@acme.com,+971501234567,BUSINESS,,,Dubai,AED,";
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "customers-template.csv"; a.click();
+        URL.revokeObjectURL(url);
+    };
     const deferredSearch = useDeferredValue(search);
     const normalizedSearch = deferredSearch.trim();
 
@@ -275,10 +320,16 @@ export default function CustomersPage() {
                             filename="customers"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newCustomer")}
+                        <Button variant="outline" onClick={() => setImportOpen(true)}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            {t("importCustomers")}
                         </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newCustomer")}
+                            </Button>
+                        )}
                     </>
                 }
             />
@@ -367,6 +418,59 @@ export default function CustomersPage() {
                 onSuccess={() => { setInvoiceOpen(false); }}
                 defaultCustomerId={invoiceCustomerId}
             />
+
+            {/* CSV Import Dialog */}
+            <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) setImportFile(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t("importDialogTitle")}</DialogTitle>
+                        <DialogDescription>{t("importDialogDesc")}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <button
+                            type="button"
+                            onClick={downloadTemplate}
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                            <Download className="h-3.5 w-3.5" />
+                            {t("importDownloadTemplate")}
+                        </button>
+                        <div
+                            className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                            onClick={() => importInputRef.current?.click()}
+                            onKeyDown={(e) => e.key === "Enter" && importInputRef.current?.click()}
+                            role="button"
+                            tabIndex={0}
+                        >
+                            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                            <p className="text-sm font-medium">
+                                {importFile ? importFile.name : t("importSelectFile")}
+                            </p>
+                            {importFile && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {(importFile.size / 1024).toFixed(1)} KB
+                                </p>
+                            )}
+                            <input
+                                ref={importInputRef}
+                                type="file"
+                                accept=".csv,text/csv"
+                                className="hidden"
+                                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setImportOpen(false); setImportFile(null); }}>
+                            {tc("cancel")}
+                        </Button>
+                        <Button onClick={handleImport} disabled={importing || !importFile}>
+                            {importing && <Upload className="mr-2 h-4 w-4 animate-pulse" />}
+                            {importing ? t("importing") : t("importConfirm")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

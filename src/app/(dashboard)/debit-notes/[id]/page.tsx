@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, Send, XCircle, CheckCircle } from "lucide-react";
+import { ChevronLeft, Loader2, Send, XCircle, CheckCircle, Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -143,6 +143,11 @@ export default function DebitNoteDetailPage() {
                             Void
                         </Button>
                     )}
+                    <Button variant="outline" size="icon" asChild title="Download PDF">
+                        <a href={`/api/debit-notes/${note.id}/pdf`}>
+                            <Download className="h-4 w-4" />
+                        </a>
+                    </Button>
                 </div>
             </div>
 

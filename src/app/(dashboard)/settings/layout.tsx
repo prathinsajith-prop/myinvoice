@@ -51,11 +51,12 @@ function SettingsSidebar() {
           href: "/settings/organization",
           icon: Building2,
         },
-        {
-          name: t("teamMembersName"),
-          href: "/settings/team",
-          icon: Users,
-        },
+        // Team Members hidden for now
+        // {
+        //   name: t("teamMembersName"),
+        //   href: "/settings/team",
+        //   icon: Users,
+        // },
         {
           name: t("brandingName"),
           href: "/settings/branding",

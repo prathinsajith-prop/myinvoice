@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy, ShieldCheck, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { LineItemModal, type LineItemData } from "@/components/modals/line-item-modal";
+import { useTenant } from "@/lib/tenant/context";
 
 interface LineItem {
     id: string;
@@ -85,6 +86,9 @@ export default function InvoiceDetailPage() {
     const [editingLineItem, setEditingLineItem] = useState<LineItemData | null>(null);
     const [deletingLineItem, setDeletingLineItem] = useState<LineItemData | null>(null);
     const [duplicating, setDuplicating] = useState(false);
+    const [approving, setApproving] = useState(false);
+
+    const { role, hasPermission } = useTenant();
 
     const fetchInvoice = useCallback(async () => {
         setLoading(true);
@@ -228,6 +232,34 @@ export default function InvoiceDetailPage() {
         }
     }
 
+    async function doSubmitForApproval() {
+        setApproving(true);
+        try {
+            const res = await fetch(`/api/invoices/${params.id}/approve`, { method: "PUT" });
+            if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+            toast.success("Invoice submitted for approval");
+            fetchInvoice();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to submit for approval");
+        } finally {
+            setApproving(false);
+        }
+    }
+
+    async function doApprove() {
+        setApproving(true);
+        try {
+            const res = await fetch(`/api/invoices/${params.id}/approve`, { method: "POST" });
+            if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+            toast.success("Invoice approved");
+            fetchInvoice();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to approve invoice");
+        } finally {
+            setApproving(false);
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24">
@@ -238,10 +270,12 @@ export default function InvoiceDetailPage() {
 
     if (!invoice) return null;
 
-    const canVoid = !["VOID", "CREDITED"].includes(invoice.status);
-    const canPay = !["PAID", "VOID", "CREDITED"].includes(invoice.status);
-    const canSend = !["VOID", "CREDITED"].includes(invoice.status);
-    const canEditLines = !["VOID", "CREDITED"].includes(invoice.status);
+    const canVoid = !["VOID", "CREDITED", "DRAFT"].includes(invoice.status);
+    const canPay = !["PAID", "VOID", "CREDITED", "DRAFT", "PENDING_APPROVAL"].includes(invoice.status);
+    const canSend = !["VOID", "CREDITED", "DRAFT", "PENDING_APPROVAL"].includes(invoice.status);
+    const canEditLines = invoice.status === "DRAFT" && hasPermission('edit');
+    const canSubmitForApproval = invoice.status === "DRAFT";
+    const canApprove = invoice.status === "PENDING_APPROVAL" && ["ADMIN", "MANAGER", "OWNER"].includes(role ?? "");
     const appUrl = typeof window !== "undefined" ? window.location.origin : "";
     const shareText = encodeURIComponent(
         `Invoice ${invoice.invoiceNumber}\nAmount: ${invoice.currency} ${Number(invoice.total).toFixed(2)}\nView: ${appUrl}/portal/${invoice.publicToken || ""}`
@@ -263,13 +297,25 @@ export default function InvoiceDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {canSend && (
+                    {canSubmitForApproval && hasPermission('edit') && (
+                        <Button variant="outline" size="sm" onClick={doSubmitForApproval} disabled={approving}>
+                            {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardList className="mr-2 h-4 w-4" />}
+                            Submit for Approval
+                        </Button>
+                    )}
+                    {canApprove && (
+                        <Button variant="default" size="sm" onClick={doApprove} disabled={approving}>
+                            {approving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                            Approve
+                        </Button>
+                    )}
+                    {canSend && hasPermission('edit') && (
                         <Button variant="outline" size="sm" onClick={markSent} disabled={sendingEmail || acting}>
                             {sendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                             Send Invoice
                         </Button>
                     )}
-                    {canPay && (
+                    {canPay && hasPermission('edit') && (
                         <Button
                             variant="outline"
                             size="sm"
@@ -282,22 +328,24 @@ export default function InvoiceDetailPage() {
                             Record Payment
                         </Button>
                     )}
-                    {canPay && (
+                    {canPay && hasPermission('edit') && (
                         <Button variant="outline" size="sm" onClick={createStripeLink} disabled={creatingPaymentLink}>
                             {creatingPaymentLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                             Pay Online
                         </Button>
                     )}
-                    {canVoid && (
+                    {canVoid && hasPermission('edit') && (
                         <Button variant="destructive" size="sm" onClick={() => setVoidOpen(true)} disabled={acting}>
                             <XCircle className="mr-2 h-4 w-4" />
                             Void
                         </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={doDuplicate} disabled={duplicating}>
-                        {duplicating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
-                        Duplicate
-                    </Button>
+                    {hasPermission('edit') && (
+                        <Button variant="outline" size="sm" onClick={doDuplicate} disabled={duplicating}>
+                            {duplicating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
+                            Duplicate
+                        </Button>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
                     </Button>

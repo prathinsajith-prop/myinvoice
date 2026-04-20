@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -12,6 +12,7 @@ const updateSchema = z.object({
     sku: z.string().optional().nullable(),
     barcode: z.string().optional().nullable(),
     unitPrice: z.number().min(0).optional(),
+    costPrice: z.number().min(0).optional(),
     currency: z.string().optional(),
     vatTreatment: z
         .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "REVERSE_CHARGE", "OUT_OF_SCOPE"])

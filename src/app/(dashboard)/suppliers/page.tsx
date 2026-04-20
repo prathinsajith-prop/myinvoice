@@ -6,6 +6,7 @@ import { Plus, MoreHorizontal, Truck, Mail, Phone, Eye, Pencil, FileText } from 
 import { type ColumnDef } from "@tanstack/react-table";
 import { SupplierModal } from "@/components/modals/supplier-modal";
 import { BillSheet } from "@/components/modals/bill-sheet";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ export default function SuppliersPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -257,10 +259,12 @@ export default function SuppliersPage() {
                             filename="suppliers"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newSupplier")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newSupplier")}
+                            </Button>
+                        )}
                     </>
                 }
             />

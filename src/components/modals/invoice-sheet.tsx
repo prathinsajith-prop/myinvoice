@@ -182,7 +182,7 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Invoice Details</p>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="sm:col-span-2 space-y-1.5">
-                                        <Label>Customer <span className="text-destructive">*</span></Label>
+                                        <Label required>Customer</Label>
                                         <div className="flex gap-2">
                                             <div className="flex-1">
                                                 <Select value={form.watch("customerId")} onValueChange={(v) => form.setValue("customerId", v, { shouldValidate: true })}>
@@ -212,11 +212,11 @@ export function InvoiceSheet({ open, onClose, onSuccess, defaultCustomerId }: In
                                         )}
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label>Issue Date <span className="text-destructive">*</span></Label>
+                                        <Label required>Issue Date</Label>
                                         <DatePicker value={form.watch("issueDate")} onChange={(v) => form.setValue("issueDate", v, { shouldValidate: true })} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label>Due Date <span className="text-destructive">*</span></Label>
+                                        <Label required>Due Date</Label>
                                         <DatePicker value={form.watch("dueDate")} onChange={(v) => form.setValue("dueDate", v, { shouldValidate: true })} />
                                     </div>
                                     <div className="space-y-1.5">

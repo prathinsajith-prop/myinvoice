@@ -13,6 +13,7 @@ const createProductSchema = z.object({
     sku: z.string().optional().nullable(),
     barcode: z.string().optional().nullable(),
     unitPrice: z.number().min(0),
+    costPrice: z.number().min(0).default(0),
     currency: z.string().default("AED"),
     vatTreatment: z
         .enum(["STANDARD_RATED", "ZERO_RATED", "EXEMPT", "REVERSE_CHARGE", "OUT_OF_SCOPE"])
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
             prisma.product.findMany({
                 where,
                 select: {
-                    id: true, name: true, sku: true, type: true, unitPrice: true,
+                    id: true, name: true, sku: true, type: true, unitPrice: true, costPrice: true,
                     currency: true, vatTreatment: true, vatRate: true, unitOfMeasure: true,
                     category: true, stockQuantity: true, isActive: true,
                 },

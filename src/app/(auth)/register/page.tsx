@@ -157,10 +157,10 @@ export default function RegisterPage() {
                 size="sm"
                 onClick={() => isCompleted && setStep(s.id)}
                 className={`rounded-full gap-2 ${isCompleted && !isActive
-                    ? "bg-primary/10 text-primary cursor-pointer"
-                    : !isActive && !isCompleted
-                      ? "text-muted-foreground"
-                      : ""
+                  ? "bg-primary/10 text-primary cursor-pointer"
+                  : !isActive && !isCompleted
+                    ? "text-muted-foreground"
+                    : ""
                   }`}
               >
                 <Icon className="h-4 w-4" />
@@ -175,7 +175,7 @@ export default function RegisterPage() {
         {step === 1 ? (
           <>
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" required>Full Name</Label>
               <Input
                 id="name"
                 type="text"
@@ -190,7 +190,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" required>Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -205,7 +205,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" required>Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -238,7 +238,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" required>Confirm Password</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -279,7 +279,7 @@ export default function RegisterPage() {
         ) : (
           <>
             <div className="space-y-2">
-              <Label htmlFor="organizationName">Organization Name</Label>
+              <Label htmlFor="organizationName" required>Organization Name</Label>
               <Input
                 id="organizationName"
                 type="text"

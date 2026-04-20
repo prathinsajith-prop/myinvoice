@@ -25,6 +25,7 @@ import { CustomerModal } from "@/components/modals/customer-modal";
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
+import { useTenant } from "@/lib/tenant/context";
 import { jsonFetcher } from "@/lib/fetcher";
 
 interface Customer {
@@ -76,6 +77,7 @@ export default function CustomerDetailPage() {
     const router = useRouter();
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
+    const { hasPermission } = useTenant();
     const [editOpen, setEditOpen] = useState(false);
     const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false);
     const { data: customer, isLoading: loading, mutate } = useSWR<Customer>(
@@ -182,10 +184,12 @@ export default function CustomerDetailPage() {
                         <Receipt className="mr-2 h-4 w-4" />
                         New Invoice
                     </Button>
-                    <Button variant="outline" onClick={() => setEditOpen(true)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                    </Button>
+                    {hasPermission('edit') && (
+                        <Button variant="outline" onClick={() => setEditOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                        </Button>
+                    )}
                 </div>
             </div>
 

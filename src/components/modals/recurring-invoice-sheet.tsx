@@ -121,6 +121,8 @@ export function RecurringInvoiceSheet({ open, onClose, onSuccess }: Props) {
             toast.success(t("created"));
             onSuccess();
             onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to create");
         } finally {
             setSaving(false);
         }

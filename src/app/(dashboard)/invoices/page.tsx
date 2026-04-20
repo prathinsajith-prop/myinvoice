@@ -11,6 +11,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 
 import { InvoiceSheet } from "@/components/modals/invoice-sheet";
 import { canEdit } from "@/lib/utils/can-edit";
+import { useTenant } from "@/lib/tenant/context";
 import { useOrgSettings } from "@/lib/hooks/use-org-settings";
 import { PageHeader } from "@/components/page-header";
 import { useTranslations } from "next-intl";
@@ -79,6 +80,7 @@ export default function InvoicesPage() {
     const orgSettings = useOrgSettings();
     const currency = orgSettings.defaultCurrency;
     const dateFormat = orgSettings.dateFormat;
+    const { hasPermission } = useTenant();
     const createParamHandled = useRef(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -242,7 +244,7 @@ export default function InvoicesPage() {
             header: () => <div className="text-right">{tc("amount")}</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {currency} {Number(row.getValue("total")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                    {currency} {formatAmount(row.getValue("total"))}
                 </div>
             ),
         },
@@ -252,7 +254,7 @@ export default function InvoicesPage() {
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
                     <span className={Number(row.getValue("outstanding")) > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-                        {currency} {Number(row.getValue("outstanding")).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+                        {currency} {formatAmount(row.getValue("outstanding"))}
                     </span>
                 </div>
             ),
@@ -277,7 +279,7 @@ export default function InvoicesPage() {
                             <DropdownMenuItem asChild>
                                 <Link href={`/invoices/${row.original.id}`}>{tc("view")}</Link>
                             </DropdownMenuItem>
-                            {canEdit('invoice', row.original.status) && (
+                            {canEdit('invoice', row.original.status) && hasPermission('edit') && (
                                 <DropdownMenuItem asChild>
                                     <Link href={`/invoices/${row.original.id}/edit`}>{tc("edit")}</Link>
                                 </DropdownMenuItem>
@@ -305,17 +307,19 @@ export default function InvoicesPage() {
                                 { header: t("exportCustomer"), accessor: "customer.name" },
                                 { header: t("exportIssueDate"), accessor: "issueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
                                 { header: t("exportDueDate"), accessor: "dueDate", format: (v) => v ? formatDate(v as string, dateFormat) : "" },
-                                { header: t("exportTotal"), accessor: "total", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
-                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => Number(v).toLocaleString("en-AE", { minimumFractionDigits: 2 }) },
+                                { header: t("exportTotal"), accessor: "total", format: (v) => formatAmount(v) },
+                                { header: t("exportOutstanding"), accessor: "outstanding", format: (v) => formatAmount(v) },
                                 { header: t("exportStatus"), accessor: "status" },
                             ]}
                             filename="invoices"
                             title={t("exportTitle")}
                         />
-                        <Button onClick={() => setSheetOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t("newInvoice")}
-                        </Button>
+                        {hasPermission('create') && (
+                            <Button onClick={() => setSheetOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("newInvoice")}
+                            </Button>
+                        )}
                     </>
                 }
             />
