@@ -13,6 +13,7 @@ import {
   verifyLoginChallenge,
 } from "@/lib/auth/login-challenge";
 import { getRequestMetadataFromHeaders } from "@/lib/security/request-metadata";
+import { authCookieConfig } from "@/lib/auth/cookies";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -21,54 +22,17 @@ const credentialsSchema = z.object({
 });
 
 export const authConfig: NextAuthConfig = {
-  // Required when not on Vercel (or behind a proxy/CDN) so Auth.js trusts the
-  // forwarded host header and issues cookies for the correct production domain.
-  trustHost: true,
-  // Explicit cookie configuration. Auth.js auto-detects HTTPS by inspecting
-  // the request URL, but behind a reverse proxy/CDN (Cloudflare, nginx, etc.)
-  // the internal request is HTTP so detection fails and the Secure flag is
-  // not set, then the browser silently drops the cookie. We pin the names and
-  // flags based on NODE_ENV so production always sets the correct attributes.
-  cookies: (() => {
-    const isProd = process.env.NODE_ENV === "production";
-    const sessionCookieName = isProd
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token";
-    const callbackCookieName = isProd
-      ? "__Secure-authjs.callback-url"
-      : "authjs.callback-url";
-    const csrfCookieName = isProd
-      ? "__Host-authjs.csrf-token"
-      : "authjs.csrf-token";
-    return {
-      sessionToken: {
-        name: sessionCookieName,
-        options: {
-          httpOnly: true,
-          sameSite: "lax",
-          path: "/",
-          secure: isProd,
-        },
-      },
-      callbackUrl: {
-        name: callbackCookieName,
-        options: {
-          sameSite: "lax",
-          path: "/",
-          secure: isProd,
-        },
-      },
-      csrfToken: {
-        name: csrfCookieName,
-        options: {
-          httpOnly: true,
-          sameSite: "lax",
-          path: "/",
-          secure: isProd,
-        },
-      },
-    };
-  })(),
+  // Trust forwarded host headers only when explicitly opted in. This avoids
+  // host-header injection in environments where the reverse proxy doesn't
+  // strictly sanitize Host / X-Forwarded-Host. Set AUTH_TRUST_HOST=true on
+  // production deployments behind a trusted proxy/CDN (Vercel, Cloudflare,
+  // nginx). Vercel sets this automatically.
+  trustHost: process.env.AUTH_TRUST_HOST === "true",
+  // Cookie names + security flags are centralized in ./cookies so middleware,
+  // API helpers, and Auth.js itself all agree. Auth.js's per-request HTTPS
+  // auto-detection fails behind TLS-terminating proxies, so we pin everything
+  // based on NODE_ENV.
+  cookies: authCookieConfig,
   providers: [
     Credentials({
       name: "credentials",
@@ -149,7 +113,7 @@ export const authConfig: NextAuthConfig = {
         const memberships = await prisma.organizationMembership.findMany({
           where: { userId: user.id!, isActive: true },
           include: {
-            organization: { select: { id: true, name: true, slug: true } },
+            organization: { select: { id: true, name: true, slug: true, logo: true } },
           },
           orderBy: { createdAt: "asc" },
         });
@@ -160,6 +124,11 @@ export const authConfig: NextAuthConfig = {
           slug: m.organization.slug,
           role: m.role,
         }));
+        token.orgLogos = Object.fromEntries(
+          memberships.map((m) => [m.organization.id, m.organization.logo ?? null]),
+        );
+        token.userImage = null;
+        token.freshAt = Date.now();
 
         if (memberships.length > 0) {
           const first = memberships[0];
@@ -175,7 +144,7 @@ export const authConfig: NextAuthConfig = {
         const memberships = await prisma.organizationMembership.findMany({
           where: { userId: uid, isActive: true },
           include: {
-            organization: { select: { id: true, name: true, slug: true } },
+            organization: { select: { id: true, name: true, slug: true, logo: true } },
           },
           orderBy: { createdAt: "asc" },
         });
@@ -186,6 +155,10 @@ export const authConfig: NextAuthConfig = {
           slug: m.organization.slug,
           role: m.role,
         }));
+        token.orgLogos = Object.fromEntries(
+          memberships.map((m) => [m.organization.id, m.organization.logo ?? null]),
+        );
+        token.freshAt = Date.now();
 
         if (!token.organizationId && memberships.length > 0) {
           const first = memberships[0];
@@ -218,7 +191,7 @@ export const authConfig: NextAuthConfig = {
           const allMemberships = await prisma.organizationMembership.findMany({
             where: { userId, isActive: true },
             include: {
-              organization: { select: { id: true, name: true, slug: true } },
+              organization: { select: { id: true, name: true, slug: true, logo: true } },
             },
             orderBy: { createdAt: "asc" },
           });
@@ -229,7 +202,57 @@ export const authConfig: NextAuthConfig = {
             slug: m.organization.slug,
             role: m.role,
           }));
+          token.orgLogos = Object.fromEntries(
+            allMemberships.map((m) => [m.organization.id, m.organization.logo ?? null]),
+          );
+          token.freshAt = Date.now();
         }
+      }
+
+      // ── TTL refresh: user name/image + org names/logos ───────────────────
+      // Session() used to do 2 DB queries on every request. Instead, we refresh
+      // the cached snapshot embedded in the JWT at most once per 60 seconds.
+      // Force a refresh via trigger === "update" (e.g. after profile update).
+      const SESSION_REFRESH_TTL_MS = 60_000;
+      const freshAt = (token.freshAt as number | undefined) ?? 0;
+      const shouldRefresh =
+        trigger === "update" || Date.now() - freshAt > SESSION_REFRESH_TTL_MS;
+
+      if (shouldRefresh && (token.id || token.sub)) {
+        const uid = (token.id ?? token.sub) as string;
+        const tokenOrgs = (token.organizations ?? []) as Array<{ id: string }>;
+        const orgIds = tokenOrgs.map((o) => o.id);
+
+        const [freshUser, freshOrgs] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: uid },
+            select: { name: true, image: true },
+          }),
+          orgIds.length > 0
+            ? prisma.organization.findMany({
+              where: { id: { in: orgIds } },
+              select: { id: true, name: true, logo: true },
+            })
+            : Promise.resolve([] as Array<{ id: string; name: string; logo: string | null }>),
+        ]);
+
+        if (freshUser) {
+          token.name = freshUser.name ?? (token.name as string | null | undefined);
+          token.userImage = freshUser.image ?? null;
+        }
+
+        if (freshOrgs.length > 0) {
+          const orgMap = new Map(freshOrgs.map((o) => [o.id, o]));
+          token.organizations = (token.organizations ?? []).map((o) => ({
+            ...o,
+            name: orgMap.get(o.id)?.name ?? o.name,
+          }));
+          token.orgLogos = Object.fromEntries(
+            freshOrgs.map((o) => [o.id, o.logo ?? null]),
+          );
+        }
+
+        token.freshAt = Date.now();
       }
 
       return token;
@@ -243,8 +266,10 @@ export const authConfig: NextAuthConfig = {
       session.user.role = token.role as string | undefined;
 
       // Token stores orgs WITHOUT logos (to keep JWT small).
-      // Fetch fresh data from DB including logos.
-      const uid = (token.id ?? token.sub) as string | undefined;
+      // Fetch fresh data from DB including logos, but only when the token's
+      // cached snapshot is older than SESSION_REFRESH_TTL_MS. Session() is
+      // called on virtually every authenticated request (useSession, auth(),
+      // API helpers) — doing 2 DB queries each time saturates the pool.
       const tokenOrgs = (token.organizations ?? []) as Array<{
         id: string;
         name: string;
@@ -252,43 +277,19 @@ export const authConfig: NextAuthConfig = {
         role: string;
       }>;
 
-      if (uid) {
-        const orgIds = tokenOrgs.map((o) => o.id);
+      const cachedUserName = token.name as string | null | undefined;
+      const cachedUserImage = (token.userImage ?? null) as string | null;
+      const cachedOrgLogos = (token.orgLogos ?? {}) as Record<string, string | null>;
 
-        const [freshUser, freshOrgs] = await Promise.all([
-          prisma.user.findUnique({
-            where: { id: uid },
-            select: { name: true, image: true },
-          }),
-          orgIds.length > 0
-            ? prisma.organization.findMany({
-              where: { id: { in: orgIds } },
-              select: { id: true, name: true, logo: true },
-            })
-            : [],
-        ]);
-
-        if (freshUser) {
-          session.user.name = freshUser.name ?? session.user.name;
-          session.user.image = freshUser.image ?? null;
-        }
-
-        const orgMap = new Map(freshOrgs.map((o) => [o.id, o]));
-        session.user.organizations = tokenOrgs.map((o) => ({
-          ...o,
-          name: orgMap.get(o.id)?.name ?? o.name,
-          logo: orgMap.get(o.id)?.logo ?? null,
-        }));
-
-        session.user.organizationLogo =
-          orgMap.get(token.organizationId as string)?.logo ?? null;
-      } else {
-        session.user.organizations = tokenOrgs.map((o) => ({
-          ...o,
-          logo: null,
-        }));
-        session.user.organizationLogo = null;
-      }
+      session.user.name = cachedUserName ?? session.user.name;
+      session.user.image = cachedUserImage;
+      session.user.organizations = tokenOrgs.map((o) => ({
+        ...o,
+        logo: cachedOrgLogos[o.id] ?? null,
+      }));
+      session.user.organizationLogo = token.organizationId
+        ? (cachedOrgLogos[token.organizationId as string] ?? null)
+        : null;
 
       return session;
     },

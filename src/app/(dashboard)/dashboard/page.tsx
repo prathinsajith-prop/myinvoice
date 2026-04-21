@@ -234,8 +234,10 @@ export default function DashboardPage() {
     const { data, isLoading: loading } = useSWR(
         ["dashboard-overview", period],
         async () => {
-            const reportData = await jsonFetcher<ReportResponse>(`/api/reports?period=${period}`);
-            const customerData = await jsonFetcher<CustomerListResponse>("/api/customers?page=1&limit=1").catch(() => null);
+            const [reportData, customerData] = await Promise.all([
+                jsonFetcher<ReportResponse>(`/api/reports?period=${period}`),
+                jsonFetcher<CustomerListResponse>("/api/customers?page=1&limit=1").catch(() => null),
+            ]);
 
             return {
                 report: reportData,

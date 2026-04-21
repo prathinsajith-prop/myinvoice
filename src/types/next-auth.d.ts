@@ -37,5 +37,11 @@ declare module "next-auth/jwt" {
       slug: string;
       role: string;
     }>;
+    /** Cached user avatar, refreshed at most once per SESSION_REFRESH_TTL_MS. */
+    userImage?: string | null;
+    /** Cached org logos keyed by org id, refreshed with userImage. */
+    orgLogos?: Record<string, string | null>;
+    /** Epoch ms of last user/org snapshot refresh. */
+    freshAt?: number;
   }
 }

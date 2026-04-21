@@ -379,6 +379,13 @@ export async function GET(req: NextRequest) {
                 next3MonthsRevenue: avgRecentRevenue * 3,
                 next3MonthsExpenses: avgRecentExpenses * 3,
             },
+        }, {
+            headers: {
+                // Per-user private cache: browser treats as fresh for 30s,
+                // then serves stale for up to 5 minutes while revalidating.
+                // Aggregations don't need to be real-time.
+                "Cache-Control": "private, max-age=30, stale-while-revalidate=300",
+            },
         });
     } catch (error) {
         return toErrorResponse(error);

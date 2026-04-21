@@ -45,8 +45,9 @@ Thumbs.db
 next-env.d.ts
 
 # prisma
-prisma/migrations/
 src/generated/
 
 # vercel
 .vercel
+myinvoice-external-api.postman_collection.json
+public/uploads/
