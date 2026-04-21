@@ -69,15 +69,16 @@ function LoginForm() {
           password: pendingPassword,
           otp: data.otp,
           redirect: false,
+          callbackUrl,
         });
 
-        if (result?.error) {
+        if (!result?.ok || result?.error) {
           setAuthError("Invalid or expired authentication code");
           toast.error("Invalid or expired authentication code");
           return;
         }
 
-        window.location.href = callbackUrl;
+        window.location.href = result.url ?? callbackUrl;
       }
     } catch {
       toast.error("An error occurred. Please try again.");
