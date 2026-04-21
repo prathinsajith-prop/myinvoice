@@ -64,7 +64,7 @@ export async function PATCH(
         title: "Role Updated",
         message: `Your role has been updated to ${role.toLowerCase()}`,
         type: "TEAM_INVITE",
-        actionUrl: "/settings/team",
+        actionUrl: "/organization/team",
       },
     });
 

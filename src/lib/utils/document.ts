@@ -100,7 +100,7 @@ export interface ProductOption {
     vatTreatment: string;
 }
 
-export function applyProduct<T extends Record<string, unknown>>(
+export function applyProduct(
     setValue: (field: string, value: unknown) => void,
     index: number,
     productId: string,

@@ -15,9 +15,10 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/register",
   "/forgot-password",
+  "/reset-password",
 ];
 
-const AUTH_PREFIXES = ["/login", "/register", "/forgot-password"];
+const AUTH_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 function matchesPrefix(path: string, prefixes: string[]): boolean {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));

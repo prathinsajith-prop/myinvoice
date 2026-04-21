@@ -246,6 +246,12 @@ enum AppStatus {
   REVOKED
 }
 
+enum PdfTemplate {
+  CLASSIC
+  MODERN
+  MINIMAL
+}
+
 // =============================================================================
 // GLOBAL: AUTH  (NextAuth v5 compatible)
 // =============================================================================
@@ -403,6 +409,7 @@ model Organization {
   logo           String?
   primaryColor   String?
   secondaryColor String?
+  pdfTemplate    PdfTemplate @default(CLASSIC)
 
   defaultCurrency     String  @default("AED")
   fiscalYearStart     Int     @default(1)

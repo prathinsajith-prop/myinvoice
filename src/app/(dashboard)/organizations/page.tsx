@@ -146,10 +146,10 @@ export default function OrganizationsPage() {
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                     <Button variant="outline" asChild>
-                        <Link href="/settings/organization">{t("manageCurrent")}</Link>
+                        <Link href="/organization">{t("manageCurrent")}</Link>
                     </Button>
                     <Button asChild>
-                        <Link href="/settings/organization/new">
+                        <Link href="/organization/new">
                             <Plus className="mr-2 h-4 w-4" />
                             {t("createOrganization")}
                         </Link>
@@ -380,7 +380,7 @@ export default function OrganizationsPage() {
                                 </Button>
                                 {selectedOrganization.id === organizationId && ["OWNER", "ADMIN"].includes(selectedOrganization.role) ? (
                                     <Button asChild>
-                                        <Link href="/settings/organization">{t("editOrganization")}</Link>
+                                        <Link href="/organization">{t("editOrganization")}</Link>
                                     </Button>
                                 ) : (
                                     <Button onClick={() => setSelectedOrganization(null)}>{t("close")}</Button>

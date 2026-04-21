@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy, ShieldCheck, ClipboardList } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy, ShieldCheck, ClipboardList, Phone, Hash, CalendarDays, TrendingUp, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -368,18 +368,33 @@ export default function InvoiceDetailPage() {
                 {/* Left sidebar */}
                 <div className="space-y-4">
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Customer</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" />Customer</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <Link href={`/customers/${invoice.customer?.id}`} className="font-semibold hover:underline">
                                 {invoice.customer?.name}
                             </Link>
-                            {invoice.customer?.email && <p className="text-muted-foreground">{invoice.customer.email}</p>}
-                            {invoice.customer?.phone && <p className="text-muted-foreground">{invoice.customer.phone}</p>}
-                            {invoice.customer?.trn && <p className="text-muted-foreground">TRN: {invoice.customer.trn}</p>}
+                            {invoice.customer?.email && (
+                                <div className="flex items-center gap-2">
+                                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-muted-foreground">{invoice.customer.email}</span>
+                                </div>
+                            )}
+                            {invoice.customer?.phone && (
+                                <div className="flex items-center gap-2">
+                                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-muted-foreground">{invoice.customer.phone}</span>
+                                </div>
+                            )}
+                            {invoice.customer?.trn && (
+                                <div className="flex items-center gap-2">
+                                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-muted-foreground">TRN: {invoice.customer.trn}</span>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><CalendarDays className="h-4 w-4 text-muted-foreground" />Details</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Invoice #</span>
@@ -400,7 +415,7 @@ export default function InvoiceDetailPage() {
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" />Financial Summary</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Subtotal</span>
@@ -417,11 +432,11 @@ export default function InvoiceDetailPage() {
                                 <span>{Number(invoice.totalVat).toFixed(2)}</span>
                             </div>
                             <Separator />
-                            <div className="flex justify-between font-semibold">
+                            <div className="rounded-lg border bg-muted/40 p-3 flex justify-between items-center font-semibold">
                                 <span>Total</span>
                                 <span>{invoice.currency} {Number(invoice.total).toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between text-amber-600 font-medium">
+                            <div className={`rounded-lg border p-3 flex justify-between items-center font-medium ${Number(invoice.outstanding) > 0 ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950 text-amber-600" : "bg-muted/40"}`}>
                                 <span>Outstanding</span>
                                 <span>{invoice.currency} {Number(invoice.outstanding).toFixed(2)}</span>
                             </div>

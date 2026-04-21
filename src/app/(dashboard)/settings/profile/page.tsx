@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Camera, User } from "lucide-react";
+import { Loader2, Camera, User, CalendarDays, ShieldCheck, ShieldOff, Clock, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -22,6 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { jsonFetcher } from "@/lib/fetcher";
 import { updateProfileSchema, type UpdateProfileInput } from "@/lib/validations/settings";
 
@@ -29,6 +30,9 @@ interface ProfileResponse {
   name: string | null;
   phone: string | null;
   image: string | null;
+  createdAt: string | null;
+  lastLoginAt: string | null;
+  twoFactorEnabled: boolean;
 }
 
 export default function ProfileSettingsPage() {
@@ -292,23 +296,102 @@ export default function ProfileSettingsPage() {
             {t("accountInfoDescription")}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {t("accountCreated")}
-              </p>
-              <p className="text-sm">
-                {session?.user ? t("recently") : "—"}
-              </p>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Account Created */}
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("accountCreated")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold">
+                  {profileData?.createdAt
+                    ? new Date(profileData.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                    : "—"}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {t("emailVerified")}
-              </p>
-              <p className="text-sm">
-                {session?.user ? t("verified") : t("notVerified")}
-              </p>
+
+            {/* Last Login */}
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("lastLogin")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold">
+                  {profileData?.lastLoginAt
+                    ? new Date(profileData.lastLoginAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                    : "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Email Verified */}
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${session?.user
+                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                  : "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+                }`}>
+                {session?.user ? (
+                  <ShieldCheck className="h-5 w-5" />
+                ) : (
+                  <ShieldOff className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("emailVerified")}
+                </p>
+                <Badge
+                  variant={session?.user ? "default" : "secondary"}
+                  className={`mt-1 ${session?.user
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300"
+                      : "bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300"
+                    }`}
+                >
+                  {session?.user ? t("verified") : t("notVerified")}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Two-Factor Authentication */}
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${profileData?.twoFactorEnabled
+                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                  : "bg-orange-50 text-orange-600 dark:bg-orange-950 dark:text-orange-400"
+                }`}>
+                <Shield className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("twoFactor")}
+                </p>
+                <Badge
+                  variant="secondary"
+                  className={`mt-1 ${profileData?.twoFactorEnabled
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300"
+                      : "bg-orange-100 text-orange-700 hover:bg-orange-100 dark:bg-orange-900 dark:text-orange-300"
+                    }`}
+                >
+                  {profileData?.twoFactorEnabled ? t("enabled") : t("disabled")}
+                </Badge>
+              </div>
             </div>
           </div>
         </CardContent>

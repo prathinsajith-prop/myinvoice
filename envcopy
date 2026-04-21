@@ -1,0 +1,22 @@
+# Database
+DATABASE_URL="postgresql://prathinsajith@localhost:5432/myinvoice_dev"
+
+# NextAuth
+AUTH_SECRET="Kp6e3F56Ur6J8cNr2Bt+KFdj4daaPu1BshbZ8L437+0="
+NEXTAUTH_SECRET="Kp6e3F56Ur6J8cNr2Bt+KFdj4daaPu1BshbZ8L437+0="
+NEXTAUTH_URL="http://localhost:3000"
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# App
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Email
+EMAIL_PROVIDER="gmail"
+RESEND_API_KEY=""
+GMAIL_USER="sprathin007@gmail.com"
+GMAIL_APP_PASSWORD="xzrdzrhhqvehrqjl"
+EMAIL_FROM="sprathin007@gmail.com"
+EMAIL_DEV_FALLBACK="false"
