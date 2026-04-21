@@ -11,6 +11,22 @@ import prisma from "@/lib/db/prisma";
 import { getTenantPrisma, type TenantPrismaClient } from "@/lib/db/tenant";
 import { NEXTAUTH_SECRET } from "@/lib/constants/env";
 
+/**
+ * Read the Auth.js JWT cookie. The cookie name is pinned in auth.config.ts
+ * based on NODE_ENV (`__Secure-` prefix in production), so we pass the same
+ * values to getToken — relying on auto-detection breaks behind proxies/CDNs
+ * that terminate TLS and forward HTTP to the app.
+ */
+async function getAuthToken(req: NextRequest) {
+  const isProd = process.env.NODE_ENV === "production";
+  return getToken({
+    req,
+    secret: NEXTAUTH_SECRET,
+    cookieName: isProd ? "__Secure-authjs.session-token" : "authjs.session-token",
+    secureCookie: isProd,
+  });
+}
+
 export interface ApiContext {
   userId: string;
   organizationId: string;
@@ -29,7 +45,7 @@ export interface ApiUserContext {
 export async function resolveUserContext(req: NextRequest): Promise<ApiUserContext> {
   let token;
   try {
-    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+    token = await getAuthToken(req);
   } catch {
     throw new UnauthorizedError();
   }
@@ -48,7 +64,7 @@ export async function resolveUserContext(req: NextRequest): Promise<ApiUserConte
 export async function resolveApiContext(req: NextRequest): Promise<ApiContext> {
   let token;
   try {
-    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+    token = await getAuthToken(req);
   } catch {
     throw new UnauthorizedError();
   }

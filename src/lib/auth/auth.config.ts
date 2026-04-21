@@ -21,6 +21,54 @@ const credentialsSchema = z.object({
 });
 
 export const authConfig: NextAuthConfig = {
+  // Required when not on Vercel (or behind a proxy/CDN) so Auth.js trusts the
+  // forwarded host header and issues cookies for the correct production domain.
+  trustHost: true,
+  // Explicit cookie configuration. Auth.js auto-detects HTTPS by inspecting
+  // the request URL, but behind a reverse proxy/CDN (Cloudflare, nginx, etc.)
+  // the internal request is HTTP so detection fails and the Secure flag is
+  // not set, then the browser silently drops the cookie. We pin the names and
+  // flags based on NODE_ENV so production always sets the correct attributes.
+  cookies: (() => {
+    const isProd = process.env.NODE_ENV === "production";
+    const sessionCookieName = isProd
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+    const callbackCookieName = isProd
+      ? "__Secure-authjs.callback-url"
+      : "authjs.callback-url";
+    const csrfCookieName = isProd
+      ? "__Host-authjs.csrf-token"
+      : "authjs.csrf-token";
+    return {
+      sessionToken: {
+        name: sessionCookieName,
+        options: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: isProd,
+        },
+      },
+      callbackUrl: {
+        name: callbackCookieName,
+        options: {
+          sameSite: "lax",
+          path: "/",
+          secure: isProd,
+        },
+      },
+      csrfToken: {
+        name: csrfCookieName,
+        options: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: isProd,
+        },
+      },
+    };
+  })(),
   providers: [
     Credentials({
       name: "credentials",
