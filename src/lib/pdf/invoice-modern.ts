@@ -20,44 +20,52 @@ export async function generateModernInvoicePdf(data: InvoicePdfData): Promise<Ui
     // ── Top accent strip ─────────────────────────────────────────────────────
     page.drawRectangle({ x: 0, y: 830, width: 595, height: 6, color: rgb(ar, ag, ab) });
 
-    // ── Logo (top-right) ─────────────────────────────────────────────────────
+    // ── Zone 1: Org info band (y 790–824) ────────────────────────────────────
+    // Logo top-right
     const logoImg = await embedLogo(pdf, data.organizationLogo);
-    if (logoImg) drawLogoRight(page, logoImg, 825, 90, 36, R);
+    if (logoImg) drawLogoRight(page, logoImg, 824, 90, 36, R);
 
-    // ── Org name + TRN (left) ────────────────────────────────────────────────
-    page.drawText(data.organizationName.slice(0, 42), { x: L, y: 810, size: 16, font: bold, color: rgb(0.1, 0.1, 0.1) });
-    let orgY = 794;
-    if (data.organizationTrn) {
-        page.drawText(`TRN: ${data.organizationTrn}`, { x: L, y: orgY, size: 8.5, font, color: rgb(0.45, 0.45, 0.45) });
-        orgY -= 13;
+    // Org name
+    page.drawText(data.organizationName.slice(0, 42), {
+        x: L, y: 812, size: 14, font: bold, color: rgb(0.1, 0.1, 0.1),
+    });
+    // Org details on one line below
+    const orgDetails = [
+        data.organizationTrn ? `TRN: ${data.organizationTrn}` : null,
+        data.organizationPhone ?? null,
+    ].filter(Boolean).join("   ");
+    if (orgDetails) {
+        page.drawText(orgDetails.slice(0, 80), {
+            x: L, y: 797, size: 8, font, color: rgb(0.5, 0.5, 0.5),
+        });
     }
-    if (data.organizationPhone) {
-        page.drawText(data.organizationPhone, { x: L, y: orgY, size: 8.5, font, color: rgb(0.45, 0.45, 0.45) });
-    }
 
-    // ── "INVOICE" label + number ─────────────────────────────────────────────
-    page.drawText("INVOICE", { x: L, y: 768, size: 22, font: bold, color: rgb(ar, ag, ab) });
-    page.drawText(`# ${data.invoiceNumber}`, { x: L, y: 750, size: 11, font, color: rgb(0.35, 0.35, 0.35) });
+    // ── Thin separator ────────────────────────────────────────────────────────
+    page.drawLine({ start: { x: L, y: 788 }, end: { x: R, y: 788 }, thickness: 0.4, color: rgb(0.85, 0.85, 0.85) });
 
-    // ── Meta grid (right side) ───────────────────────────────────────────────
-    const metaX = 360;
-    let metaY = 768;
+    // ── Zone 2: INVOICE title (left) + Meta (right) — y 760–780 ──────────────
+    page.drawText("INVOICE", { x: L, y: 768, size: 20, font: bold, color: rgb(ar, ag, ab) });
+    page.drawText(`#  ${data.invoiceNumber}`, { x: L, y: 751, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+
+    // Meta grid (right column, aligned with INVOICE)
+    const metaX = 380;
+    let metaY = 772;
     const metaRow = (label: string, val: string) => {
-        page.drawText(label, { x: metaX, y: metaY, size: 8, font, color: rgb(0.55, 0.55, 0.55) });
-        page.drawText(val, { x: metaX + 74, y: metaY, size: 8.5, font: bold, color: rgb(0.1, 0.1, 0.1) });
-        metaY -= 14;
+        page.drawText(label, { x: metaX, y: metaY, size: 7.5, font, color: rgb(0.55, 0.55, 0.55) });
+        page.drawText(val, { x: metaX + 68, y: metaY, size: 8.5, font: bold, color: rgb(0.1, 0.1, 0.1) });
+        metaY -= 13;
     };
     metaRow("Issue Date", data.issueDate.toLocaleDateString("en-AE"));
     metaRow("Due Date", data.dueDate.toLocaleDateString("en-AE"));
     metaRow("Currency", data.currency);
 
-    // ── Thin accent divider ───────────────────────────────────────────────────
-    let y = 735;
-    page.drawLine({ start: { x: L, y }, end: { x: R, y }, thickness: 1, color: rgb(ar, ag, ab) });
+    // ── Accent divider ────────────────────────────────────────────────────────
+    let y = 736;
+    page.drawLine({ start: { x: L, y }, end: { x: R, y }, thickness: 1.2, color: rgb(ar, ag, ab) });
     y -= 14;
 
     // ── Bill To ──────────────────────────────────────────────────────────────
-    page.drawText("Bill To", { x: L, y, size: 8, font, color: rgb(0.55, 0.55, 0.55) });
+    page.drawText("BILL TO", { x: L, y, size: 7.5, font: bold, color: rgb(0.55, 0.55, 0.55) });
     y -= 12;
     page.drawText(data.customerName.slice(0, 50), { x: L, y, size: 11, font: bold, color: rgb(0.1, 0.1, 0.1) });
     y -= 13;
