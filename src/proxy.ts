@@ -69,7 +69,16 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  const token = await getToken({ req, secret: NEXTAUTH_SECRET });
+  // Cookie name is pinned in auth.config.ts based on NODE_ENV. We must pass
+  // the same values here so getToken finds the cookie regardless of whether
+  // a proxy/CDN strips the HTTPS scheme from the internal request URL.
+  const isProd = process.env.NODE_ENV === "production";
+  const token = await getToken({
+    req,
+    secret: NEXTAUTH_SECRET,
+    cookieName: isProd ? "__Secure-authjs.session-token" : "authjs.session-token",
+    secureCookie: isProd,
+  });
   const isLoggedIn = !!token?.sub;
 
   const isPublic = isPublicPath(normalizedPath);
