@@ -22,12 +22,15 @@ const credentialsSchema = z.object({
 });
 
 export const authConfig: NextAuthConfig = {
-  // Trust forwarded host headers only when explicitly opted in. This avoids
-  // host-header injection in environments where the reverse proxy doesn't
-  // strictly sanitize Host / X-Forwarded-Host. Set AUTH_TRUST_HOST=true on
-  // production deployments behind a trusted proxy/CDN (Vercel, Cloudflare,
-  // nginx). Vercel sets this automatically.
-  trustHost: process.env.AUTH_TRUST_HOST === "true",
+  // Trust forwarded host headers. In development we always trust (localhost
+  // is the only host). In production, gate behind AUTH_TRUST_HOST=true to
+  // avoid host-header injection when the reverse proxy doesn't strictly
+  // sanitize Host / X-Forwarded-Host. Set AUTH_TRUST_HOST=true on production
+  // deployments behind a trusted proxy/CDN (Vercel, Cloudflare, nginx).
+  // Vercel sets this automatically.
+  trustHost:
+    process.env.NODE_ENV !== "production" ||
+    process.env.AUTH_TRUST_HOST === "true",
   // Cookie names + security flags are centralized in ./cookies so middleware,
   // API helpers, and Auth.js itself all agree. Auth.js's per-request HTTPS
   // auto-detection fails behind TLS-terminating proxies, so we pin everything
