@@ -17,9 +17,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
+/**
+ * Restrict the post-login redirect to a same-origin relative path. Anything
+ * absolute, protocol-relative, or otherwise suspicious falls back to the
+ * default dashboard route to prevent open-redirect attacks via
+ * `?callbackUrl=https://evil.com`.
+ */
+function sanitizeCallbackUrl(raw: string | null): string {
+  const fallback = "/dashboard";
+  if (!raw) return fallback;
+  // Reject protocol-relative (`//evil.com`), backslash tricks, and anything
+  // not starting with a single `/`.
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return fallback;
+  }
+  // Reject absolute URLs that snuck through (e.g. encoded variants).
+  try {
+    const parsed = new URL(raw, "http://localhost");
+    if (parsed.origin !== "http://localhost") return fallback;
+    return parsed.pathname + parsed.search + parsed.hash;
+  } catch {
+    return fallback;
+  }
+}
+
 function LoginForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"));
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<"credentials" | "code">("credentials");
   const [pendingEmail, setPendingEmail] = useState("");
@@ -78,7 +102,10 @@ function LoginForm() {
           return;
         }
 
-        window.location.href = result.url ?? callbackUrl;
+        // result.url is returned by Auth.js and may be absolute; sanitize
+        // again here so a tampered response can't redirect off-site.
+        const target = result.url ? sanitizeCallbackUrl(new URL(result.url, window.location.origin).pathname + new URL(result.url, window.location.origin).search) : callbackUrl;
+        window.location.href = target;
       }
     } catch {
       toast.error("An error occurred. Please try again.");

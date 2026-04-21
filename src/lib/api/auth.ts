@@ -10,20 +10,19 @@ import { hasRole, type MemberRole, hasPermission, type Permission } from "@/lib/
 import prisma from "@/lib/db/prisma";
 import { getTenantPrisma, type TenantPrismaClient } from "@/lib/db/tenant";
 import { NEXTAUTH_SECRET } from "@/lib/constants/env";
+import { SESSION_COOKIE_NAME, USE_SECURE_COOKIES } from "@/lib/auth/cookies";
 
 /**
- * Read the Auth.js JWT cookie. The cookie name is pinned in auth.config.ts
- * based on NODE_ENV (`__Secure-` prefix in production), so we pass the same
- * values to getToken — relying on auto-detection breaks behind proxies/CDNs
- * that terminate TLS and forward HTTP to the app.
+ * Read the Auth.js JWT cookie. Cookie name + secure flag are centralized in
+ * `@/lib/auth/cookies` and shared with NextAuth config and middleware so all
+ * three agree even behind TLS-terminating proxies.
  */
 async function getAuthToken(req: NextRequest) {
-  const isProd = process.env.NODE_ENV === "production";
   return getToken({
     req,
     secret: NEXTAUTH_SECRET,
-    cookieName: isProd ? "__Secure-authjs.session-token" : "authjs.session-token",
-    secureCookie: isProd,
+    cookieName: SESSION_COOKIE_NAME,
+    secureCookie: USE_SECURE_COOKIES,
   });
 }
 
