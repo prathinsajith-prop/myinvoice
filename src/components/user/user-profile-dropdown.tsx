@@ -47,7 +47,7 @@ export function UserProfileDropdown() {
   const t = useTranslations("userMenu");
   const { data: session, status } = useSession();
   const { theme, setTheme } = useTheme();
-  const { organizationId, organizationName, organizationLogo, organizations, switchOrganization } = useTenant();
+  const { organizationId, organizationName, organizationLogo, organizations, switchOrganization, role } = useTenant();
   const [switching, setSwitching] = useState(false);
 
   if (status === "loading") {
@@ -70,7 +70,7 @@ export function UserProfileDropdown() {
     .slice(0, 2);
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/login" });
+    await signOut({ redirectTo: "/login" });
   };
 
   async function handleSwitch(orgId: string) {
@@ -180,7 +180,7 @@ export function UserProfileDropdown() {
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => router.push("/settings/organization/new")}
+              onClick={() => router.push("/organization/new")}
               className="gap-2 cursor-pointer"
             >
               <Plus className="h-4 w-4 text-muted-foreground" />
@@ -197,10 +197,12 @@ export function UserProfileDropdown() {
             <User className="h-4 w-4 text-muted-foreground" />
             <span>{t("profile")}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings/organization")} className="gap-2 py-2">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            <span>{t("organization")}</span>
-          </DropdownMenuItem>
+          {role && ["OWNER", "ADMIN"].includes(role) && (
+            <DropdownMenuItem onClick={() => router.push("/organization")} className="gap-2 py-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span>{t("organization")}</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => router.push("/settings/billing")} className="gap-2 py-2">
             <CreditCard className="h-4 w-4 text-muted-foreground" />
             <span>{t("billingPlans")}</span>

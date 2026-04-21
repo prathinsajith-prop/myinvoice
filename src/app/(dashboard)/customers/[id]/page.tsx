@@ -13,12 +13,12 @@ import {
     Receipt,
     FileCheck,
     Edit,
+    TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CustomerModal } from "@/components/modals/customer-modal";
@@ -198,23 +198,22 @@ export default function CustomerDetailPage() {
                 <div className="space-y-6 lg:col-span-1">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm font-medium">Financial Summary</CardTitle>
+                            <CardTitle className="text-sm font-medium flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" />Financial Summary</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <div className="flex justify-between text-sm">
+                            <div className="rounded-lg border bg-muted/40 p-3 flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Total Invoiced</span>
-                                <span className="font-medium">
+                                <span className="font-semibold">
                                     {currency} {Number(customer.totalInvoiced).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950 p-3 flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Total Paid</span>
-                                <span className="font-medium text-emerald-600">
+                                <span className="font-semibold text-emerald-600">
                                     {currency} {Number(customer.totalPaid).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
-                            <Separator />
-                            <div className="flex justify-between text-sm">
+                            <div className={`rounded-lg border p-3 flex justify-between items-center text-sm ${Number(customer.totalOutstanding) > 0 ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950" : "bg-muted/40"}`}>
                                 <span className="text-muted-foreground">Outstanding</span>
                                 <span className={`font-semibold ${Number(customer.totalOutstanding) > 0 ? "text-amber-600" : ""}`}>
                                     {currency} {Number(customer.totalOutstanding).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -225,7 +224,7 @@ export default function CustomerDetailPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm font-medium">Contact Details</CardTitle>
+                            <CardTitle className="text-sm font-medium flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />Contact Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {customer.email && (

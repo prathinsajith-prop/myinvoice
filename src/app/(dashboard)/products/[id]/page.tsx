@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, Edit } from "lucide-react";
+import { ChevronLeft, Loader2, Edit, DollarSign, Tag, Package, Boxes } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ export default function ProductDetailPage() {
                 {/* Pricing & VAT */}
                 <div className="space-y-4">
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Pricing</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4 text-muted-foreground" />Pricing</CardTitle></CardHeader>
                         <CardContent className="space-y-3">
                             <div className="text-3xl font-bold">
                                 AED {Number(product.unitPrice).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
@@ -134,7 +134,7 @@ export default function ProductDetailPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-muted-foreground" />Details</CardTitle></CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Type</span>
@@ -169,7 +169,7 @@ export default function ProductDetailPage() {
 
                     {product.trackInventory && (
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Inventory</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Boxes className="h-4 w-4 text-muted-foreground" />Inventory</CardTitle></CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Current Stock</span>
@@ -184,7 +184,10 @@ export default function ProductDetailPage() {
                                     </div>
                                 )}
                                 {Number(product.stockQuantity) <= Number(product.lowStockAlert) && (
-                                    <p className="text-xs text-destructive">⚠ Stock at or below reorder point</p>
+                                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive flex items-center gap-1.5">
+                                        <Package className="h-3.5 w-3.5" />
+                                        Stock at or below reorder point
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>

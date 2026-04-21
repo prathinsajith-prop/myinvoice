@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, Edit, Building2 } from "lucide-react";
+import { ChevronLeft, Loader2, Edit, Building2, Mail, Phone, Smartphone, Globe, Hash, MapPin, Landmark, CreditCard, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -103,34 +103,47 @@ export default function SupplierDetailPage() {
                 {/* Left sidebar */}
                 <div className="space-y-4">
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Contact Details</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" />Contact Details</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm">
                             {supplier.email && (
-                                <div><span className="text-muted-foreground block text-xs">Email</span>{supplier.email}</div>
+                                <div className="flex items-center gap-2">
+                                    <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span>{supplier.email}</span>
+                                </div>
                             )}
                             {supplier.phone && (
-                                <div><span className="text-muted-foreground block text-xs">Phone</span>{supplier.phone}</div>
+                                <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span>{supplier.phone}</span>
+                                </div>
                             )}
                             {supplier.mobile && (
-                                <div><span className="text-muted-foreground block text-xs">Mobile</span>{supplier.mobile}</div>
+                                <div className="flex items-center gap-2">
+                                    <Smartphone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span>{supplier.mobile}</span>
+                                    <span className="text-xs text-muted-foreground">(mobile)</span>
+                                </div>
                             )}
                             {supplier.website && (
-                                <div>
-                                    <span className="text-muted-foreground block text-xs">Website</span>
-                                    <a href={supplier.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                <div className="flex items-center gap-2">
+                                    <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <a href={supplier.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
                                         {supplier.website}
                                     </a>
                                 </div>
                             )}
                             {supplier.trn && (
-                                <div><span className="text-muted-foreground block text-xs">TRN</span>{supplier.trn}</div>
+                                <div className="flex items-center gap-2">
+                                    <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span>TRN: {supplier.trn}</span>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
 
                     {(supplier.addressLine1 || supplier.city) && (
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Address</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />Address</CardTitle></CardHeader>
                             <CardContent className="text-sm text-muted-foreground space-y-0.5">
                                 {supplier.addressLine1 && <p>{supplier.addressLine1}</p>}
                                 {supplier.addressLine2 && <p>{supplier.addressLine2}</p>}
@@ -145,34 +158,58 @@ export default function SupplierDetailPage() {
 
                     {(supplier.bankAccountNumber || supplier.bankIban) && (
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Banking</CardTitle></CardHeader>
-                            <CardContent className="space-y-2 text-sm">
+                            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Landmark className="h-4 w-4 text-muted-foreground" />Banking</CardTitle></CardHeader>
+                            <CardContent className="space-y-3 text-sm">
                                 {supplier.bankName && (
-                                    <div><span className="text-muted-foreground block text-xs">Bank</span>{supplier.bankName}</div>
+                                    <div className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                        <div>
+                                            <span className="text-muted-foreground text-xs block">Bank</span>
+                                            <span>{supplier.bankName}</span>
+                                        </div>
+                                    </div>
                                 )}
                                 {supplier.bankAccountName && (
-                                    <div><span className="text-muted-foreground block text-xs">Account Name</span>{supplier.bankAccountName}</div>
+                                    <div className="flex items-center gap-2">
+                                        <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                        <div>
+                                            <span className="text-muted-foreground text-xs block">Account Name</span>
+                                            <span>{supplier.bankAccountName}</span>
+                                        </div>
+                                    </div>
                                 )}
                                 {supplier.bankAccountNumber && (
-                                    <div><span className="text-muted-foreground block text-xs">Account Number</span>{supplier.bankAccountNumber}</div>
+                                    <div className="flex items-center gap-2">
+                                        <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                        <div>
+                                            <span className="text-muted-foreground text-xs block">Account Number</span>
+                                            <span className="font-mono">{supplier.bankAccountNumber}</span>
+                                        </div>
+                                    </div>
                                 )}
                                 {supplier.bankIban && (
-                                    <div><span className="text-muted-foreground block text-xs">IBAN</span>{supplier.bankIban}</div>
+                                    <div className="flex items-center gap-2">
+                                        <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                        <div>
+                                            <span className="text-muted-foreground text-xs block">IBAN</span>
+                                            <span className="font-mono">{supplier.bankIban}</span>
+                                        </div>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>
                     )}
 
                     <Card>
-                        <CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex justify-between">
+                        <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" />Financial Summary</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <div className="rounded-lg border bg-muted/40 p-3 flex justify-between items-center">
                                 <span className="text-muted-foreground">Total Billed</span>
-                                <span className="font-medium">{currency} {Number(supplier.totalBilled || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
+                                <span className="font-semibold">{currency} {Number(supplier.totalBilled || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className={`rounded-lg border p-3 flex justify-between items-center ${Number(supplier.outstanding) > 0 ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950" : "bg-muted/40"}`}>
                                 <span className="text-muted-foreground">Outstanding</span>
-                                <span className={`font-medium ${Number(supplier.outstanding) > 0 ? "text-amber-600" : ""}`}>
+                                <span className={`font-semibold ${Number(supplier.outstanding) > 0 ? "text-amber-600" : ""}`}>
                                     {currency} {Number(supplier.outstanding || 0).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
