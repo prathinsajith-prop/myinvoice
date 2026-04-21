@@ -33,6 +33,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { jsonFetcher } from "@/lib/fetcher";
 import { invalidateOrgSettingsCache } from "@/lib/hooks/use-org-settings";
 import { useTranslations } from "next-intl";
@@ -132,10 +133,12 @@ export default function InvoiceSettingsPage() {
         lateFeeValue: null,
         lateFeeDays: null,
     });
-    const { data: settingsData, isLoading: loading, mutate } = useSWR<InvoiceSettingsResponse>("/api/organization", jsonFetcher, {
+    const { data: settingsData, isLoading: loading, mutate, error } = useSWR<InvoiceSettingsResponse>("/api/organization", jsonFetcher, {
         revalidateOnFocus: false,
-        onError() {
-            toast.error(ti("failedToLoad"));
+        onError(err) {
+            console.error("Failed to load invoice settings:", err);
+            const errorMessage = err?.response?.data?.error || err?.message || ti("failedToLoad");
+            toast.error(errorMessage);
         },
     });
 
@@ -192,7 +195,11 @@ export default function InvoiceSettingsPage() {
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.error ?? "Failed to save settings");
+                const errorMessage = err.error ?? "Failed to save settings";
+                if (res.status === 403) {
+                    throw new Error("You don't have permission to change invoice settings. Only Admins and Owners can modify these settings.");
+                }
+                throw new Error(errorMessage);
             }
 
             toast.success(ti("saved"));
@@ -208,8 +215,25 @@ export default function InvoiceSettingsPage() {
     if (loading) {
         return (
             <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-8 w-64 mb-2" />
+                    <Skeleton className="h-5 w-full max-w-2xl" />
+                </div>
                 <Skeleton className="h-40 w-full" />
                 <Skeleton className="h-40 w-full" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="space-y-6">
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                        {error?.response?.data?.error || "Failed to load invoice settings. Please check your permissions and try again."}
+                    </AlertDescription>
+                </Alert>
             </div>
         );
     }

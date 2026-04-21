@@ -134,6 +134,7 @@
     "vatReturns": "VAT Returns",
     "reports": "Reports",
     "users": "Users",
+    "organization": "Organization",
     "settings": "Settings",
     "help": "Help & Support",
     "signOut": "Sign Out",
@@ -631,6 +632,7 @@
     "billAgingTitle": "Bill Aging (Payables)",
     "billAgingDesc": "Unpaid bills by days overdue",
     "expensesByCategoryTitle": "Expenses by Category",
+    "expensesByCategoryDesc": "Top 8 expense categories for this period",
     "revExpTrend": "Revenue vs Expenses Trend",
     "last12Months": "Last 12 months",
     "failedToLoad": "Failed to load report data.",
@@ -664,7 +666,9 @@
       "OTHER": "Other"
     },
     "invoicesByStatus": "Invoices by Status",
+    "invoicesByStatusDesc": "Breakdown of invoices by status",
     "billsByStatus": "Bills by Status",
+    "billsByStatusDesc": "Outstanding bills grouped by status",
     "invoicesSub": "{count} {count, plural, one {invoice} other {invoices}}",
     "billsAndExpenses": "Bills + direct expenses",
     "marginSub": "{value}% margin",
@@ -685,9 +689,23 @@
     "noInvoices": "No invoices in this period",
     "noBills": "No bills in this period"
   },
+  "organization": {
+    "title": "Organization",
+    "description": "Manage your organization settings, branding, and team",
+    "nav": {
+      "general": "General",
+      "generalName": "General",
+      "brandingName": "Branding",
+      "pdfTemplatesName": "PDF Templates",
+      "configuration": "Configuration",
+      "invoiceSettingsName": "Invoice Settings",
+      "teamMembersName": "Team",
+      "auditLogName": "Audit Log"
+    }
+  },
   "settings": {
     "title": "Settings",
-    "manageDescription": "Manage your account and organization settings",
+    "manageDescription": "Manage your personal account settings",
     "nav": {
       "personal": "Personal",
       "profileName": "Profile",
@@ -696,23 +714,9 @@
       "securityDesc": "Password and two-factor authentication",
       "notificationsName": "Notifications",
       "notificationsDesc": "Choose what notifications you receive",
-      "organization": "Organization",
-      "generalName": "General",
-      "generalDesc": "Organization details and settings",
-      "teamMembersName": "Team Members",
-      "teamMembersDesc": "Manage your team and permissions",
-      "brandingName": "Branding",
-      "brandingDesc": "Customize your invoice appearance",
-      "invoiceSettingsName": "Invoice Settings",
-      "invoiceSettingsDesc": "Default invoice settings and templates",
-      "auditLogName": "Audit Log",
-      "auditLogDesc": "Track all organization activity",
       "billing": "Billing",
       "subscriptionName": "Subscription",
-      "subscriptionDesc": "Manage your subscription and billing",
-      "developer": "Developer",
-      "appsName": "Apps",
-      "appsDesc": "Manage API keys and webhook integrations"
+      "subscriptionDesc": "Manage your subscription and billing"
     },
     "organization": {
       "title": "Organization",
@@ -846,6 +850,22 @@
       "failedToLoad": "Failed to load branding settings",
       "failedToSave": "Failed to save branding",
       "failedToUpload": "Failed to upload logo"
+    },
+    "pdfTemplates": {
+      "title": "PDF Templates",
+      "description": "Choose the design template for all PDF documents including invoices, bills, quotes, credit notes, debit notes, purchase orders, and delivery notes",
+      "classic": "Classic",
+      "classicDesc": "Traditional corporate template with solid headers and alternating row backgrounds",
+      "modern": "Modern",
+      "modernDesc": "Clean contemporary design with accent strips and side-by-side layouts",
+      "minimal": "Minimal",
+      "minimalDesc": "Lightweight template with simple lines and no background fills",
+      "currentTemplate": "Current Template",
+      "selectTemplate": "Select Template",
+      "savingTemplate": "Saving…",
+      "saved": "PDF template saved successfully",
+      "failedToLoad": "Failed to load PDF template settings",
+      "failedToSave": "Failed to save template"
     },
     "team": {
       "title": "Team Members",

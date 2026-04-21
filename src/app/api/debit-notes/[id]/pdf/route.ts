@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { resolveRouteContext } from "@/lib/api/auth";
 import { toErrorResponse, NotFoundError } from "@/lib/errors";
-import { generateDocumentPdf } from "@/lib/services/document-pdf";
+import { generateDocumentPdf } from "@/lib/pdf";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: Params) {
                 organization: {
                     select: {
                         name: true, legalName: true, trn: true, logo: true,
-                        primaryColor: true, secondaryColor: true,
+                        primaryColor: true, secondaryColor: true, pdfTemplate: true,
                         phone: true, website: true,
                         addressLine1: true, addressLine2: true, city: true, emirate: true, postalCode: true,
                     },
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest, { params }: Params) {
                 vatAmount: Number(item.vatAmount),
                 total: Number(item.total),
             })),
-        });
+        }, note.organization.pdfTemplate);
 
         return new NextResponse(Buffer.from(bytes) as unknown as BodyInit, {
             status: 200,

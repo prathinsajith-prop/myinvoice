@@ -134,6 +134,7 @@
     "vatReturns": "إقرارات ضريبة القيمة المضافة",
     "reports": "التقارير",
     "users": "المستخدمون",
+    "organization": "المؤسسة",
     "settings": "الإعدادات",
     "help": "المساعدة والدعم",
     "signOut": "تسجيل الخروج",
@@ -631,6 +632,7 @@
     "billAgingTitle": "تقادم الفواتير (المستحقات)",
     "billAgingDesc": "الفواتير غير المدفوعة حسب الأيام المتأخرة",
     "expensesByCategoryTitle": "المصروفات حسب الفئة",
+    "expensesByCategoryDesc": "أبرز 8 فئات مصروفات في هذه الفترة",
     "revExpTrend": "اتجاه الإيرادات مقابل المصروفات",
     "last12Months": "آخر 12 شهراً",
     "failedToLoad": "فشل تحميل بيانات التقرير.",
@@ -664,7 +666,9 @@
       "OTHER": "أخرى"
     },
     "invoicesByStatus": "الفواتير حسب الحالة",
+    "invoicesByStatusDesc": "توزيع الفواتير حسب الحالة",
     "billsByStatus": "المستحقات حسب الحالة",
+    "billsByStatusDesc": "الفواتير المعلقة مصنفة حسب الحالة",
     "invoicesSub": "{count} {count, plural, one {فاتورة} other {فواتير}}",
     "billsAndExpenses": "فواتير + مصروفات مباشرة",
     "marginSub": "{value}% هامش",
@@ -685,9 +689,23 @@
     "noInvoices": "لا توجد فواتير في هذه الفترة",
     "noBills": "لا توجد مستحقات في هذه الفترة"
   },
+  "organization": {
+    "title": "المؤسسة",
+    "description": "إدارة إعدادات المؤسسة والهوية البصرية والفريق",
+    "nav": {
+      "general": "عام",
+      "generalName": "عام",
+      "brandingName": "الهوية البصرية",
+      "pdfTemplatesName": "قوالب PDF",
+      "configuration": "التكوين",
+      "invoiceSettingsName": "إعدادات الفواتير",
+      "teamMembersName": "الفريق",
+      "auditLogName": "سجل التدقيق"
+    }
+  },
   "settings": {
     "title": "الإعدادات",
-    "manageDescription": "إدارة إعدادات حسابك ومؤسستك",
+    "manageDescription": "إدارة إعدادات حسابك الشخصي",
     "nav": {
       "personal": "شخصي",
       "profileName": "الملف الشخصي",
@@ -696,23 +714,9 @@
       "securityDesc": "كلمة المرور والمصادقة الثنائية",
       "notificationsName": "الإشعارات",
       "notificationsDesc": "اختر الإشعارات التي تريد تلقيها",
-      "organization": "المؤسسة",
-      "generalName": "عام",
-      "generalDesc": "تفاصيل وإعدادات المؤسسة",
-      "teamMembersName": "أعضاء الفريق",
-      "teamMembersDesc": "إدارة فريقك والصلاحيات",
-      "brandingName": "الهوية البصرية",
-      "brandingDesc": "تخصيص مظهر الفاتورة",
-      "invoiceSettingsName": "إعدادات الفواتير",
-      "invoiceSettingsDesc": "إعدادات وقوالب الفواتير الافتراضية",
-      "auditLogName": "سجل التدقيق",
-      "auditLogDesc": "تتبع جميع أنشطة المؤسسة",
       "billing": "الفوترة",
       "subscriptionName": "الاشتراك",
-      "subscriptionDesc": "إدارة اشتراكك والفوترة",
-      "developer": "المطور",
-      "appsName": "التطبيقات",
-      "appsDesc": "إدارة مفاتيح API وتكاملات Webhook"
+      "subscriptionDesc": "إدارة اشتراكك والفوترة"
     },
     "organization": {
       "title": "المؤسسة",
@@ -756,6 +760,22 @@
       "logoSizeError": "يجب أن يكون الشعار أقل من 2 ميجابايت",
       "logoTypeError": "مسموح فقط بصور JPG، PNG، GIF، WebP أو SVG",
       "failedToUpload": "فشل رفع الشعار"
+    },
+    "pdfTemplates": {
+      "title": "قوالب PDF",
+      "description": "اختر قالب التصميم لجميع مستندات PDF بما في ذلك الفواتير والفواتير الموردة وعروض الأسعار والإشعارات الدائنة والمدينة وأوامر الشراء وإشعارات التسليم",
+      "classic": "كلاسيكي",
+      "classicDesc": "قالب مؤسسي تقليدي مع رؤوس صلبة وخلفيات صفوف متناوبة",
+      "modern": "حديث",
+      "modernDesc": "تصميم معاصر نظيف مع شرائط مميزة وتخطيطات جنبًا إلى جنب",
+      "minimal": "بسيط",
+      "minimalDesc": "قالب خفيف الوزن مع خطوط بسيطة وبدون تعبئات خلفية",
+      "currentTemplate": "القالب الحالي",
+      "selectTemplate": "تحديد القالب",
+      "savingTemplate": "جاري الحفظ…",
+      "saved": "تم حفظ قالب PDF بنجاح",
+      "failedToLoad": "فشل تحميل إعدادات قالب PDF",
+      "failedToSave": "فشل حفظ القالب"
     },
     "address": {
       "title": "عنوان العمل",

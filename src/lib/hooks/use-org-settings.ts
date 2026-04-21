@@ -26,28 +26,31 @@ const DEFAULTS: OrgSettings = {
     primaryColor: "#1e3a8a",
 };
 
-const ORG_SETTINGS_KEY = "/api/organization";
+// Use an internal key that will never collide with raw /api/organization SWR calls
+// (org settings pages use jsonFetcher with /api/organization and return a different shape)
+const ORG_SETTINGS_CACHE_KEY = "org:settings";
+const ORG_SETTINGS_API = "/api/organization";
 
 async function fetchOrgSettings(): Promise<OrgSettings> {
     try {
         const json = await jsonFetcher<{
-            organization?: Partial<OrgSettings> & {
+            organization?: Record<string, unknown> & {
                 settings?: {
                     dateFormat?: string;
                 };
             };
-        }>(ORG_SETTINGS_KEY);
+        }>(ORG_SETTINGS_API);
         const org = json.organization ?? {};
 
         return {
-            defaultCurrency: org.defaultCurrency ?? "AED",
-            dateFormat: org.settings?.dateFormat ?? "DD/MM/YYYY",
-            defaultDueDateDays: org.defaultDueDateDays ?? 30,
-            defaultPaymentTerms: org.defaultPaymentTerms ?? 30,
+            defaultCurrency: (org.defaultCurrency as string) ?? "AED",
+            dateFormat: (org.settings as Record<string, string> | undefined)?.dateFormat ?? "DD/MM/YYYY",
+            defaultDueDateDays: Number(org.defaultDueDateDays ?? 30) || 30,
+            defaultPaymentTerms: Number(org.defaultPaymentTerms ?? 30) || 30,
             defaultVatRate: Number(org.defaultVatRate ?? 5),
-            defaultNotes: org.defaultNotes ?? "",
-            defaultTerms: org.defaultTerms ?? "",
-            primaryColor: (org as Record<string, unknown>).primaryColor as string ?? "#1e3a8a",
+            defaultNotes: (org.defaultNotes as string) ?? "",
+            defaultTerms: (org.defaultTerms as string) ?? "",
+            primaryColor: (org.primaryColor as string) ?? "#1e3a8a",
         };
     } catch {
         return DEFAULTS;
@@ -56,12 +59,12 @@ async function fetchOrgSettings(): Promise<OrgSettings> {
 
 /** Call this after org settings are saved to force a refresh on next open */
 export function invalidateOrgSettingsCache() {
-    void mutate(ORG_SETTINGS_KEY);
+    void mutate(ORG_SETTINGS_CACHE_KEY);
 }
 
 /** Returns a promise that resolves to org settings (uses cache if warm) */
 export async function loadOrgSettings(): Promise<OrgSettings> {
-    const settings = await mutate(ORG_SETTINGS_KEY, fetchOrgSettings(), {
+    const settings = await mutate(ORG_SETTINGS_CACHE_KEY, fetchOrgSettings(), {
         populateCache: true,
         revalidate: false,
     });
@@ -70,7 +73,7 @@ export async function loadOrgSettings(): Promise<OrgSettings> {
 }
 
 export function useOrgSettings(): OrgSettings {
-    const { data } = useSWR(ORG_SETTINGS_KEY, fetchOrgSettings, {
+    const { data } = useSWR(ORG_SETTINGS_CACHE_KEY, fetchOrgSettings, {
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
     });
