@@ -29,6 +29,7 @@ const ORG_SELECT = {
   logo: true,
   primaryColor: true,
   secondaryColor: true,
+  pdfTemplate: true,
   defaultCurrency: true,
   fiscalYearStart: true,
   invoicePrefix: true,

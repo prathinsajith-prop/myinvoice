@@ -335,3 +335,39 @@ export function paymentReminderEmail({
 
   return { subject, html, text };
 }
+
+// ── Password reset email ───────────────────────────────────────────────────
+
+export function passwordResetEmail({
+  name,
+  resetUrl,
+  expiresMinutes = 60,
+}: {
+  name: string;
+  resetUrl: string;
+  expiresMinutes?: number;
+}): { subject: string; html: string; text: string } {
+  const subject = "Reset your myinvoice.ae password";
+
+  const html = wrap(`
+    <span style="${LOGO}">myinvoice.ae</span>
+    <h1 style="${H1}">Reset your password</h1>
+    <p style="${P}">Hi ${name},</p>
+    <p style="${P}">
+      We received a request to reset your password. Click the button below to choose a new password.
+    </p>
+    <a href="${resetUrl}" style="${BTN}">Reset password</a>
+    <p style="${P}">
+      This link expires in ${expiresMinutes} minutes.
+      If you didn't request a password reset, you can safely ignore this email.
+    </p>
+    <div style="${FOOTER}">
+      myinvoice.ae — UAE E-Invoicing Platform<br>
+      If the button doesn't work, copy this link: ${resetUrl}
+    </div>
+  `);
+
+  const text = `Reset your myinvoice.ae password\n\nHi ${name}, we received a request to reset your password.\n\nReset link: ${resetUrl}\n\nThis link expires in ${expiresMinutes} minutes.\n\nIf you didn't request this, you can ignore this email.`;
+
+  return { subject, html, text };
+}

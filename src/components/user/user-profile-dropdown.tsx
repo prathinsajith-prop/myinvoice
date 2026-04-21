@@ -180,7 +180,7 @@ export function UserProfileDropdown() {
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => router.push("/settings/organization/new")}
+              onClick={() => router.push("/organization/new")}
               className="gap-2 cursor-pointer"
             >
               <Plus className="h-4 w-4 text-muted-foreground" />
@@ -197,7 +197,7 @@ export function UserProfileDropdown() {
             <User className="h-4 w-4 text-muted-foreground" />
             <span>{t("profile")}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings/organization")} className="gap-2 py-2">
+          <DropdownMenuItem onClick={() => router.push("/organization")} className="gap-2 py-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
             <span>{t("organization")}</span>
           </DropdownMenuItem>

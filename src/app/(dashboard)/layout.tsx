@@ -149,6 +149,14 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
         </p>
         <div className="space-y-0.5">
           <Link
+            href="/organization"
+            onClick={onLinkClick}
+            className={navLinkClass(isActive("/organization"))}
+          >
+            <Building2 className="h-4 w-4 flex-shrink-0" />
+            <span>{t("organization")}</span>
+          </Link>
+          <Link
             href="/users"
             onClick={onLinkClick}
             className={navLinkClass(isActive("/users"))}

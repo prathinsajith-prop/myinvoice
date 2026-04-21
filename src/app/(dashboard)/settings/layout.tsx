@@ -4,14 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   User,
-  Building2,
   Bell,
   Shield,
   CreditCard,
-  Users,
-  Palette,
-  FileText,
-  Activity,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -44,37 +39,6 @@ function SettingsSidebar() {
       ],
     },
     {
-      title: t("organization"),
-      items: [
-        {
-          name: t("generalName"),
-          href: "/settings/organization",
-          icon: Building2,
-        },
-        // Team Members hidden for now
-        // {
-        //   name: t("teamMembersName"),
-        //   href: "/settings/team",
-        //   icon: Users,
-        // },
-        {
-          name: t("brandingName"),
-          href: "/settings/branding",
-          icon: Palette,
-        },
-        {
-          name: t("invoiceSettingsName"),
-          href: "/settings/invoices",
-          icon: FileText,
-        },
-        {
-          name: t("auditLogName"),
-          href: "/settings/audit-log",
-          icon: Activity,
-        },
-      ],
-    },
-    {
       title: t("billing"),
       items: [
         {
@@ -84,13 +48,13 @@ function SettingsSidebar() {
         },
       ],
     },
-
   ];
 
   return (
     <aside className="w-64 space-y-6">
-      {settingsNavigation.map((section) => (
+      {settingsNavigation.map((section, idx) => (
         <div key={section.title}>
+          {idx > 0 && <Separator className="mb-4" />}
           <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {section.title}
           </h3>

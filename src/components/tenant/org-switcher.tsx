@@ -150,7 +150,7 @@ export function OrgSwitcher() {
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          onClick={() => router.push("/settings/organization/new")}
+          onClick={() => router.push("/organization/new")}
           className="cursor-pointer"
         >
           <Plus className="mr-2 h-4 w-4" />

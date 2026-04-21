@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy, ShieldCheck, ClipboardList, Phone, Hash, CalendarDays, Coins, TrendingUp, User } from "lucide-react";
+import { ChevronLeft, Loader2, CheckCircle, XCircle, Send, Printer, Download, Mail, MessageCircle, Plus, Pencil, Trash2, Copy, ShieldCheck, ClipboardList, Phone, Hash, CalendarDays, TrendingUp, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
