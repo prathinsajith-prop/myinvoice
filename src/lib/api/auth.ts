@@ -11,6 +11,22 @@ import prisma from "@/lib/db/prisma";
 import { getTenantPrisma, type TenantPrismaClient } from "@/lib/db/tenant";
 import { NEXTAUTH_SECRET } from "@/lib/constants/env";
 
+/**
+ * Read the Auth.js JWT cookie. In production over HTTPS the cookie is named
+ * `__Secure-authjs.session-token`; in dev it's `authjs.session-token`. We must
+ * tell `getToken` which one to look for, otherwise it returns null on prod.
+ */
+async function getAuthToken(req: NextRequest) {
+  const isSecure = req.nextUrl.protocol === "https:";
+  return getToken({
+    req,
+    secret: NEXTAUTH_SECRET,
+    salt: isSecure ? "__Secure-authjs.session-token" : "authjs.session-token",
+    secureCookie: isSecure,
+    cookieName: isSecure ? "__Secure-authjs.session-token" : "authjs.session-token",
+  });
+}
+
 export interface ApiContext {
   userId: string;
   organizationId: string;
@@ -29,7 +45,7 @@ export interface ApiUserContext {
 export async function resolveUserContext(req: NextRequest): Promise<ApiUserContext> {
   let token;
   try {
-    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+    token = await getAuthToken(req);
   } catch {
     throw new UnauthorizedError();
   }
@@ -48,7 +64,7 @@ export async function resolveUserContext(req: NextRequest): Promise<ApiUserConte
 export async function resolveApiContext(req: NextRequest): Promise<ApiContext> {
   let token;
   try {
-    token = await getToken({ req, secret: NEXTAUTH_SECRET });
+    token = await getAuthToken(req);
   } catch {
     throw new UnauthorizedError();
   }

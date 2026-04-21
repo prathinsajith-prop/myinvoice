@@ -21,6 +21,9 @@ const credentialsSchema = z.object({
 });
 
 export const authConfig: NextAuthConfig = {
+  // Required when not on Vercel (or behind a proxy/CDN) so Auth.js trusts the
+  // forwarded host header and issues cookies for the correct production domain.
+  trustHost: true,
   providers: [
     Credentials({
       name: "credentials",

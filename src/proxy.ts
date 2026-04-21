@@ -69,7 +69,17 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  const token = await getToken({ req, secret: NEXTAUTH_SECRET });
+  // In production over HTTPS, NextAuth writes the cookie as `__Secure-authjs.session-token`.
+  // In dev (HTTP) it's `authjs.session-token`. We must tell `getToken` which one to look for,
+  // otherwise the middleware can't find the session and bounces signed-in users back to /login.
+  const isSecure = req.nextUrl.protocol === "https:";
+  const token = await getToken({
+    req,
+    secret: NEXTAUTH_SECRET,
+    salt: isSecure ? "__Secure-authjs.session-token" : "authjs.session-token",
+    secureCookie: isSecure,
+    cookieName: isSecure ? "__Secure-authjs.session-token" : "authjs.session-token",
+  });
   const isLoggedIn = !!token?.sub;
 
   const isPublic = isPublicPath(normalizedPath);
