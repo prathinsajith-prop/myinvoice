@@ -154,7 +154,7 @@ export default function BrandingSettingsPage() {
                     <div className="flex items-center gap-6">
                         <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border bg-muted">
                             {logoPreview ? (
-                                 
+
                                 <img
                                     src={logoPreview}
                                     alt="Organization logo"

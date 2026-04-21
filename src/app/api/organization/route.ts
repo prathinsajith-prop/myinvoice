@@ -10,10 +10,12 @@ import {
 } from "@/lib/api/auth";
 import { toErrorResponse } from "@/lib/errors";
 import { logAudit } from "@/lib/tenant/server";
+import { hasRole } from "@/lib/rbac";
 
 const ORG_SELECT = {
   id: true,
   name: true,
+  legalName: true,
   slug: true,
   email: true,
   phone: true,
@@ -80,7 +82,7 @@ const ORG_SELECT = {
   },
 } as const;
 
-// GET /api/organization — get current organization
+// GET /api/organization — get current organization (any authenticated user)
 export async function GET(req: NextRequest) {
   try {
     const ctx = await resolveApiContext(req);
@@ -94,7 +96,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ organization, role: ctx.role });
+    // Return organization data with user's role for permission checks
+    return NextResponse.json({
+      organization,
+      role: ctx.role,
+      permissions: {
+        canView: true,
+        canEdit: hasRole(ctx.role, "ADMIN"),
+        canManageTeam: hasRole(ctx.role, "MANAGER"),
+        canManageOrg: hasRole(ctx.role, "ADMIN")
+      }
+    });
   } catch (error) {
     return toErrorResponse(error);
   }
@@ -217,16 +229,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/organization — update current organization (ADMIN+)
+// PATCH /api/organization — update current organization (ADMIN+ only)
 export async function PATCH(req: NextRequest) {
   try {
+    // Require ADMIN or OWNER role
     const ctx = await resolveApiContextWithRole(req, "ADMIN");
     const body = await req.json();
 
     const result = updateOrganizationSchema.safeParse(body);
     if (!result.success) {
+      const firstError = result.error.issues[0];
       return NextResponse.json(
-        { error: "Validation failed", code: "VALIDATION_ERROR", details: result.error.flatten() },
+        {
+          error: firstError?.message || "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: result.error.flatten()
+        },
         { status: 400 }
       );
     }

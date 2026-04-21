@@ -70,6 +70,30 @@ export function drawLogoRight(
     });
 }
 
+/**
+ * Word-wrap a string to fit within maxWidth pts at the given font+size.
+ * Returns an array of lines.
+ */
+export function wrapText(text: string, maxWidth: number, font: PDFFont, size: number): string[] {
+    const lines: string[] = [];
+    const paragraphs = text.split(/\r?\n/);
+    for (const para of paragraphs) {
+        const words = para.split(/\s+/).filter(Boolean);
+        let current = "";
+        for (const word of words) {
+            const candidate = current ? `${current} ${word}` : word;
+            if (font.widthOfTextAtSize(candidate, size) > maxWidth && current) {
+                lines.push(current);
+                current = word;
+            } else {
+                current = candidate;
+            }
+        }
+        if (current) lines.push(current);
+    }
+    return lines.length ? lines : [""];
+}
+
 /** Render footer line + contact fields + generated-date on every page. */
 export function drawFooter(
     page: PDFPage,

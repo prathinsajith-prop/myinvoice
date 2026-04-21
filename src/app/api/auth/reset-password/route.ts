@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/db/prisma";
+import { rateLimit, getClientIp } from "@/lib/security/rate-limit";
 
 const resetPasswordSchema = z.object({
     token: z.string().min(1, "Token is required"),
-    email: z.string().email("Please enter a valid email address"),
+    email: z.string().email("Please enter a valid email address").toLowerCase(),
     password: z
         .string()
         .min(8, "Password must be at least 8 characters")
@@ -19,14 +20,31 @@ const resetPasswordSchema = z.object({
 // POST /api/auth/reset-password
 export async function POST(req: NextRequest) {
     try {
+        // Rate limiting: 10 attempts per 15 minutes per IP
+        const ip = getClientIp(req.headers);
+        const rateLimitResult = await rateLimit(`reset-password:${ip}`, 10, 15 * 60 * 1000);
+        
+        if (!rateLimitResult.allowed) {
+            const retryAfter = Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000);
+            return NextResponse.json(
+                { 
+                    error: "Too many reset attempts. Please try again later.",
+                    code: "RATE_LIMIT_EXCEEDED",
+                    retryAfter
+                },
+                { status: 429 }
+            );
+        }
+
         const body = await req.json();
         const result = resetPasswordSchema.safeParse(body);
 
         if (!result.success) {
-      const firstError = result.error.issues[0];
-      return NextResponse.json(
-        { 
-          error: firstError?.message ?? "Validation failed", 
+            const firstError = result.error.issues[0];
+            return NextResponse.json(
+                { 
+                    error: firstError?.message ?? "Validation failed", 
+                    code: "VALIDATION_ERROR",
                     details: result.error.flatten()
                 },
                 { status: 400 }
@@ -34,13 +52,12 @@ export async function POST(req: NextRequest) {
         }
 
         const { token, email, password } = result.data;
-        const emailLower = email.toLowerCase();
 
         // Find and validate the reset token
         const verificationToken = await prisma.verificationToken.findUnique({
             where: {
                 identifier_token: {
-                    identifier: emailLower,
+                    identifier: email,
                     token,
                 },
             },
@@ -59,7 +76,7 @@ export async function POST(req: NextRequest) {
             await prisma.verificationToken.delete({
                 where: {
                     identifier_token: {
-                        identifier: emailLower,
+                        identifier: email,
                         token,
                     },
                 },
@@ -73,42 +90,45 @@ export async function POST(req: NextRequest) {
 
         // Find user
         const user = await prisma.user.findUnique({
-            where: { email: emailLower },
+            where: { email },
             select: { id: true, password: true },
         });
 
-        if (!user) {
+        if (!user || !user.password) {
             return NextResponse.json(
-                { error: "User not found", code: "USER_NOT_FOUND" },
-                { status: 404 }
+                { error: "Invalid reset request", code: "INVALID_REQUEST" },
+                { status: 400 }
             );
         }
 
         // Hash new password
         const hashedPassword = await hash(password, 12);
 
-        // Update user password
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { password: hashedPassword },
-        });
+        // Use transaction to ensure atomicity
+        await prisma.$transaction(async (tx) => {
+            // Update user password
+            await tx.user.update({
+                where: { id: user.id },
+                data: { password: hashedPassword },
+            });
 
-        // Delete the used reset token
-        await prisma.verificationToken.delete({
-            where: {
-                identifier_token: {
-                    identifier: emailLower,
-                    token,
+            // Delete the used reset token
+            await tx.verificationToken.delete({
+                where: {
+                    identifier_token: {
+                        identifier: email,
+                        token,
+                    },
                 },
-            },
-        });
+            });
 
-        // Delete all other password reset tokens for this user
-        await prisma.verificationToken.deleteMany({
-            where: {
-                identifier: emailLower,
-                type: "password_reset",
-            },
+            // Delete all other password reset tokens for this user
+            await tx.verificationToken.deleteMany({
+                where: {
+                    identifier: email,
+                    type: "password_reset",
+                },
+            });
         });
 
         return NextResponse.json(
@@ -118,7 +138,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         console.error("Reset password error:", error);
         return NextResponse.json(
-            { error: "An error occurred. Please try again later." },
+            { error: "An error occurred. Please try again later.", code: "INTERNAL_ERROR" },
             { status: 500 }
         );
     }

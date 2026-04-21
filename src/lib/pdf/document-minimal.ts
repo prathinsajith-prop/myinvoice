@@ -3,7 +3,7 @@
  */
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { DocumentPdfData } from "./types";
-import { hexToRgb, money, embedLogo, drawLogoRight, drawFooter } from "./helpers";
+import { hexToRgb, money, embedLogo, drawLogoRight, drawFooter, wrapText } from "./helpers";
 
 const DOC_LABELS: Record<DocumentPdfData["docType"], string> = {
     BILL: "Bill",
@@ -76,7 +76,10 @@ export async function generateMinimalDocumentPdf(data: DocumentPdfData): Promise
             page.drawText(Number(item.unitPrice ?? 0).toFixed(2), { x: 334, y, size: 8.5, font });
             page.drawText(Number(item.discount ?? 0) > 0 ? `${item.discount}%` : "—", { x: 390, y, size: 8.5, font });
             page.drawText(Number(item.vatAmount ?? 0).toFixed(2), { x: 432, y, size: 8.5, font });
-            page.drawText(Number(item.total ?? 0).toFixed(2), { x: 492, y, size: 8.5, font });
+            {
+                const totalTxt = Number(item.total ?? 0).toFixed(2);
+                page.drawText(totalTxt, { x: 539 - font.widthOfTextAtSize(totalTxt, 8.5), y, size: 8.5, font });
+            }
         }
         y -= 14;
         if (y < 160) break;
@@ -86,19 +89,17 @@ export async function generateMinimalDocumentPdf(data: DocumentPdfData): Promise
     page.drawLine({ start: { x: margin, y }, end: { x: 539, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) }); y -= 14;
 
     if (!isDelivery && data.subtotal !== undefined) {
-        const tx = 380;
-        if (data.totalDiscount && data.totalDiscount > 0) { page.drawText("Discount", { x: tx, y, size: 9, font, color: rgb(0.1, 0.5, 0.1) }); page.drawText(`-${money(data.totalDiscount, data.currency)}`, { x: 460, y, size: 9, font, color: rgb(0.1, 0.5, 0.1) }); y -= 13; }
-        page.drawText("Subtotal", { x: tx, y, size: 9, font, color: rgb(0.45, 0.45, 0.45) });
-        page.drawText(money(data.subtotal, data.currency), { x: 460, y, size: 9, font }); y -= 13;
-        page.drawText("VAT", { x: tx, y, size: 9, font, color: rgb(0.45, 0.45, 0.45) });
-        page.drawText(money(data.totalVat ?? 0, data.currency), { x: 460, y, size: 9, font }); y -= 6;
-        page.drawLine({ start: { x: tx, y }, end: { x: 539, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) }); y -= 11;
-        page.drawText("Total", { x: tx, y, size: 11, font: bold, color: rgb(ar, ag, ab) });
-        page.drawText(money(data.total ?? 0, data.currency), { x: 460, y, size: 11, font: bold, color: rgb(ar, ag, ab) }); y -= 14;
-        if (data.outstanding !== undefined) {
-            page.drawText("Outstanding", { x: tx, y, size: 9.5, font: bold, color: rgb(ar, ag, ab) });
-            page.drawText(money(data.outstanding, data.currency), { x: 460, y, size: 9.5, font: bold, color: rgb(ar, ag, ab) });
-        }
+        const tx = 380; const VX = 539;
+        const tRow = (lbl: string, val: string, sz: number, f: typeof font, c = rgb(0.1, 0.1, 0.1), lc = rgb(0.45, 0.45, 0.45)) => {
+            page.drawText(lbl, { x: tx, y, size: sz, font: f, color: lc });
+            page.drawText(val, { x: VX - f.widthOfTextAtSize(val, sz), y, size: sz, font: f, color: c }); y -= sz < 10 ? 13 : 14;
+        };
+        if (data.totalDiscount && data.totalDiscount > 0) tRow("Discount", `-${money(data.totalDiscount, data.currency)}`, 9, font, rgb(0.1, 0.5, 0.1), rgb(0.1, 0.5, 0.1));
+        tRow("Subtotal", money(data.subtotal, data.currency), 9, font);
+        tRow("VAT", money(data.totalVat ?? 0, data.currency), 9, font);
+        page.drawLine({ start: { x: tx, y }, end: { x: VX, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) }); y -= 11;
+        tRow("Total", money(data.total ?? 0, data.currency), 11, bold, rgb(ar, ag, ab), rgb(ar, ag, ab));
+        if (data.outstanding !== undefined) tRow("Outstanding", money(data.outstanding, data.currency), 9.5, bold, rgb(ar, ag, ab), rgb(ar, ag, ab));
     }
 
     if (isDelivery) {
@@ -106,8 +107,14 @@ export async function generateMinimalDocumentPdf(data: DocumentPdfData): Promise
         if (logistics.length) { y -= 14; page.drawText("Logistics", { x: margin, y, size: 8.5, font: bold }); y -= 12; logistics.forEach(i => { page.drawText(i, { x: margin, y, size: 8.5, font, color: rgb(0.35, 0.35, 0.35) }); y -= 12; }); }
     }
 
-    if (data.notes && y > 80) { y -= 24; page.drawText("Notes", { x: margin, y, size: 8.5, font: bold }); y -= 12; page.drawText(data.notes.slice(0, 280), { x: margin, y, size: 8, font, color: rgb(0.45, 0.45, 0.45) }); }
-    if (data.terms && y > 80) { y -= 12; page.drawText("Terms & Conditions", { x: margin, y, size: 8.5, font: bold }); y -= 12; page.drawText(data.terms.slice(0, 280), { x: margin, y, size: 8, font, color: rgb(0.45, 0.45, 0.45) }); }
+    if (data.notes && y > 80) {
+        y -= 24; page.drawText("Notes", { x: margin, y, size: 8.5, font: bold }); y -= 12;
+        for (const line of wrapText(data.notes, 460, font, 8).slice(0, 5)) { if (y < 70) break; page.drawText(line, { x: margin, y, size: 8, font, color: rgb(0.45, 0.45, 0.45) }); y -= 12; }
+    }
+    if (data.terms && y > 80) {
+        y -= 10; page.drawText("Terms & Conditions", { x: margin, y, size: 8.5, font: bold }); y -= 12;
+        for (const line of wrapText(data.terms, 460, font, 8).slice(0, 5)) { if (y < 70) break; page.drawText(line, { x: margin, y, size: 8, font, color: rgb(0.45, 0.45, 0.45) }); y -= 12; }
+    }
 
     drawFooter(page, font, { phone: data.organizationPhone, website: data.organizationWebsite, address: data.organizationAddress, margin });
     return pdf.save();

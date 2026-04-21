@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import useSWR from "swr";
 import { CheckCircle2, FileText, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -108,7 +108,7 @@ function MinimalPreview() {
     );
 }
 
-const TEMPLATE_PREVIEWS: Record<PdfTemplate, () => JSX.Element> = {
+const TEMPLATE_PREVIEWS: Record<PdfTemplate, () => React.ReactElement> = {
     CLASSIC: ClassicPreview,
     MODERN: ModernPreview,
     MINIMAL: MinimalPreview,
@@ -119,7 +119,7 @@ export default function PdfTemplatesPage() {
     const [saving, setSaving] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<PdfTemplate>("CLASSIC");
 
-    const { data, isLoading, mutate } = useSWR<OrganizationResponse>(
+    const { data, isLoading, mutate, error } = useSWR<OrganizationResponse>(
         "/api/organization",
         jsonFetcher,
         {
@@ -129,7 +129,8 @@ export default function PdfTemplatesPage() {
             },
             onError(err) {
                 console.error("Failed to load organization data:", err);
-                toast.error(t("failedToLoad"));
+                const errorMessage = err?.response?.data?.error || err?.message || t("failedToLoad");
+                toast.error(errorMessage);
             },
         }
     );
@@ -154,7 +155,11 @@ export default function PdfTemplatesPage() {
             if (!res.ok) {
                 const errData = await res.json();
                 console.error("Save error:", errData);
-                throw new Error(errData.error || errData.message || "Failed to save");
+                const errorMessage = errData.error || errData.message || "Failed to save";
+                if (res.status === 403) {
+                    throw new Error("You don't have permission to change PDF templates. Only Admins and Owners can modify this setting.");
+                }
+                throw new Error(errorMessage);
             }
 
             await mutate();
@@ -179,6 +184,19 @@ export default function PdfTemplatesPage() {
                         <Skeleton key={`skeleton-${i}`} className="h-96" />
                     ))}
                 </div>
+            </div>
+        );
+    }
+
+    if (error || !data) {
+        return (
+            <div className="space-y-6">
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        {error?.response?.data?.error || "Failed to load PDF templates. You may not have permission to access this page."}
+                    </AlertDescription>
+                </Alert>
             </div>
         );
     }
@@ -211,8 +229,8 @@ export default function PdfTemplatesPage() {
                         <Card
                             key={template.value}
                             className={`relative transition-all ${isSelected
-                                    ? "ring-2 ring-primary shadow-lg"
-                                    : "hover:shadow-md"
+                                ? "ring-2 ring-primary shadow-lg"
+                                : "hover:shadow-md"
                                 } ${!isAdmin ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
                                 }`}
                             onClick={() => isAdmin && setSelectedTemplate(template.value)}

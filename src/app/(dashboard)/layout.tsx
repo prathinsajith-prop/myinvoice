@@ -38,6 +38,52 @@ import { NotificationDropdown } from "@/components/notifications/notification-dr
 import { UserProfileDropdown } from "@/components/user/user-profile-dropdown";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { useTenant } from "@/lib/tenant/context";
+
+// Admin section with role-based rendering
+function AdminSection({
+  onLinkClick,
+  isActive,
+  navLinkClass,
+  t
+}: {
+  onLinkClick?: () => void;
+  isActive: (href: string) => boolean;
+  navLinkClass: (active: boolean) => string;
+  t: (key: string) => string;
+}) {
+  const { role } = useTenant();
+
+  // Only show administration section for MANAGER and above
+  const canManage = role && ["OWNER", "ADMIN", "MANAGER"].includes(role);
+
+  if (!canManage) {
+    return null;
+  }
+
+  return (
+    <>
+      <Separator />
+      <nav className="px-3 pt-2 pb-1">
+        <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          {t("sections.administration")}
+        </p>
+        <div className="space-y-0.5">
+          {canManage && (
+            <Link
+              href="/users"
+              onClick={onLinkClick}
+              className={navLinkClass(isActive("/users"))}
+            >
+              <UserCog className="h-4 w-4 flex-shrink-0" />
+              <span>{t("users")}</span>
+            </Link>
+          )}
+        </div>
+      </nav>
+    </>
+  );
+}
 
 function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
@@ -143,31 +189,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
       <Separator />
 
       {/* Administration */}
-      <nav className="px-3 pt-2 pb-1">
-        <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-          {t("sections.administration")}
-        </p>
-        <div className="space-y-0.5">
-          <Link
-            href="/organization"
-            onClick={onLinkClick}
-            className={navLinkClass(isActive("/organization"))}
-          >
-            <Building2 className="h-4 w-4 flex-shrink-0" />
-            <span>{t("organization")}</span>
-          </Link>
-          <Link
-            href="/users"
-            onClick={onLinkClick}
-            className={navLinkClass(isActive("/users"))}
-          >
-            <UserCog className="h-4 w-4 flex-shrink-0" />
-            <span>{t("users")}</span>
-          </Link>
-        </div>
-      </nav>
-
-      <Separator />
+      <AdminSection onLinkClick={onLinkClick} isActive={isActive} navLinkClass={navLinkClass} t={t} />
 
       {/* Sign out */}
       <div className="px-3 py-2">
