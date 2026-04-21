@@ -43,6 +43,22 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pg", "pino", "pino-pretty"],
 
+  // Tree-shake & modularize heavy packages for smaller client bundles.
+  // Next.js rewrites `import { X } from "pkg"` into deep imports so only
+  // the used symbols ship to the browser.
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "date-fns",
+      "recharts",
+      "@radix-ui/react-alert-dialog",
+      "@radix-ui/react-checkbox",
+      "@radix-ui/react-select",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-switch",
+    ],
+  },
+
   async headers() {
     return [
       {
