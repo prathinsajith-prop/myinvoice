@@ -475,7 +475,7 @@ export default function DashboardPage() {
                                 <CardTitle>{t("invoiceStatusTitle")}</CardTitle>
                                 <CardDescription>{t("invoiceStatusDesc")}</CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-0">
                                 {invoiceStatusBreakdown.length === 0 ? (
                                     <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
                                         {t("noInvoiceActivity")}
@@ -485,10 +485,10 @@ export default function DashboardPage() {
                                         config={Object.fromEntries(
                                             invoiceStatusBreakdown.map((s) => [
                                                 s.status,
-                                                { label: s.status.replaceAll("_", " "), color: STATUS_COLORS[s.status] ?? "hsl(var(--chart-5))" },
+                                                { label: statusLabel(s.status), color: STATUS_COLORS[s.status] ?? "hsl(var(--chart-5))" },
                                             ])
                                         )}
-                                        className="mx-auto h-[220px]"
+                                        className="mx-auto h-[240px]"
                                     >
                                         <PieChart>
                                             <Pie
@@ -497,8 +497,8 @@ export default function DashboardPage() {
                                                 nameKey="status"
                                                 cx="50%"
                                                 cy="50%"
-                                                innerRadius={55}
-                                                outerRadius={85}
+                                                innerRadius={64}
+                                                outerRadius={96}
                                                 paddingAngle={3}
                                             >
                                                 {invoiceStatusBreakdown.map((entry) => (
@@ -506,16 +506,17 @@ export default function DashboardPage() {
                                                 ))}
                                             </Pie>
                                             <ChartTooltip
+                                                cursor={false}
                                                 content={
                                                     <ChartTooltipContent
-                                                        formatter={(value) => formatCurrency(Number(value ?? 0), currency)}
+                                                        hideLabel
                                                         nameKey="status"
+                                                        formatter={(value) => formatCurrency(Number(value ?? 0), currency)}
                                                     />
                                                 }
                                             />
                                             <ChartLegend
                                                 content={<ChartLegendContent nameKey="status" />}
-                                                wrapperStyle={{ fontSize: 12 }}
                                             />
                                         </PieChart>
                                     </ChartContainer>
