@@ -24,10 +24,15 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    Legend,
 } from "recharts";
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    ChartLegend,
+    ChartLegendContent,
+    type ChartConfig,
+} from "@/components/ui/chart";
 
 interface KPIs {
     totalRevenue: number;
@@ -86,21 +91,43 @@ interface ReportData {
 
 const PERIOD_VALUES = ["this_month", "last_month", "this_quarter", "last_quarter", "this_year", "last_year"] as const;
 
+// Uses CSS chart variables so colours respect light/dark mode
 const CATEGORY_COLORS = [
-    "#6366f1", "#f59e0b", "#10b981", "#f87171", "#60a5fa", "#a78bfa", "#34d399", "#fb923c",
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-    DRAFT: "#94a3b8",
-    SENT: "#60a5fa",
-    PAID: "#34d399",
-    OVERDUE: "#f87171",
-    PARTIAL: "#fbbf24",
-    VOID: "#d1d5db",
+    DRAFT: "hsl(var(--chart-4))",
+    SENT: "hsl(var(--chart-5))",
+    PAID: "hsl(var(--chart-1))",
+    OVERDUE: "hsl(var(--chart-2))",
+    PARTIAL: "hsl(var(--chart-3))",
+    VOID: "hsl(240 5% 78%)",
 };
+
+const trendChartConfig = {
+    revenue: { label: "Revenue", color: "hsl(var(--chart-1))" },
+    expenses: { label: "Expenses", color: "hsl(var(--chart-2))" },
+} satisfies ChartConfig;
+
+const billsChartConfig = {
+    total: { label: "Amount", color: "hsl(var(--chart-3))" },
+} satisfies ChartConfig;
 
 function fmt(n: number, currency: string) {
     return `${currency} ${Number(n || 0).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** "PARTIAL_PAYMENT" → "Partial Payment", "DRAFT" → "Draft" */
+function statusLabel(s: string) {
+    return s.split("_").map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
 }
 
 function KpiCard({ title, value, sub, icon: Icon, trend }: {
@@ -252,31 +279,41 @@ export default function ReportsPage() {
                     {(report.monthlyTrend ?? []).length > 0 && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">{t("revExpTrend")}</CardTitle>
+                                <CardTitle>{t("revExpTrend")}</CardTitle>
                                 <CardDescription>{t("last12Months")}</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={240}>
+                            <CardContent className="pb-0">
+                                <ChartContainer config={trendChartConfig} className="h-[240px] w-full">
                                     <AreaChart data={report.monthlyTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                         <defs>
-                                            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                            <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0} />
                                             </linearGradient>
-                                            <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#f87171" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="#f87171" stopOpacity={0} />
+                                            <linearGradient id="fillExpenses" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="var(--color-expenses)" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="var(--color-expenses)" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
                                         <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                                         <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                        <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                                        <Area type="monotone" dataKey="revenue" name={t("chartRevenue")} stroke="#6366f1" fill="url(#revGrad)" strokeWidth={2} dot={false} />
-                                        <Area type="monotone" dataKey="expenses" name={t("chartExpenses")} stroke="#f87171" fill="url(#expGrad)" strokeWidth={2} dot={false} />
+                                        <ChartTooltip
+                                            content={
+                                                <ChartTooltipContent
+                                                    indicator="dot"
+                                                    formatter={(value, name) => [
+                                                        fmt(Number(value ?? 0), currency),
+                                                        trendChartConfig[name as keyof typeof trendChartConfig]?.label ?? name,
+                                                    ]}
+                                                />
+                                            }
+                                        />
+                                        <ChartLegend content={<ChartLegendContent />} />
+                                        <Area type="monotone" dataKey="revenue" stroke="var(--color-revenue)" fill="url(#fillRevenue)" strokeWidth={2} dot={false} />
+                                        <Area type="monotone" dataKey="expenses" stroke="var(--color-expenses)" fill="url(#fillExpenses)" strokeWidth={2} dot={false} />
                                     </AreaChart>
-                                </ResponsiveContainer>
+                                </ChartContainer>
                             </CardContent>
                         </Card>
                     )}
@@ -334,29 +371,50 @@ export default function ReportsPage() {
 
                     {/* Expenses by Category */}
                     <Card>
-                        <CardHeader><CardTitle className="text-base">{t("expensesByCategoryTitle")}</CardTitle></CardHeader>
-                        <CardContent>
+                        <CardHeader>
+                            <CardTitle>{t("expensesByCategoryTitle")}</CardTitle>
+                            <CardDescription>{t("expensesByCategoryDesc")}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pb-0">
                             {report.expensesByCategory && report.expensesByCategory.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={220}>
+                                <ChartContainer
+                                    config={Object.fromEntries(
+                                        report.expensesByCategory.slice(0, 8).map((c, i) => [
+                                            c.category,
+                                            { label: t(`categories.${c.category}`), color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] },
+                                        ])
+                                    )}
+                                    className="h-[220px] w-full"
+                                >
                                     <BarChart
                                         data={report.expensesByCategory.slice(0, 8).map((c) => ({
                                             name: t(`categories.${c.category}`),
                                             total: c.total,
                                         }))}
                                         layout="vertical"
-                                        margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                        margin={{ top: 0, right: 4, left: 0, bottom: 0 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
                                         <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120} />
-                                        <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                        <Bar dataKey="total" name={t("chartAmount")} radius={[0, 4, 4, 0]}>
+                                        <ChartTooltip
+                                            content={
+                                                <ChartTooltipContent
+                                                    hideIndicator
+                                                    formatter={(value, _name, item) => [
+                                                        fmt(Number(value ?? 0), currency),
+                                                        String(item?.payload?.name ?? _name),
+                                                    ]}
+                                                />
+                                            }
+                                        />
+                                        <Bar dataKey="total" radius={[0, 4, 4, 0]}>
                                             {report.expensesByCategory.slice(0, 8).map((entry, i) => (
                                                 <Cell key={entry.category ?? i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
                                             ))}
                                         </Bar>
                                     </BarChart>
-                                </ResponsiveContainer>
+                                </ChartContainer>
                             ) : (
                                 <p className="text-sm text-muted-foreground">{t("noExpenses")}</p>
                             )}
@@ -366,10 +424,21 @@ export default function ReportsPage() {
                     {/* Invoice status chart + Bills by Status */}
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
-                            <CardHeader><CardTitle className="text-base">{t("invoicesByStatus")}</CardTitle></CardHeader>
-                            <CardContent>
+                            <CardHeader>
+                                <CardTitle>{t("invoicesByStatus")}</CardTitle>
+                                <CardDescription>{t("invoicesByStatusDesc")}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pb-0">
                                 {report.invoicesByStatus && report.invoicesByStatus.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={220}>
+                                    <ChartContainer
+                                        config={Object.fromEntries(
+                                            report.invoicesByStatus.map((s) => [
+                                                s.status,
+                                                { label: statusLabel(s.status), color: STATUS_COLORS[s.status] ?? "hsl(var(--chart-5))" },
+                                            ])
+                                        )}
+                                        className="mx-auto h-[240px]"
+                                    >
                                         <PieChart>
                                             <Pie
                                                 data={report.invoicesByStatus}
@@ -377,18 +446,29 @@ export default function ReportsPage() {
                                                 nameKey="status"
                                                 cx="50%"
                                                 cy="50%"
-                                                innerRadius={60}
-                                                outerRadius={90}
+                                                innerRadius={64}
+                                                outerRadius={96}
                                                 paddingAngle={3}
                                             >
                                                 {report.invoicesByStatus.map((entry) => (
-                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#a5b4fc"} />
+                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "hsl(var(--chart-5))"} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                            <Legend formatter={(value) => value.replaceAll("_", " ")} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                                            <ChartTooltip
+                                                cursor={false}
+                                                content={
+                                                    <ChartTooltipContent
+                                                        hideLabel
+                                                        nameKey="status"
+                                                        formatter={(value) => fmt(Number(value ?? 0), currency)}
+                                                    />
+                                                }
+                                            />
+                                            <ChartLegend
+                                                content={<ChartLegendContent nameKey="status" />}
+                                            />
                                         </PieChart>
-                                    </ResponsiveContainer>
+                                    </ChartContainer>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">{t("noInvoices")}</p>
                                 )}
@@ -396,25 +476,37 @@ export default function ReportsPage() {
                         </Card>
 
                         <Card>
-                            <CardHeader><CardTitle className="text-base">{t("billsByStatus")}</CardTitle></CardHeader>
-                            <CardContent>
+                            <CardHeader>
+                                <CardTitle>{t("billsByStatus")}</CardTitle>
+                                <CardDescription>{t("billsByStatusDesc")}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pb-0">
                                 {report.billsByStatus && report.billsByStatus.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={220}>
+                                    <ChartContainer config={billsChartConfig} className="h-[240px] w-full">
                                         <BarChart
                                             data={report.billsByStatus.map((s) => ({
-                                                name: s.status.replace(/_/g, " "),
+                                                name: statusLabel(s.status),
                                                 total: s.total,
                                                 count: s.count,
                                             }))}
-                                            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
                                             <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                                             <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                            <Tooltip formatter={(v) => fmt(Number(v ?? 0), currency)} />
-                                            <Bar dataKey="total" name={t("chartAmount")} fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                            <ChartTooltip
+                                                content={
+                                                    <ChartTooltipContent
+                                                        formatter={(value, _name, item) => [
+                                                            fmt(Number(value ?? 0), currency),
+                                                            String(item?.payload?.name ?? _name),
+                                                        ]}
+                                                    />
+                                                }
+                                            />
+                                            <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
                                         </BarChart>
-                                    </ResponsiveContainer>
+                                    </ChartContainer>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">{t("noBills")}</p>
                                 )}

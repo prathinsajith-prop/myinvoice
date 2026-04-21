@@ -21,13 +21,18 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
     PieChart,
     Pie,
     Cell,
-    Legend,
 } from "recharts";
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    ChartLegend,
+    ChartLegendContent,
+    type ChartConfig,
+} from "@/components/ui/chart";
 
 import {
     Card,
@@ -200,26 +205,25 @@ function getDashboardStatsData(report: ReportResponse) {
 }
 
 
-// Semantic colour palette — shared across all charts
-const CHART_COLORS = {
-    revenue: "#3b82f6", // blue-500   — money in
-    expenses: "#f97316", // orange-500 — money out
-    paid: "#22c55e", // green-500  — success
-    overdue: "#ef4444", // red-500    — urgent
-    partial: "#f59e0b", // amber-500  — partial / warning
-    sent: "#60a5fa", // blue-400   — in-progress
-    draft: "#94a3b8", // slate-400  — neutral
-    void: "#cbd5e1", // slate-300  — inactive
-} as const;
+// shadcn ChartConfig — drives labels + CSS vars for both charts
+const barChartConfig = {
+    revenue: { label: "Revenue", color: "hsl(var(--chart-1))" },
+    expenses: { label: "Expenses", color: "hsl(var(--chart-2))" },
+} satisfies ChartConfig;
 
 const STATUS_COLORS: Record<string, string> = {
-    DRAFT: CHART_COLORS.draft,
-    SENT: CHART_COLORS.sent,
-    PAID: CHART_COLORS.paid,
-    OVERDUE: CHART_COLORS.overdue,
-    PARTIAL: CHART_COLORS.partial,
-    VOID: CHART_COLORS.void,
+    DRAFT: "hsl(var(--chart-4))",
+    SENT: "hsl(var(--chart-5))",
+    PAID: "hsl(var(--chart-1))",
+    OVERDUE: "hsl(var(--chart-2))",
+    PARTIAL: "hsl(var(--chart-3))",
+    VOID: "hsl(240 5% 78%)",
 };
+
+/** "PARTIAL_PAYMENT" → "Partial Payment", "DRAFT" → "Draft" */
+function statusLabel(s: string) {
+    return s.split("_").map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+}
 
 export default function DashboardPage() {
     const t = useTranslations("dashboard");
@@ -434,26 +438,33 @@ export default function DashboardPage() {
                                 <CardTitle>{t("revenueVsExpenses")}</CardTitle>
                                 <CardDescription>{t("last12MonthsOverview")}</CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pb-0">
                                 {monthlyTrend.length === 0 ? (
                                     <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
                                         {t("noDataPeriod")}
                                     </div>
                                 ) : (
-                                    <ResponsiveContainer width="100%" height={240}>
+                                    <ChartContainer config={barChartConfig} className="h-[240px] w-full">
                                         <BarChart data={monthlyTrend} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
                                             <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                                             <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                            <Tooltip
-                                                formatter={(v, name) => [formatCurrency(Number(v ?? 0), currency), name]}
-                                                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                                            <ChartTooltip
+                                                content={
+                                                    <ChartTooltipContent
+                                                        indicator="dot"
+                                                        formatter={(value, name) => [
+                                                            formatCurrency(Number(value ?? 0), currency),
+                                                            barChartConfig[name as keyof typeof barChartConfig]?.label ?? name,
+                                                        ]}
+                                                    />
+                                                }
                                             />
-                                            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                                            <Bar dataKey="revenue" name={t("chartRevenue")} fill={CHART_COLORS.revenue} radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="expenses" name={t("chartExpenses")} fill={CHART_COLORS.expenses} radius={[4, 4, 0, 0]} />
+                                            <ChartLegend content={<ChartLegendContent />} />
+                                            <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} />
                                         </BarChart>
-                                    </ResponsiveContainer>
+                                    </ChartContainer>
                                 )}
                             </CardContent>
                         </Card>
@@ -470,7 +481,15 @@ export default function DashboardPage() {
                                         {t("noInvoiceActivity")}
                                     </div>
                                 ) : (
-                                    <ResponsiveContainer width="100%" height={220}>
+                                    <ChartContainer
+                                        config={Object.fromEntries(
+                                            invoiceStatusBreakdown.map((s) => [
+                                                s.status,
+                                                { label: s.status.replaceAll("_", " "), color: STATUS_COLORS[s.status] ?? "hsl(var(--chart-5))" },
+                                            ])
+                                        )}
+                                        className="mx-auto h-[220px]"
+                                    >
                                         <PieChart>
                                             <Pie
                                                 data={invoiceStatusBreakdown}
@@ -483,18 +502,23 @@ export default function DashboardPage() {
                                                 paddingAngle={3}
                                             >
                                                 {invoiceStatusBreakdown.map((entry) => (
-                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#a5b4fc"} />
+                                                    <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "hsl(var(--chart-5))"} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), currency)} />
-                                            <Legend
-                                                formatter={(value) => value.replaceAll("_", " ")}
-                                                iconType="circle"
-                                                iconSize={8}
+                                            <ChartTooltip
+                                                content={
+                                                    <ChartTooltipContent
+                                                        formatter={(value) => formatCurrency(Number(value ?? 0), currency)}
+                                                        nameKey="status"
+                                                    />
+                                                }
+                                            />
+                                            <ChartLegend
+                                                content={<ChartLegendContent nameKey="status" />}
                                                 wrapperStyle={{ fontSize: 12 }}
                                             />
                                         </PieChart>
-                                    </ResponsiveContainer>
+                                    </ChartContainer>
                                 )}
                             </CardContent>
                         </Card>

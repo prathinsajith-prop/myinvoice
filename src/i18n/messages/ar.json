@@ -632,6 +632,7 @@
     "billAgingTitle": "تقادم الفواتير (المستحقات)",
     "billAgingDesc": "الفواتير غير المدفوعة حسب الأيام المتأخرة",
     "expensesByCategoryTitle": "المصروفات حسب الفئة",
+    "expensesByCategoryDesc": "أبرز 8 فئات مصروفات في هذه الفترة",
     "revExpTrend": "اتجاه الإيرادات مقابل المصروفات",
     "last12Months": "آخر 12 شهراً",
     "failedToLoad": "فشل تحميل بيانات التقرير.",
@@ -665,7 +666,9 @@
       "OTHER": "أخرى"
     },
     "invoicesByStatus": "الفواتير حسب الحالة",
+    "invoicesByStatusDesc": "توزيع الفواتير حسب الحالة",
     "billsByStatus": "المستحقات حسب الحالة",
+    "billsByStatusDesc": "الفواتير المعلقة مصنفة حسب الحالة",
     "invoicesSub": "{count} {count, plural, one {فاتورة} other {فواتير}}",
     "billsAndExpenses": "فواتير + مصروفات مباشرة",
     "marginSub": "{value}% هامش",

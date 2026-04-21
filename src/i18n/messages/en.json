@@ -632,6 +632,7 @@
     "billAgingTitle": "Bill Aging (Payables)",
     "billAgingDesc": "Unpaid bills by days overdue",
     "expensesByCategoryTitle": "Expenses by Category",
+    "expensesByCategoryDesc": "Top 8 expense categories for this period",
     "revExpTrend": "Revenue vs Expenses Trend",
     "last12Months": "Last 12 months",
     "failedToLoad": "Failed to load report data.",
@@ -665,7 +666,9 @@
       "OTHER": "Other"
     },
     "invoicesByStatus": "Invoices by Status",
+    "invoicesByStatusDesc": "Breakdown of invoices by status",
     "billsByStatus": "Bills by Status",
+    "billsByStatusDesc": "Outstanding bills grouped by status",
     "invoicesSub": "{count} {count, plural, one {invoice} other {invoices}}",
     "billsAndExpenses": "Bills + direct expenses",
     "marginSub": "{value}% margin",
