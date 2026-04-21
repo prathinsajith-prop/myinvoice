@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
 import { NEXTAUTH_SECRET } from "@/lib/constants/env";
+import { SESSION_COOKIE_NAME, USE_SECURE_COOKIES } from "@/lib/auth/cookies";
 
 const PUBLIC_EXACT = ["/"];
 
@@ -69,15 +70,11 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // Cookie name is pinned in auth.config.ts based on NODE_ENV. We must pass
-  // the same values here so getToken finds the cookie regardless of whether
-  // a proxy/CDN strips the HTTPS scheme from the internal request URL.
-  const isProd = process.env.NODE_ENV === "production";
   const token = await getToken({
     req,
     secret: NEXTAUTH_SECRET,
-    cookieName: isProd ? "__Secure-authjs.session-token" : "authjs.session-token",
-    secureCookie: isProd,
+    cookieName: SESSION_COOKIE_NAME,
+    secureCookie: USE_SECURE_COOKIES,
   });
   const isLoggedIn = !!token?.sub;
 
